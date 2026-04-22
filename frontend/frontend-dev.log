@@ -1,0 +1,19 @@
+
+> coconexus-frontend@1.0.0 dev
+> vite --host 127.0.0.1
+
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m713[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5173[22m/[39m
+[2m[32m  ➜[39m[22m[2m  press [22m[1mh + enter[22m[2m to show help[22m
+[2m7:32:42 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/views/AdminDashboardPage.vue, /src/assets/main.css[22m
+[2m7:33:04 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/articles/ArticleCard.vue, /src/assets/main.css[22m
+[2m7:33:04 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/views/ArticleDetailPage.vue, /src/assets/main.css[22m
+[2m7:39:18 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/router/index.js[22m
+[2m7:39:18 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/admin/AdminArticleEditor.vue, /src/assets/main.css[22m
+[2m7:39:18 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/views/ArticleDetailPage.vue, /src/assets/main.css[22m
+[2m7:39:18 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/views/LoginPage.vue, /src/assets/main.css[22m
+[2m7:39:18 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/views/HomePage.vue, /src/assets/main.css[22m
+[2m7:39:18 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/editor/RichTextPreview.vue, /src/assets/main.css, /src/components/editor/RichTextPreview.vue?vue&type=style&index=0&scoped=2cd93530&lang.css[22m
+^C^C

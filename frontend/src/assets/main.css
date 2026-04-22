@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --coco-bg: #242424;
+  --coco-surface: #303030;
+  --coco-surface-soft: #383838;
+  --coco-border: rgba(255, 255, 255, 0.1);
+  --coco-text: #f5ede7;
+  --coco-text-muted: #d0c3ba;
+  --coco-accent: #c26939;
+  --coco-accent-strong: #ff7c35;
+}
+
+html {
+  background:
+    radial-gradient(circle at top left, rgba(255, 124, 53, 0.16), transparent 30%),
+    radial-gradient(circle at top right, rgba(194, 105, 57, 0.14), transparent 28%),
+    linear-gradient(180deg, #1f1f1f 0%, #262626 48%, #1e1e1e 100%);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: transparent;
+  color: var(--coco-text);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: rgba(255, 124, 53, 0.35);
+  color: #fff8f3;
+}
