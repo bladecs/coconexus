@@ -138,6 +138,8 @@ function sanitizeArticle(articleInstance, options = {}) {
           article_id: article.detail.article_id,
           body_content: article.detail.body_content,
           meta_description: article.detail.meta_description,
+          sections: Array.isArray(article.detail.sections) ? article.detail.sections : [],
+          sources: Array.isArray(article.detail.sources) ? article.detail.sources : [],
           created_at: article.detail.created_at,
           updated_at: article.detail.updated_at,
         }

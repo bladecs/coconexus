@@ -35,6 +35,37 @@ async function authenticate(req, res, next) {
   }
 }
 
+async function optionalAuthenticate(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return next();
+    }
+
+    const token = authHeader.slice(7).trim();
+    const payload = verifyToken(token);
+
+    const user = await User.findByPk(payload.id, {
+      include: [
+        {
+          model: UserProfile,
+          as: 'profile',
+        },
+      ],
+    });
+
+    if (user) {
+      req.user = user;
+    }
+
+    return next();
+  } catch {
+    return next();
+  }
+}
+
 module.exports = {
   authenticate,
+  optionalAuthenticate,
 };

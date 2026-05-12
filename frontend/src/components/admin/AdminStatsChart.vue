@@ -196,7 +196,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <article class="rounded-[2rem] border border-white/10 bg-[#303030] p-6 shadow-soft">
+  <article class="premium-panel p-6">
     <div class="flex flex-col gap-2">
       <p class="text-sm font-semibold uppercase tracking-[0.22em] text-[#ffb084]">
         Visual Analytics

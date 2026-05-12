@@ -19,7 +19,7 @@ function submitSearch() {
 </script>
 
 <template>
-  <section class="rounded-[2rem] border border-white/10 bg-[#303030] p-6 shadow-soft">
+  <section class="premium-panel p-6">
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
         <p class="text-sm font-semibold uppercase tracking-[0.22em] text-[#ffb084]">Manage Comment</p>

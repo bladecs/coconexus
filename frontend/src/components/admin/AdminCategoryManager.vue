@@ -21,7 +21,7 @@ function submit() {
 </script>
 
 <template>
-  <section class="rounded-[2rem] border border-white/10 bg-[#303030] p-6 shadow-soft">
+  <section class="premium-panel p-6">
     <p class="text-sm font-semibold uppercase tracking-[0.22em] text-[#ffb084]">Manage Tags / Category</p>
     <h2 class="mt-2 text-2xl font-bold text-stone-50">Kelola Kategori Artikel</h2>
 

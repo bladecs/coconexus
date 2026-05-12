@@ -1,6 +1,6 @@
 'use strict';
 
-const { Article, CategoryTag, Comment, User, AuditLog, UserProfile, sequelize } = require('../models');
+const { Article, ArticleView, CategoryTag, Comment, User, AuditLog, UserProfile, sequelize } = require('../models');
 const { QueryTypes } = require('sequelize');
 
 function buildMonthLabels(monthKeys) {
@@ -23,6 +23,12 @@ async function getDashboardStats(req, res, next) {
       totalRevisionArticles,
       totalCategories,
       totalComments,
+      totalArticleViews,
+      userCountByRole,
+      userCountByMonthRaw,
+      activeUserCountByMonthRaw,
+      articleViewsByMonthRaw,
+      readerActivityByArticle,
       recentActivities,
       articleCountByCategory,
       commentCountByMonthRaw,
@@ -34,6 +40,61 @@ async function getDashboardStats(req, res, next) {
       Article.count({ where: { status: 'revision' } }),
       CategoryTag.count(),
       Comment.count(),
+      ArticleView.count(),
+      User.findAll({
+        attributes: [
+          'role',
+          [sequelize.fn('COUNT', sequelize.col('id')), 'user_count'],
+        ],
+        group: ['role'],
+        order: [['role', 'ASC']],
+      }),
+      sequelize.query(
+        `
+          SELECT DATE_FORMAT(created_at, '%Y-%m') AS month_key, COUNT(*) AS total_users
+          FROM User
+          WHERE deleted_at IS NULL
+          GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+          ORDER BY month_key ASC
+        `,
+        { type: QueryTypes.SELECT }
+      ),
+      sequelize.query(
+        `
+          SELECT
+            DATE_FORMAT(created_at, '%Y-%m') AS month_key,
+            COUNT(DISTINCT COALESCE(CAST(user_id AS CHAR), session_id, ip_hash)) AS active_users
+          FROM ArticleView
+          GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+          ORDER BY month_key ASC
+        `,
+        { type: QueryTypes.SELECT }
+      ),
+      sequelize.query(
+        `
+          SELECT DATE_FORMAT(created_at, '%Y-%m') AS month_key, COUNT(*) AS total_views
+          FROM ArticleView
+          GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+          ORDER BY month_key ASC
+        `,
+        { type: QueryTypes.SELECT }
+      ),
+      sequelize.query(
+        `
+          SELECT
+            Article.id AS article_id,
+            Article.title AS article_title,
+            COUNT(ArticleView.id) AS interaction_count,
+            COUNT(DISTINCT COALESCE(CAST(ArticleView.user_id AS CHAR), ArticleView.session_id, ArticleView.ip_hash)) AS active_readers
+          FROM Article
+          LEFT JOIN ArticleView ON ArticleView.article_id = Article.id
+          WHERE Article.status = 'published'
+          GROUP BY Article.id, Article.title
+          ORDER BY interaction_count DESC, Article.updated_at DESC
+          LIMIT 8
+        `,
+        { type: QueryTypes.SELECT }
+      ),
       AuditLog.findAll({
         include: [
           {
@@ -84,6 +145,12 @@ async function getDashboardStats(req, res, next) {
     const commentMonthKeys = commentCountByMonthRaw.map((item) => item.month_key);
     const commentMonthLabels = buildMonthLabels(commentMonthKeys);
     const commentMonthlyData = commentCountByMonthRaw.map((item) => Number(item.total_comments || 0));
+    const userMonthKeys = userCountByMonthRaw.map((item) => item.month_key);
+    const userMonthLabels = buildMonthLabels(userMonthKeys);
+    const activeUserMonthKeys = activeUserCountByMonthRaw.map((item) => item.month_key);
+    const activeUserMonthLabels = buildMonthLabels(activeUserMonthKeys);
+    const articleViewMonthKeys = articleViewsByMonthRaw.map((item) => item.month_key);
+    const articleViewMonthLabels = buildMonthLabels(articleViewMonthKeys);
 
     return res.status(200).json({
       success: true,
@@ -97,6 +164,7 @@ async function getDashboardStats(req, res, next) {
           revision_articles: totalRevisionArticles,
           categories: totalCategories,
           comments: totalComments,
+          article_views: totalArticleViews,
         },
         charts: {
           articles_by_category: {
@@ -125,6 +193,76 @@ async function getDashboardStats(req, res, next) {
               month_key: item.month_key,
               month_label: commentMonthLabels[index],
               comment_count: commentMonthlyData[index],
+            })),
+          },
+          users_by_role: {
+            labels: userCountByRole.map((item) => item.role),
+            datasets: [
+              {
+                label: 'Jumlah User',
+                data: userCountByRole.map((item) => Number(item.get('user_count') || 0)),
+              },
+            ],
+            items: userCountByRole.map((item) => ({
+              role: item.role,
+              user_count: Number(item.get('user_count') || 0),
+            })),
+          },
+          users_by_month: {
+            labels: userMonthLabels,
+            datasets: [
+              {
+                label: 'User Baru',
+                data: userCountByMonthRaw.map((item) => Number(item.total_users || 0)),
+              },
+            ],
+            items: userCountByMonthRaw.map((item, index) => ({
+              month_key: item.month_key,
+              month_label: userMonthLabels[index],
+              user_count: Number(item.total_users || 0),
+            })),
+          },
+          active_users_by_month: {
+            labels: activeUserMonthLabels,
+            datasets: [
+              {
+                label: 'User Aktif',
+                data: activeUserCountByMonthRaw.map((item) => Number(item.active_users || 0)),
+              },
+            ],
+            items: activeUserCountByMonthRaw.map((item, index) => ({
+              month_key: item.month_key,
+              month_label: activeUserMonthLabels[index],
+              active_users: Number(item.active_users || 0),
+            })),
+          },
+          article_views_by_month: {
+            labels: articleViewMonthLabels,
+            datasets: [
+              {
+                label: 'Total Dibaca',
+                data: articleViewsByMonthRaw.map((item) => Number(item.total_views || 0)),
+              },
+            ],
+            items: articleViewsByMonthRaw.map((item, index) => ({
+              month_key: item.month_key,
+              month_label: articleViewMonthLabels[index],
+              view_count: Number(item.total_views || 0),
+            })),
+          },
+          reader_activity_by_article: {
+            labels: readerActivityByArticle.map((item) => item.article_title),
+            datasets: [
+              {
+                label: 'Interaksi Baca',
+                data: readerActivityByArticle.map((item) => Number(item.interaction_count || 0)),
+              },
+            ],
+            items: readerActivityByArticle.map((item) => ({
+              article_id: item.article_id,
+              article_title: item.article_title,
+              interaction_count: Number(item.interaction_count || 0),
+              active_readers: Number(item.active_readers || 0),
             })),
           },
         },

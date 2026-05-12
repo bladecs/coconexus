@@ -13,13 +13,13 @@ const {
   updateArticleStatus,
   deleteArticle,
 } = require('../controllers/articleController');
-const { authenticate } = require('../middlewares/authenticate');
+const { authenticate, optionalAuthenticate } = require('../middlewares/authenticate');
 const { authorize } = require('../middlewares/authorize');
 
 const router = express.Router();
 
 router.get('/published', listPublishedArticles);
-router.get('/published/:id', getPublishedArticleDetail);
+router.get('/published/:id', optionalAuthenticate, getPublishedArticleDetail);
 
 router.get('/admin', authenticate, authorize('admin'), listAdminArticles);
 router.get('/admin/main-articles', authenticate, authorize('admin'), listMainArticles);

@@ -33,7 +33,7 @@ function deleteComment() {
 </script>
 
 <template>
-  <div class="space-y-4 rounded-3xl border border-white/10 bg-[#303030] p-5 shadow-soft">
+  <div class="premium-panel space-y-4 p-5">
     <div class="flex items-start justify-between gap-4">
       <div>
         <p class="text-sm font-semibold text-stone-100">

@@ -4,6 +4,7 @@ const {
   Article,
   ArticleDetail,
   ArticleMedia,
+  ArticleView,
   CategoryTag,
   Comment,
   ProductCard,
@@ -11,6 +12,7 @@ const {
   UserProfile,
   sequelize,
 } = require('../models');
+const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { badRequest, notFound } = require('../utils/httpErrors');
 const {
@@ -21,6 +23,31 @@ const {
 } = require('../utils/validators');
 const { sanitizeArticle } = require('../utils/serializers');
 const { writeAuditLog } = require('../utils/auditLogger');
+
+function hashIp(value) {
+  if (!value) {
+    return null;
+  }
+
+  return crypto.createHash('sha256').update(String(value)).digest('hex');
+}
+
+async function recordArticleView(req, articleId) {
+  await ArticleView.create({
+    article_id: articleId,
+    user_id: req.user?.id || null,
+    session_id:
+      typeof req.headers['x-coconexus-session-id'] === 'string'
+        ? req.headers['x-coconexus-session-id'].slice(0, 120)
+        : null,
+    ip_hash: hashIp(req.ip || req.headers['x-forwarded-for']),
+    user_agent:
+      typeof req.headers['user-agent'] === 'string'
+        ? req.headers['user-agent'].slice(0, 255)
+        : null,
+    read_duration_seconds: 0,
+  });
+}
 
 function normalizeMediaInput(mediaInput) {
   if (mediaInput === undefined || mediaInput === null) {
@@ -86,6 +113,96 @@ function normalizeProductCardInput(productCardInput) {
       image: image || null,
     };
   });
+}
+
+function normalizeSectionInput(sectionInput, fallbackBodyContent = '') {
+  if (sectionInput === undefined || sectionInput === null) {
+    return fallbackBodyContent
+      ? [
+          {
+            title: 'Ringkasan',
+            body_content: fallbackBodyContent,
+            video_path: null,
+          },
+        ]
+      : [];
+  }
+
+  if (!Array.isArray(sectionInput)) {
+    throw badRequest('sections harus berupa array.');
+  }
+
+  return sectionInput
+    .map((item, index) => {
+      if (!item || typeof item !== 'object') {
+        throw badRequest(`sections[${index}] tidak valid.`);
+      }
+
+      const title = typeof item.title === 'string' ? item.title.trim() : '';
+      const bodyContent = typeof item.body_content === 'string' ? item.body_content.trim() : '';
+      const videoPath = typeof item.video_path === 'string' ? item.video_path.trim() : '';
+
+      if (!title) {
+        throw badRequest(`sections[${index}].title wajib diisi.`);
+      }
+
+      if (!bodyContent) {
+        throw badRequest(`sections[${index}].body_content wajib diisi.`);
+      }
+
+      return {
+        title,
+        body_content: bodyContent,
+        video_path: videoPath || null,
+      };
+    })
+    .filter((item) => item.title || item.body_content || item.video_path);
+}
+
+function normalizeSourceInput(sourceInput) {
+  if (sourceInput === undefined || sourceInput === null) {
+    return [];
+  }
+
+  if (!Array.isArray(sourceInput)) {
+    throw badRequest('sources harus berupa array.');
+  }
+
+  return sourceInput
+    .map((item, index) => {
+      if (!item || typeof item !== 'object') {
+        throw badRequest(`sources[${index}] tidak valid.`);
+      }
+
+      const title = typeof item.title === 'string' ? item.title.trim() : '';
+      const sourceType = typeof item.source_type === 'string' ? item.source_type.trim() : 'link';
+      const url = typeof item.url === 'string' ? item.url.trim() : '';
+      const filePath = typeof item.file_path === 'string' ? item.file_path.trim() : '';
+
+      if (!title) {
+        throw badRequest(`sources[${index}].title wajib diisi.`);
+      }
+
+      if (!['link', 'pdf'].includes(sourceType)) {
+        throw badRequest(`sources[${index}].source_type hanya boleh link atau pdf.`);
+      }
+
+      if (sourceType === 'link' && !url) {
+        throw badRequest(`sources[${index}].url wajib diisi untuk sumber link.`);
+      }
+
+      if (sourceType === 'pdf' && !filePath) {
+        throw badRequest(`sources[${index}].file_path wajib diisi untuk sumber PDF.`);
+      }
+
+      return {
+        title,
+        source_type: sourceType,
+        url: url || null,
+        file_path: filePath || null,
+      };
+    })
+    .filter((item) => item.title);
 }
 
 function normalizeOptionalPositiveInteger(value) {
@@ -457,6 +574,8 @@ async function getPublishedArticleDetail(req, res, next) {
       throw notFound('Artikel published tidak ditemukan.');
     }
 
+    await recordArticleView(req, article.id);
+
     return res.status(200).json({
       success: true,
       message: 'Detail artikel berhasil diambil.',
@@ -557,7 +676,7 @@ async function createArticle(req, res, next) {
 
   try {
     const title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
-    const bodyContent = typeof req.body.body_content === 'string' ? req.body.body_content.trim() : '';
+    let bodyContent = typeof req.body.body_content === 'string' ? req.body.body_content.trim() : '';
     const metaDescription =
       typeof req.body.meta_description === 'string' ? req.body.meta_description.trim() : null;
     const status = req.body.status === undefined ? 'draft' : normalizeStatus(req.body.status);
@@ -565,6 +684,12 @@ async function createArticle(req, res, next) {
     const linkedProductCardId = normalizeOptionalPositiveInteger(req.body.linked_product_card_id);
     const mediaItems = normalizeMediaInput(req.body.media);
     const productCardItems = normalizeProductCardInput(req.body.product_cards);
+    const sectionItems = normalizeSectionInput(req.body.sections, bodyContent);
+    const sourceItems = normalizeSourceInput(req.body.sources);
+
+    if (!bodyContent && sectionItems.length > 0) {
+      bodyContent = sectionItems.map((section) => section.body_content).join('\n\n');
+    }
 
     if (!isNonEmptyString(title)) {
       throw badRequest('title wajib diisi.');
@@ -606,6 +731,8 @@ async function createArticle(req, res, next) {
         article_id: article.id,
         body_content: bodyContent,
         meta_description: metaDescription,
+        sections: sectionItems,
+        sources: sourceItems,
       },
       { transaction }
     );
@@ -764,7 +891,12 @@ async function updateArticle(req, res, next) {
     article.version += 1;
     await article.save({ transaction });
 
-    if (req.body.body_content !== undefined || req.body.meta_description !== undefined) {
+    if (
+      req.body.body_content !== undefined ||
+      req.body.meta_description !== undefined ||
+      req.body.sections !== undefined ||
+      req.body.sources !== undefined
+    ) {
       if (!article.detail) {
         throw notFound('Detail artikel tidak ditemukan.');
       }
@@ -784,6 +916,17 @@ async function updateArticle(req, res, next) {
         article.detail.meta_description = isNonEmptyString(req.body.meta_description)
           ? req.body.meta_description.trim()
           : null;
+      }
+
+      if (req.body.sections !== undefined) {
+        const fallbackBodyContent = article.detail.body_content || '';
+        const sectionItems = normalizeSectionInput(req.body.sections, fallbackBodyContent);
+        article.detail.sections = sectionItems;
+        article.detail.body_content = sectionItems.map((section) => section.body_content).join('\n\n');
+      }
+
+      if (req.body.sources !== undefined) {
+        article.detail.sources = normalizeSourceInput(req.body.sources);
       }
 
       await article.detail.save({ transaction });

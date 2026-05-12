@@ -29,6 +29,21 @@ function emptyForm() {
     metaDescription: '',
     bodyContent: '',
     status: 'draft',
+    sections: [
+      {
+        title: 'Ringkasan',
+        body_content: '',
+        video_path: '',
+      },
+    ],
+    sources: [
+      {
+        title: '',
+        source_type: 'link',
+        url: '',
+        file_path: '',
+      },
+    ],
     productCards: [
       {
         title: '',
@@ -89,6 +104,36 @@ watch(
       metaDescription: article.detail?.meta_description || '',
       bodyContent: article.detail?.body_content || '',
       status: article.status || 'draft',
+      sections:
+        article.detail?.sections?.length > 0
+          ? article.detail.sections.map((item) => ({
+              title: item.title || '',
+              body_content: item.body_content || '',
+              video_path: item.video_path || '',
+            }))
+          : [
+              {
+                title: 'Ringkasan',
+                body_content: article.detail?.body_content || '',
+                video_path: '',
+              },
+            ],
+      sources:
+        article.detail?.sources?.length > 0
+          ? article.detail.sources.map((item) => ({
+              title: item.title || '',
+              source_type: item.source_type || 'link',
+              url: item.url || '',
+              file_path: item.file_path || '',
+            }))
+          : [
+              {
+                title: '',
+                source_type: 'link',
+                url: '',
+                file_path: '',
+              },
+            ],
       productCards:
         article.product_cards?.length > 0
           ? article.product_cards
@@ -189,6 +234,46 @@ function addProductCardRow() {
   });
 }
 
+function addSectionRow() {
+  form.sections.push({
+    title: '',
+    body_content: '',
+    video_path: '',
+  });
+}
+
+function removeSectionRow(index) {
+  if (form.sections.length === 1) {
+    form.sections[0].title = 'Ringkasan';
+    form.sections[0].body_content = '';
+    form.sections[0].video_path = '';
+    return;
+  }
+
+  form.sections.splice(index, 1);
+}
+
+function addSourceRow() {
+  form.sources.push({
+    title: '',
+    source_type: 'link',
+    url: '',
+    file_path: '',
+  });
+}
+
+function removeSourceRow(index) {
+  if (form.sources.length === 1) {
+    form.sources[0].title = '';
+    form.sources[0].source_type = 'link';
+    form.sources[0].url = '';
+    form.sources[0].file_path = '';
+    return;
+  }
+
+  form.sources.splice(index, 1);
+}
+
 function removeProductCardRow(index) {
   if (form.productCards.length === 1) {
     form.productCards[0].title = '';
@@ -234,15 +319,56 @@ async function handleProductCardImageSelection(event, index) {
   form.productCards[index].image = uploadedMedia.file_path;
 }
 
+async function handleSectionVideoSelection(event, index) {
+  const selectedFile = event.target.files?.[0];
+
+  if (!selectedFile) {
+    return;
+  }
+
+  const uploadedMedia = await articleStore.uploadArticleMedia(selectedFile);
+  form.sections[index].video_path = uploadedMedia.file_path;
+}
+
+async function handleSourceFileSelection(event, index) {
+  const selectedFile = event.target.files?.[0];
+
+  if (!selectedFile) {
+    return;
+  }
+
+  const uploadedMedia = await articleStore.uploadArticleMedia(selectedFile);
+  form.sources[index].file_path = uploadedMedia.file_path;
+  form.sources[index].source_type = 'pdf';
+}
+
 function buildPayload() {
+  const sections = form.sections
+    .filter((item) => item.title.trim() || item.body_content.trim() || item.video_path.trim())
+    .map((item) => ({
+      title: item.title,
+      body_content: item.body_content,
+      video_path: item.video_path || null,
+    }));
+  const sources = form.sources
+    .filter((item) => item.title.trim() || item.url.trim() || item.file_path.trim())
+    .map((item) => ({
+      title: item.title,
+      source_type: item.source_type,
+      url: item.url || null,
+      file_path: item.file_path || null,
+    }));
+
   return {
     parent_article_id: isDetailArticle.value ? Number(form.parentArticleId) : null,
     linked_product_card_id:
       isDetailArticle.value && form.linkedProductCardId ? Number(form.linkedProductCardId) : null,
     title: form.title,
-    body_content: form.bodyContent,
+    body_content: sections.map((section) => section.body_content).join('\n\n') || form.bodyContent,
     meta_description: form.metaDescription,
     status: form.status,
+    sections,
+    sources,
     category: {
       name: form.categoryName,
     },
@@ -272,8 +398,29 @@ function validateForm() {
     return false;
   }
 
-  if (!form.bodyContent.trim()) {
-    formError.value = 'Body content wajib diisi.';
+  const completeSections = form.sections.filter((item) => item.title.trim() || item.body_content.trim());
+
+  if (!completeSections.length || completeSections.some((item) => !item.title.trim() || !item.body_content.trim())) {
+    formError.value = 'Minimal satu section wajib diisi lengkap dengan judul dan isi.';
+    return false;
+  }
+
+  const invalidSource = form.sources.find((item) => {
+    const hasValue = item.title.trim() || item.url.trim() || item.file_path.trim();
+
+    if (!hasValue) {
+      return false;
+    }
+
+    if (!item.title.trim()) {
+      return true;
+    }
+
+    return item.source_type === 'link' ? !item.url.trim() : !item.file_path.trim();
+  });
+
+  if (invalidSource) {
+    formError.value = 'Setiap sumber harus punya judul dan link atau file PDF sesuai tipenya.';
     return false;
   }
 
@@ -323,7 +470,7 @@ function submitForm() {
 </script>
 
 <template>
-  <section class="rounded-[2rem] border border-white/10 bg-[#303030] p-6 shadow-soft">
+  <section class="premium-panel p-6">
     <div class="flex flex-col gap-4 border-b border-white/8 pb-5 md:flex-row md:items-start md:justify-between">
       <div>
         <p class="text-sm font-semibold uppercase tracking-[0.24em] text-[#ffb084]">
@@ -440,18 +587,73 @@ function submitForm() {
         />
       </div>
 
-      <div class="md:col-span-2 grid gap-5 xl:grid-cols-2">
-        <div>
-          <label class="mb-2 block text-sm font-medium text-stone-300">Body Content</label>
-          <textarea
-            v-model="form.bodyContent"
-            rows="12"
-            class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-            placeholder="Tulis isi lengkap artikel di sini... Gunakan # Judul, ## Subjudul, - list, **tebal**, *miring*."
-          />
+      <div class="md:col-span-2">
+        <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <label class="mb-2 block text-sm font-medium text-stone-300">Section Artikel</label>
+            <p class="text-sm leading-7 text-stone-400">
+              Pecah artikel menjadi beberapa section agar pembaca melihat konten secara bertahap.
+            </p>
+          </div>
+          <button
+            type="button"
+            class="admin-secondary-action"
+            @click="addSectionRow"
+          >
+            Tambah Section
+          </button>
         </div>
 
-        <RichTextPreview :content="form.bodyContent" />
+        <div class="mt-5 space-y-5">
+          <div
+            v-for="(section, index) in form.sections"
+            :key="`section-${index}`"
+            class="rounded-lg border border-white/10 bg-[#303030] p-5"
+          >
+            <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <div class="space-y-4">
+                <input
+                  v-model="section.title"
+                  type="text"
+                  class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
+                  :placeholder="index === 0 ? 'Judul section utama' : 'Judul section'"
+                />
+                <textarea
+                  v-model="section.body_content"
+                  rows="10"
+                  class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
+                  placeholder="Tulis isi section... Gunakan # Judul, ## Subjudul, - list, **tebal**, *miring*."
+                />
+                <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+                  <input
+                    v-model="section.video_path"
+                    type="text"
+                    class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
+                    placeholder="/uploads/articles/video-section.mp4"
+                  />
+                  <label class="admin-secondary-action cursor-pointer">
+                    Upload Video
+                    <input
+                      type="file"
+                      class="hidden"
+                      accept=".mp4"
+                      @change="handleSectionVideoSelection($event, index)"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    class="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200"
+                    @click="removeSectionRow(index)"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              </div>
+
+              <RichTextPreview :content="section.body_content" />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -550,6 +752,71 @@ function submitForm() {
       class="mt-8 rounded-3xl border border-dashed border-white/15 bg-[#383838] p-5 text-sm leading-7 text-stone-400"
     >
       Dynamic product cards hanya dibuat pada artikel utama. Untuk artikel detail, gunakan panel linking di atas.
+    </div>
+
+    <div class="mt-8 rounded-lg bg-[#383838] p-5">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <h3 class="text-sm font-semibold uppercase tracking-[0.22em] text-stone-300">
+            Sumber Artikel
+          </h3>
+          <p class="mt-1 text-sm text-stone-400">
+            Tambahkan link jurnal atau upload PDF agar pembaca bisa mengecek referensi.
+          </p>
+        </div>
+        <button type="button" class="admin-secondary-action" @click="addSourceRow">
+          Tambah Sumber
+        </button>
+      </div>
+
+      <div class="mt-5 space-y-4">
+        <div
+          v-for="(source, index) in form.sources"
+          :key="`source-${index}`"
+          class="grid gap-3 rounded-lg border border-white/8 bg-[#303030] p-4 xl:grid-cols-[1fr_140px_1fr_1fr_auto_auto]"
+        >
+          <input
+            v-model="source.title"
+            type="text"
+            class="px-4 py-3"
+            placeholder="Judul jurnal / sumber"
+          />
+          <select v-model="source.source_type" class="px-4 py-3">
+            <option value="link">Link</option>
+            <option value="pdf">PDF</option>
+          </select>
+          <input
+            v-model="source.url"
+            type="url"
+            class="px-4 py-3"
+            placeholder="https://..."
+            :disabled="source.source_type !== 'link'"
+          />
+          <input
+            v-model="source.file_path"
+            type="text"
+            class="px-4 py-3"
+            placeholder="/uploads/articles/jurnal.pdf"
+            :disabled="source.source_type !== 'pdf'"
+          />
+          <label class="admin-secondary-action cursor-pointer">
+            Upload PDF
+            <input
+              type="file"
+              class="hidden"
+              accept=".pdf"
+              @change="handleSourceFileSelection($event, index)"
+            />
+          </label>
+          <button
+            type="button"
+            class="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200"
+            @click="removeSourceRow(index)"
+          >
+            Hapus
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="mt-8 rounded-3xl bg-[#383838] p-5">

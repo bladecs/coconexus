@@ -13,7 +13,7 @@ const rendered = computed(() => renderSimpleRichText(props.content));
 </script>
 
 <template>
-  <div class="rounded-3xl border border-white/10 bg-[#383838] p-5">
+  <div class="premium-card p-5">
     <p class="text-sm font-semibold uppercase tracking-[0.22em] text-[#ffb084]">
       Preview Konten
     </p>

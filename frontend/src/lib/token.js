@@ -1,5 +1,6 @@
 const TOKEN_KEY = 'coconexus_access_token';
 const USER_KEY = 'coconexus_auth_user';
+const SESSION_KEY = 'coconexus_session_id';
 
 export function getStoredToken() {
   return localStorage.getItem(TOKEN_KEY);
@@ -34,4 +35,19 @@ export function setStoredUser(user) {
 
 export function removeStoredUser() {
   localStorage.removeItem(USER_KEY);
+}
+
+export function getOrCreateSessionId() {
+  let sessionId = localStorage.getItem(SESSION_KEY);
+
+  if (!sessionId) {
+    const randomPart =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    sessionId = `cx-${randomPart}`;
+    localStorage.setItem(SESSION_KEY, sessionId);
+  }
+
+  return sessionId;
 }

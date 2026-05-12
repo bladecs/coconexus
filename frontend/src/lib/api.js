@@ -1,6 +1,7 @@
 import axios from 'axios';
 import {
   getStoredToken,
+  getOrCreateSessionId,
   removeStoredToken,
   removeStoredUser,
 } from '@/lib/token';
@@ -20,6 +21,8 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    config.headers['X-COCONEXUS-Session-Id'] = getOrCreateSessionId();
 
     return config;
   },

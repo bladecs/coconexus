@@ -1,0 +1,52 @@
+# Tabel Hasil Pengujian API Menggunakan Newman
+
+Pengujian dilakukan menggunakan Newman terhadap backend COCONEXUS pada environment test.
+
+Ringkasan hasil:
+
+| Komponen | Hasil |
+|---|---:|
+| Jumlah iteration | 1 |
+| Jumlah request | 23 |
+| Request gagal | 0 |
+| Jumlah assertion | 36 |
+| Assertion gagal | 0 |
+| Total durasi pengujian | 3,5 detik |
+| Rata-rata response time | 68 ms |
+| Data diterima | 11,4 kB |
+
+Perintah pengujian:
+
+```bash
+npx newman run docs/postman/coconexus-api-newman.collection.json -e docs/postman/coconexus-api-newman.environment.json --reporters "cli,json" --reporter-json-export docs/newman-results/coconexus-api-newman-result.json
+```
+
+| No | Skenario Pengujian | Endpoint | Metode | Data Uji | Hasil yang Diharapkan | Hasil Aktual | Status |
+|---:|---|---|---|---|---|---|---|
+| 1 | Health check backend | `/health` | GET | Tidak ada | Backend aktif dan mengembalikan status 200 | Status 200, `success: true` | Berhasil |
+| 2 | Login admin berhasil | `/api/auth/login` | POST | Email dan password admin valid | Sistem mengembalikan token admin | Status 200, token tersedia | Berhasil |
+| 3 | Registrasi publik meminta role admin | `/api/auth/register` | POST | `role: admin` | Akun tetap dibuat sebagai user | Status 201, role menjadi `user` | Berhasil |
+| 4 | Login user publik | `/api/auth/login` | POST | Email dan password user valid | Sistem mengembalikan token user | Status 200, token tersedia | Berhasil |
+| 5 | User biasa akses dashboard admin | `/api/admin/stats` | GET | Token user | Sistem menolak akses admin | Status 403, `success: false` | Berhasil |
+| 6 | Login dengan password salah | `/api/auth/login` | POST | Password tidak valid | Sistem menolak login | Status 401 | Berhasil |
+| 7 | Registrasi password lemah | `/api/auth/register` | POST | Password kurang dari standar | Sistem menolak registrasi | Status 400 | Berhasil |
+| 8 | Registrasi email duplikat pertama | `/api/auth/register` | POST | Email baru | User berhasil dibuat | Status 201 | Berhasil |
+| 9 | Registrasi email duplikat kedua | `/api/auth/register` | POST | Email yang sama | Sistem menolak registrasi | Status 409 | Berhasil |
+| 10 | Akses admin tanpa token | `/api/articles/admin` | GET | Tidak ada token | Sistem menolak akses | Status 401 | Berhasil |
+| 11 | Akses admin dengan token tidak valid | `/api/articles/admin` | GET | Token salah | Sistem menolak akses | Status 401 | Berhasil |
+| 12 | Admin membuat kategori | `/api/categories/admin` | POST | Nama dan deskripsi kategori valid | Kategori tersimpan | Status 201, kategori tersimpan | Berhasil |
+| 13 | Membuat kategori duplikat | `/api/categories/admin` | POST | Nama kategori yang sama | Sistem menolak duplikasi | Status 409 | Berhasil |
+| 14 | Admin membuat artikel draft | `/api/articles/admin` | POST | Judul, konten, kategori, product card | Artikel tersimpan sebagai draft | Status 201, status `draft` | Berhasil |
+| 15 | Membuat artikel tanpa konten | `/api/articles/admin` | POST | Judul dan kategori tanpa konten | Sistem menolak data | Status 400 | Berhasil |
+| 16 | Publish artikel draft | `/api/articles/admin/:id/status` | PATCH | Status `published` | Artikel berubah menjadi published | Status 200, status `published` | Berhasil |
+| 17 | Menampilkan artikel published | `/api/articles/published` | GET | Artikel sudah dipublikasikan | Artikel published muncul di daftar publik | Status 200, minimal 1 artikel | Berhasil |
+| 18 | Membuka detail artikel published | `/api/articles/published/:id` | GET | ID artikel published dan session id | Detail artikel tampil dan view tercatat | Status 200, detail sesuai artikel | Berhasil |
+| 19 | Komentar kosong | `/api/articles/:id/comments` | POST | Body komentar berisi spasi | Sistem menolak komentar | Status 400 | Berhasil |
+| 20 | User membuat komentar valid | `/api/articles/:id/comments` | POST | Body komentar valid | Komentar tersimpan | Status 201, komentar tersimpan | Berhasil |
+| 21 | User memperbarui profil sendiri | `/api/users/me/profile` | PUT | Nama dan bio baru | Profil user berubah | Status 200, nama profil berubah | Berhasil |
+| 22 | Menghapus kategori yang masih dipakai artikel | `/api/categories/admin/:id` | DELETE | Kategori berelasi dengan artikel | Sistem menolak penghapusan | Status 409 | Berhasil |
+| 23 | Statistik dashboard admin | `/api/admin/stats` | GET | Token admin valid | Statistik artikel dan view tersedia | Status 200, total artikel dan view tersedia | Berhasil |
+
+Kesimpulan:
+
+Berdasarkan pengujian API menggunakan Newman, seluruh endpoint yang diuji memberikan respons sesuai dengan hasil yang diharapkan. Pengujian mencakup autentikasi, otorisasi, validasi input, pengelolaan kategori, pengelolaan artikel, publikasi artikel, komentar, profil user, dan statistik dashboard. Seluruh 23 request berhasil dijalankan dengan 36 assertion berhasil dan 0 assertion gagal.

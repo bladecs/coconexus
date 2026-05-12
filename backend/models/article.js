@@ -98,6 +98,13 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: 'CASCADE',
     });
 
+    Article.hasMany(models.ArticleView, {
+      foreignKey: 'article_id',
+      as: 'views',
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
+    });
+
     Article.hasMany(models.ProductCard, {
       foreignKey: 'article_id',
       as: 'productCards',

@@ -1,0 +1,666 @@
+{
+  "info": {
+    "_postman_id": "coconexus-api-newman-collection",
+    "name": "COCONEXUS API - Newman Test",
+    "description": "Koleksi pengujian API COCONEXUS untuk kebutuhan KTI Bab 4.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/health"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Backend aktif', function () { pm.expect(pm.response.json().success).to.eql(true); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Login Admin Berhasil",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+        },
+        "url": "{{base_url}}/api/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const json = pm.response.json();",
+              "pm.test('Token admin tersedia', function () { pm.expect(json.data.token).to.be.a('string').and.not.empty; });",
+              "pm.environment.set('admin_token', json.data.token);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Registrasi Publik Mengabaikan Role Admin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"calon.admin.newman@coconexus.local\",\n  \"password\": \"User12345\",\n  \"full_name\": \"Calon Admin Newman\",\n  \"role\": \"admin\"\n}"
+        },
+        "url": "{{base_url}}/api/auth/register"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+              "pm.test('Role tetap user', function () { pm.expect(pm.response.json().data.user.role).to.eql('user'); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Login User Publik",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"calon.admin.newman@coconexus.local\",\n  \"password\": \"User12345\"\n}"
+        },
+        "url": "{{base_url}}/api/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const json = pm.response.json();",
+              "pm.environment.set('user_token', json.data.token);",
+              "pm.test('Token user tersedia', function () { pm.expect(json.data.token).to.be.a('string').and.not.empty; });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 User Biasa Ditolak Akses Dashboard Admin",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{user_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/admin/stats"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 403', function () { pm.response.to.have.status(403); });",
+              "pm.test('Success false', function () { pm.expect(pm.response.json().success).to.eql(false); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Login Password Salah Ditolak",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"PasswordSalah123\"\n}"
+        },
+        "url": "{{base_url}}/api/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 401', function () { pm.response.to.have.status(401); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Registrasi Password Lemah Ditolak",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"password.lemah.newman@coconexus.local\",\n  \"password\": \"lemah\",\n  \"full_name\": \"Password Lemah Newman\"\n}"
+        },
+        "url": "{{base_url}}/api/auth/register"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', function () { pm.response.to.have.status(400); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Registrasi Email Duplikat Pertama",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"duplikat.newman@coconexus.local\",\n  \"password\": \"User12345\",\n  \"full_name\": \"Duplikat Newman\"\n}"
+        },
+        "url": "{{base_url}}/api/auth/register"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 201', function () { pm.response.to.have.status(201); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Registrasi Email Duplikat Kedua Ditolak",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"duplikat.newman@coconexus.local\",\n  \"password\": \"User12345\",\n  \"full_name\": \"Duplikat Newman\"\n}"
+        },
+        "url": "{{base_url}}/api/auth/register"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 409', function () { pm.response.to.have.status(409); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 Akses Admin Tanpa Token Ditolak",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/articles/admin"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 401', function () { pm.response.to.have.status(401); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 Akses Admin Token Tidak Valid Ditolak",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer token-tidak-valid"
+          }
+        ],
+        "url": "{{base_url}}/api/articles/admin"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 401', function () { pm.response.to.have.status(401); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 Admin Membuat Kategori",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Kategori Newman Sabut\",\n  \"description\": \"Kategori untuk pengujian API Newman.\"\n}"
+        },
+        "url": "{{base_url}}/api/categories/admin"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+              "const json = pm.response.json();",
+              "pm.environment.set('category_id', json.data.category.id);",
+              "pm.test('Kategori tersimpan', function () { pm.expect(json.data.category.name).to.eql('Kategori Newman Sabut'); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 Kategori Duplikat Ditolak",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Kategori Newman Sabut\",\n  \"description\": \"Duplikat kategori.\"\n}"
+        },
+        "url": "{{base_url}}/api/categories/admin"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 409', function () { pm.response.to.have.status(409); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 Admin Membuat Artikel Draft",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Artikel Uji Newman\",\n  \"body_content\": \"Konten artikel untuk pengujian API menggunakan Newman.\",\n  \"meta_description\": \"Artikel uji Newman\",\n  \"category\": {\n    \"id\": {{category_id}}\n  },\n  \"product_cards\": [\n    {\n      \"title\": \"Briket Sabut\",\n      \"description\": \"Produk hasil olahan sabut kelapa.\",\n      \"image\": \"/uploads/articles/briket-sabut.jpg\"\n    }\n  ]\n}"
+        },
+        "url": "{{base_url}}/api/articles/admin"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+              "const json = pm.response.json();",
+              "pm.environment.set('article_id', json.data.article.id);",
+              "pm.test('Artikel berstatus draft', function () { pm.expect(json.data.article.status).to.eql('draft'); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 Artikel Tanpa Konten Ditolak",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Artikel Tanpa Konten\",\n  \"category\": {\n    \"id\": {{category_id}}\n  }\n}"
+        },
+        "url": "{{base_url}}/api/articles/admin"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', function () { pm.response.to.have.status(400); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 Publish Artikel Draft",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"published\"\n}"
+        },
+        "url": "{{base_url}}/api/articles/admin/{{article_id}}/status"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Status artikel published', function () { pm.expect(pm.response.json().data.article.status).to.eql('published'); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 Daftar Artikel Published",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/articles/published"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Minimal satu artikel published', function () { pm.expect(pm.response.json().data.articles.length).to.be.at.least(1); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 Detail Artikel Published Mencatat View",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-coconexus-session-id",
+            "value": "session-newman-bab-4"
+          }
+        ],
+        "url": "{{base_url}}/api/articles/published/{{article_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Detail artikel sesuai', function () { pm.expect(pm.response.json().data.article.id).to.eql(Number(pm.environment.get('article_id'))); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "19 Komentar Kosong Ditolak",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{user_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"body\": \"   \"\n}"
+        },
+        "url": "{{base_url}}/api/articles/{{article_id}}/comments"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', function () { pm.response.to.have.status(400); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "20 User Membuat Komentar Valid",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{user_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"body\": \"Komentar pengujian Newman berhasil ditambahkan.\"\n}"
+        },
+        "url": "{{base_url}}/api/articles/{{article_id}}/comments"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+              "const json = pm.response.json();",
+              "pm.environment.set('comment_id', json.data.comment.id);",
+              "pm.test('Komentar tersimpan', function () { pm.expect(json.data.comment.body).to.include('Newman'); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "21 User Memperbarui Profil Sendiri",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{user_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_name\": \"User Newman Diperbarui\",\n  \"bio\": \"Profil diperbarui melalui Newman.\"\n}"
+        },
+        "url": "{{base_url}}/api/users/me/profile"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Nama profil berubah', function () { pm.expect(pm.response.json().data.user.profile.full_name).to.eql('User Newman Diperbarui'); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "22 Kategori Masih Dipakai Artikel Tidak Dapat Dihapus",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/categories/admin/{{category_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 409', function () { pm.response.to.have.status(409); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "23 Statistik Dashboard Admin",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/admin/stats"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "var dashboardData = pm.response.json().data;",
+              "pm.test('Total artikel dan view tersedia', function () {",
+              "  pm.expect(dashboardData.totals.articles).to.be.at.least(1);",
+              "  pm.expect(dashboardData.totals.article_views).to.be.at.least(1);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ]
+}

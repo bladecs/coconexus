@@ -23,6 +23,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(255),
         allowNull: true,
       },
+      sections: {
+        type: DataTypes.JSON,
+        allowNull: true,
+      },
+      sources: {
+        type: DataTypes.JSON,
+        allowNull: true,
+      },
     },
     {
       tableName: 'ArticleDetail',

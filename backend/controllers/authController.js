@@ -16,8 +16,7 @@ async function register(req, res, next) {
     const fullName = typeof req.body.full_name === 'string' ? req.body.full_name.trim() : '';
     const bio = isNonEmptyString(req.body.bio) ? req.body.bio.trim() : null;
     const avatarUrl = isNonEmptyString(req.body.avatar_url) ? req.body.avatar_url.trim() : null;
-    const requestedRole = typeof req.body.role === 'string' ? req.body.role.trim().toLowerCase() : 'user';
-    const role = requestedRole === 'admin' ? 'admin' : 'user';
+    const role = 'user';
 
     if (!isValidEmail(email)) {
       throw badRequest('Email tidak valid.');

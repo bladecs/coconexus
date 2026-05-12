@@ -22,6 +22,7 @@ export const useAdminStore = defineStore('admin', () => {
       revision_articles: 0,
       categories: 0,
       comments: 0,
+      article_views: 0,
     },
     charts: {
       articles_by_category: {
@@ -30,6 +31,31 @@ export const useAdminStore = defineStore('admin', () => {
         items: [],
       },
       comments_by_month: {
+        labels: [],
+        datasets: [],
+        items: [],
+      },
+      users_by_role: {
+        labels: [],
+        datasets: [],
+        items: [],
+      },
+      users_by_month: {
+        labels: [],
+        datasets: [],
+        items: [],
+      },
+      active_users_by_month: {
+        labels: [],
+        datasets: [],
+        items: [],
+      },
+      article_views_by_month: {
+        labels: [],
+        datasets: [],
+        items: [],
+      },
+      reader_activity_by_article: {
         labels: [],
         datasets: [],
         items: [],

@@ -65,7 +65,7 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="rounded-3xl border border-white/10 bg-[#303030] p-5 shadow-soft">
+  <div class="premium-panel p-5">
     <textarea
       v-model="form.body"
       rows="4"

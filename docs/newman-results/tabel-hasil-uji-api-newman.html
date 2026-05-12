@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dokumentasi Hasil Pengujian API COCONEXUS</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #1f2933;
+      background: #f6f8fb;
+    }
+
+    body {
+      margin: 0;
+      padding: 32px;
+    }
+
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #d9e2ec;
+      border-radius: 8px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+    }
+
+    header {
+      padding: 28px 32px;
+      border-bottom: 1px solid #d9e2ec;
+      background: #123c69;
+      color: #ffffff;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      line-height: 1.3;
+    }
+
+    header p {
+      margin: 0;
+      color: #dbeafe;
+      line-height: 1.6;
+    }
+
+    section {
+      padding: 24px 32px;
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: 18px;
+      color: #123c69;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(120px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .metric {
+      border: 1px solid #d9e2ec;
+      border-radius: 8px;
+      padding: 14px;
+      background: #f8fafc;
+    }
+
+    .metric span {
+      display: block;
+      font-size: 12px;
+      color: #52606d;
+      margin-bottom: 6px;
+    }
+
+    .metric strong {
+      font-size: 20px;
+      color: #102a43;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid #d9e2ec;
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1200px;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid #d9e2ec;
+      padding: 10px 12px;
+      vertical-align: top;
+      text-align: left;
+      line-height: 1.45;
+    }
+
+    th {
+      background: #e6f0fa;
+      color: #102a43;
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #f8fafc;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #dcfce7;
+      color: #166534;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    footer {
+      padding: 20px 32px;
+      border-top: 1px solid #d9e2ec;
+      color: #52606d;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    @media print {
+      body {
+        padding: 0;
+        background: #ffffff;
+      }
+
+      main {
+        box-shadow: none;
+        border: 0;
+      }
+
+      .summary {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      th {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Dokumentasi Hasil Pengujian API COCONEXUS Menggunakan Newman</h1>
+      <p>Dokumen ini digunakan sebagai bukti pengujian API untuk kebutuhan draft KTI Bab 4.</p>
+    </header>
+
+    <section>
+      <h2>Ringkasan Pengujian</h2>
+      <div class="summary">
+        <div class="metric"><span>Iteration</span><strong>1</strong></div>
+        <div class="metric"><span>Request</span><strong>23</strong></div>
+        <div class="metric"><span>Request Gagal</span><strong>0</strong></div>
+        <div class="metric"><span>Assertion</span><strong>36</strong></div>
+        <div class="metric"><span>Assertion Gagal</span><strong>0</strong></div>
+        <div class="metric"><span>Rata-rata Response</span><strong>68 ms</strong></div>
+      </div>
+
+      <h2>Tabel Hasil Uji API</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Skenario Pengujian</th>
+              <th>Endpoint</th>
+              <th>Metode</th>
+              <th>Data Uji</th>
+              <th>Hasil yang Diharapkan</th>
+              <th>Hasil Aktual</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Health check backend</td><td>/health</td><td>GET</td><td>Tidak ada</td><td>Backend aktif dan mengembalikan status 200</td><td>Status 200, success true</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>2</td><td>Login admin berhasil</td><td>/api/auth/login</td><td>POST</td><td>Email dan password admin valid</td><td>Sistem mengembalikan token admin</td><td>Status 200, token tersedia</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>3</td><td>Registrasi publik meminta role admin</td><td>/api/auth/register</td><td>POST</td><td>role admin pada request</td><td>Akun tetap dibuat sebagai user</td><td>Status 201, role menjadi user</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>4</td><td>Login user publik</td><td>/api/auth/login</td><td>POST</td><td>Email dan password user valid</td><td>Sistem mengembalikan token user</td><td>Status 200, token tersedia</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>5</td><td>User biasa akses dashboard admin</td><td>/api/admin/stats</td><td>GET</td><td>Token user</td><td>Sistem menolak akses admin</td><td>Status 403, success false</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>6</td><td>Login dengan password salah</td><td>/api/auth/login</td><td>POST</td><td>Password tidak valid</td><td>Sistem menolak login</td><td>Status 401</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>7</td><td>Registrasi password lemah</td><td>/api/auth/register</td><td>POST</td><td>Password kurang dari standar</td><td>Sistem menolak registrasi</td><td>Status 400</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>8</td><td>Registrasi email duplikat pertama</td><td>/api/auth/register</td><td>POST</td><td>Email baru</td><td>User berhasil dibuat</td><td>Status 201</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>9</td><td>Registrasi email duplikat kedua</td><td>/api/auth/register</td><td>POST</td><td>Email yang sama</td><td>Sistem menolak registrasi</td><td>Status 409</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>10</td><td>Akses admin tanpa token</td><td>/api/articles/admin</td><td>GET</td><td>Tidak ada token</td><td>Sistem menolak akses</td><td>Status 401</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>11</td><td>Akses admin dengan token tidak valid</td><td>/api/articles/admin</td><td>GET</td><td>Token salah</td><td>Sistem menolak akses</td><td>Status 401</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>12</td><td>Admin membuat kategori</td><td>/api/categories/admin</td><td>POST</td><td>Nama dan deskripsi kategori valid</td><td>Kategori tersimpan</td><td>Status 201, kategori tersimpan</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>13</td><td>Membuat kategori duplikat</td><td>/api/categories/admin</td><td>POST</td><td>Nama kategori yang sama</td><td>Sistem menolak duplikasi</td><td>Status 409</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>14</td><td>Admin membuat artikel draft</td><td>/api/articles/admin</td><td>POST</td><td>Judul, konten, kategori, product card</td><td>Artikel tersimpan sebagai draft</td><td>Status 201, status draft</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>15</td><td>Membuat artikel tanpa konten</td><td>/api/articles/admin</td><td>POST</td><td>Judul dan kategori tanpa konten</td><td>Sistem menolak data</td><td>Status 400</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>16</td><td>Publish artikel draft</td><td>/api/articles/admin/:id/status</td><td>PATCH</td><td>Status published</td><td>Artikel berubah menjadi published</td><td>Status 200, status published</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>17</td><td>Menampilkan artikel published</td><td>/api/articles/published</td><td>GET</td><td>Artikel sudah dipublikasikan</td><td>Artikel published muncul di daftar publik</td><td>Status 200, minimal 1 artikel</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>18</td><td>Membuka detail artikel published</td><td>/api/articles/published/:id</td><td>GET</td><td>ID artikel published dan session id</td><td>Detail artikel tampil dan view tercatat</td><td>Status 200, detail sesuai artikel</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>19</td><td>Komentar kosong</td><td>/api/articles/:id/comments</td><td>POST</td><td>Body komentar berisi spasi</td><td>Sistem menolak komentar</td><td>Status 400</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>20</td><td>User membuat komentar valid</td><td>/api/articles/:id/comments</td><td>POST</td><td>Body komentar valid</td><td>Komentar tersimpan</td><td>Status 201, komentar tersimpan</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>21</td><td>User memperbarui profil sendiri</td><td>/api/users/me/profile</td><td>PUT</td><td>Nama dan bio baru</td><td>Profil user berubah</td><td>Status 200, nama profil berubah</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>22</td><td>Menghapus kategori yang masih dipakai artikel</td><td>/api/categories/admin/:id</td><td>DELETE</td><td>Kategori berelasi dengan artikel</td><td>Sistem menolak penghapusan</td><td>Status 409</td><td><span class="status">Berhasil</span></td></tr>
+            <tr><td>23</td><td>Statistik dashboard admin</td><td>/api/admin/stats</td><td>GET</td><td>Token admin valid</td><td>Statistik artikel dan view tersedia</td><td>Status 200, total artikel dan view tersedia</td><td><span class="status">Berhasil</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>
+      Kesimpulan: seluruh endpoint yang diuji memberikan respons sesuai hasil yang diharapkan. Pengujian mencakup autentikasi, otorisasi, validasi input, pengelolaan kategori, artikel, komentar, profil user, dan statistik dashboard.
+    </footer>
+  </main>
+</body>
+</html>

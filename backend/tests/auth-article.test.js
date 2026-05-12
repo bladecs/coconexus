@@ -2,6 +2,8 @@
 
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-coconexus';
+process.env.RATE_LIMIT_MAX_REQUESTS = process.env.RATE_LIMIT_MAX_REQUESTS || '10000';
+process.env.AUTH_RATE_LIMIT_MAX_REQUESTS = process.env.AUTH_RATE_LIMIT_MAX_REQUESTS || '10000';
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -13,8 +15,11 @@ const {
   Article,
   ArticleDetail,
   ArticleMedia,
+  ArticleView,
   ProductCard,
   Comment,
+  User,
+  UserProfile,
 } = require('../models');
 const { resetTestDatabase, createAdminUser } = require('./helpers/testDb');
 
@@ -24,6 +29,472 @@ test.beforeEach(async () => {
 
 test.after(async () => {
   await sequelize.close();
+});
+
+test('public register ignores requested admin role and creates regular user', async () => {
+  const response = await request(app)
+    .post('/api/auth/register')
+    .send({
+      email: 'calon.admin@coconexus.local',
+      password: 'User12345',
+      full_name: 'Calon Admin',
+      role: 'admin',
+    });
+
+  assert.equal(response.status, 201);
+  assert.equal(response.body.data.user.role, 'user');
+
+  const createdUser = await sequelize.models.User.findOne({
+    where: { email: 'calon.admin@coconexus.local' },
+  });
+
+  assert.equal(createdUser.role, 'user');
+});
+
+test('regular user cannot access admin dashboard stats', async () => {
+  await request(app)
+    .post('/api/auth/register')
+    .send({
+      email: 'user.biasa@coconexus.local',
+      password: 'User12345',
+      full_name: 'User Biasa',
+    });
+
+  const loginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: 'user.biasa@coconexus.local',
+      password: 'User12345',
+    });
+
+  const statsResponse = await request(app)
+    .get('/api/admin/stats')
+    .set('Authorization', `Bearer ${loginResponse.body.data.token}`);
+
+  assert.equal(statsResponse.status, 403);
+});
+
+test('login rejects invalid password', async () => {
+  const { user } = await createAdminUser();
+
+  const response = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: user.email,
+      password: 'PasswordSalah123',
+    });
+
+  assert.equal(response.status, 401);
+  assert.equal(response.body.success, false);
+});
+
+test('register rejects weak password', async () => {
+  const response = await request(app)
+    .post('/api/auth/register')
+    .send({
+      email: 'password.lemah@coconexus.local',
+      password: 'lemah',
+      full_name: 'Password Lemah',
+    });
+
+  assert.equal(response.status, 400);
+  assert.equal(response.body.success, false);
+});
+
+test('register rejects duplicate active email', async () => {
+  const payload = {
+    email: 'duplikat@coconexus.local',
+    password: 'User12345',
+    full_name: 'User Duplikat',
+  };
+
+  const firstResponse = await request(app).post('/api/auth/register').send(payload);
+  const secondResponse = await request(app).post('/api/auth/register').send(payload);
+
+  assert.equal(firstResponse.status, 201);
+  assert.equal(secondResponse.status, 409);
+  assert.equal(secondResponse.body.success, false);
+});
+
+test('admin article list rejects request without token', async () => {
+  const response = await request(app).get('/api/articles/admin');
+
+  assert.equal(response.status, 401);
+  assert.equal(response.body.success, false);
+});
+
+test('admin article list rejects invalid token', async () => {
+  const response = await request(app)
+    .get('/api/articles/admin')
+    .set('Authorization', 'Bearer token-tidak-valid');
+
+  assert.equal(response.status, 401);
+  assert.equal(response.body.success, false);
+});
+
+test('admin cannot create article without body content', async () => {
+  const { user, plainPassword } = await createAdminUser();
+
+  const loginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: user.email,
+      password: plainPassword,
+    });
+
+  const createResponse = await request(app)
+    .post('/api/articles/admin')
+    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .send({
+      title: 'Artikel Tanpa Konten',
+      category: {
+        name: 'Validasi Konten',
+      },
+    });
+
+  assert.equal(createResponse.status, 400);
+});
+
+test('admin cannot upload unsupported article media type', async () => {
+  const { user, plainPassword } = await createAdminUser();
+
+  const loginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: user.email,
+      password: plainPassword,
+    });
+
+  const uploadResponse = await request(app)
+    .post('/api/uploads/articles')
+    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .attach('file', Buffer.from('fake executable data'), {
+      filename: 'malware.exe',
+      contentType: 'application/x-msdownload',
+    });
+
+  assert.equal(uploadResponse.status, 400);
+  assert.equal(uploadResponse.body.success, false);
+});
+
+test('user cannot comment on draft article', async () => {
+  const { user: adminUser, plainPassword } = await createAdminUser();
+
+  await request(app)
+    .post('/api/auth/register')
+    .send({
+      email: 'komentator@coconexus.local',
+      password: 'User12345',
+      full_name: 'User Komentator',
+    });
+
+  const adminLoginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: adminUser.email,
+      password: plainPassword,
+    });
+
+  const userLoginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: 'komentator@coconexus.local',
+      password: 'User12345',
+    });
+
+  const createArticleResponse = await request(app)
+    .post('/api/articles/admin')
+    .set('Authorization', `Bearer ${adminLoginResponse.body.data.token}`)
+    .send({
+      title: 'Artikel Masih Draft',
+      body_content: 'Konten belum dipublikasikan.',
+      category: {
+        name: 'Komentar Draft',
+      },
+    });
+
+  const commentResponse = await request(app)
+    .post(`/api/articles/${createArticleResponse.body.data.article.id}/comments`)
+    .set('Authorization', `Bearer ${userLoginResponse.body.data.token}`)
+    .send({
+      body: 'Komentar pada artikel draft.',
+    });
+
+  assert.equal(commentResponse.status, 404);
+});
+
+test('user cannot submit empty comment on published article', async () => {
+  const { user: adminUser, plainPassword } = await createAdminUser();
+
+  await request(app)
+    .post('/api/auth/register')
+    .send({
+      email: 'komentar.kosong@coconexus.local',
+      password: 'User12345',
+      full_name: 'Komentar Kosong',
+    });
+
+  const adminLoginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: adminUser.email,
+      password: plainPassword,
+    });
+
+  const userLoginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: 'komentar.kosong@coconexus.local',
+      password: 'User12345',
+    });
+
+  const createArticleResponse = await request(app)
+    .post('/api/articles/admin')
+    .set('Authorization', `Bearer ${adminLoginResponse.body.data.token}`)
+    .send({
+      title: 'Artikel Untuk Komentar',
+      body_content: 'Konten artikel sudah siap dipublikasikan.',
+      category: {
+        name: 'Komentar Kosong',
+      },
+    });
+
+  await request(app)
+    .patch(`/api/articles/admin/${createArticleResponse.body.data.article.id}/status`)
+    .set('Authorization', `Bearer ${adminLoginResponse.body.data.token}`)
+    .send({
+      status: 'published',
+    });
+
+  const commentResponse = await request(app)
+    .post(`/api/articles/${createArticleResponse.body.data.article.id}/comments`)
+    .set('Authorization', `Bearer ${userLoginResponse.body.data.token}`)
+    .send({
+      body: '   ',
+    });
+
+  assert.equal(commentResponse.status, 400);
+  assert.equal(commentResponse.body.success, false);
+});
+
+test('published article list hides draft articles', async () => {
+  const { user } = await createAdminUser();
+
+  const category = await CategoryTag.create({
+    name: 'Publikasi Artikel',
+    description: 'Kategori publikasi',
+  });
+
+  const publishedArticle = await Article.create({
+    author_id: user.id,
+    category_id: category.id,
+    title: 'Artikel Sudah Published',
+    status: 'published',
+  });
+
+  const draftArticle = await Article.create({
+    author_id: user.id,
+    category_id: category.id,
+    title: 'Artikel Masih Draft',
+    status: 'draft',
+  });
+
+  await ArticleDetail.bulkCreate([
+    {
+      article_id: publishedArticle.id,
+      body_content: 'Konten artikel published.',
+      meta_description: 'Published',
+    },
+    {
+      article_id: draftArticle.id,
+      body_content: 'Konten artikel draft.',
+      meta_description: 'Draft',
+    },
+  ]);
+
+  const response = await request(app).get('/api/articles/published');
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(
+    response.body.data.articles.map((article) => article.title),
+    ['Artikel Sudah Published']
+  );
+});
+
+test('published article detail records article view', async () => {
+  const { user } = await createAdminUser();
+
+  const category = await CategoryTag.create({
+    name: 'Statistik Baca',
+    description: 'Kategori statistik baca',
+  });
+
+  const article = await Article.create({
+    author_id: user.id,
+    category_id: category.id,
+    title: 'Artikel Dengan View',
+    status: 'published',
+  });
+
+  await ArticleDetail.create({
+    article_id: article.id,
+    body_content: 'Konten artikel untuk pencatatan view.',
+    meta_description: 'Pencatatan view',
+  });
+
+  const response = await request(app)
+    .get(`/api/articles/published/${article.id}`)
+    .set('x-coconexus-session-id', 'session-uji-bab-4');
+
+  const viewCount = await ArticleView.count({
+    where: { article_id: article.id },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(viewCount, 1);
+});
+
+test('admin can create category and duplicate category is rejected', async () => {
+  const { user, plainPassword } = await createAdminUser();
+
+  const loginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: user.email,
+      password: plainPassword,
+    });
+
+  const createResponse = await request(app)
+    .post('/api/categories/admin')
+    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .send({
+      name: 'Kategori Sabut',
+      description: 'Pengolahan limbah sabut kelapa.',
+    });
+
+  const duplicateResponse = await request(app)
+    .post('/api/categories/admin')
+    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .send({
+      name: 'Kategori Sabut',
+      description: 'Duplikat kategori.',
+    });
+
+  assert.equal(createResponse.status, 201);
+  assert.equal(duplicateResponse.status, 409);
+});
+
+test('admin cannot delete category that is still used by article', async () => {
+  const { user, plainPassword } = await createAdminUser();
+
+  const loginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: user.email,
+      password: plainPassword,
+    });
+
+  const category = await CategoryTag.create({
+    name: 'Kategori Terpakai',
+    description: 'Kategori yang masih digunakan artikel.',
+  });
+
+  await Article.create({
+    author_id: user.id,
+    category_id: category.id,
+    title: 'Artikel Pemakai Kategori',
+    status: 'draft',
+  });
+
+  const deleteResponse = await request(app)
+    .delete(`/api/categories/admin/${category.id}`)
+    .set('Authorization', `Bearer ${loginResponse.body.data.token}`);
+
+  assert.equal(deleteResponse.status, 409);
+});
+
+test('admin can update user role and profile data', async () => {
+  const { user: adminUser, plainPassword } = await createAdminUser();
+
+  const targetUser = await User.create({
+    email: 'target.user@coconexus.local',
+    password: 'hashed-password-placeholder',
+    role: 'user',
+  });
+
+  await UserProfile.create({
+    user_id: targetUser.id,
+    full_name: 'Target User',
+    bio: null,
+    avatar_url: null,
+  });
+
+  const loginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: adminUser.email,
+      password: plainPassword,
+    });
+
+  const updateResponse = await request(app)
+    .put(`/api/users/admin/${targetUser.id}`)
+    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .send({
+      role: 'admin',
+      profile: {
+        full_name: 'Target Admin',
+        bio: 'Naik role untuk pengujian.',
+      },
+    });
+
+  assert.equal(updateResponse.status, 200);
+  assert.equal(updateResponse.body.data.user.role, 'admin');
+  assert.equal(updateResponse.body.data.user.profile.full_name, 'Target Admin');
+});
+
+test('admin cannot soft delete own account', async () => {
+  const { user, plainPassword } = await createAdminUser();
+
+  const loginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: user.email,
+      password: plainPassword,
+    });
+
+  const deleteResponse = await request(app)
+    .delete(`/api/users/admin/${user.id}`)
+    .set('Authorization', `Bearer ${loginResponse.body.data.token}`);
+
+  assert.equal(deleteResponse.status, 403);
+});
+
+test('user can update own profile', async () => {
+  await request(app)
+    .post('/api/auth/register')
+    .send({
+      email: 'profil.user@coconexus.local',
+      password: 'User12345',
+      full_name: 'Profil Awal',
+    });
+
+  const loginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: 'profil.user@coconexus.local',
+      password: 'User12345',
+    });
+
+  const profileResponse = await request(app)
+    .put('/api/users/me/profile')
+    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .send({
+      full_name: 'Profil Diperbarui',
+      bio: 'Bio berhasil diperbarui.',
+    });
+
+  assert.equal(profileResponse.status, 200);
+  assert.equal(profileResponse.body.data.user.profile.full_name, 'Profil Diperbarui');
 });
 
 test('admin can login and create draft article with auto-created category', async () => {
