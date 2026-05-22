@@ -440,6 +440,22 @@ onMounted(loadArticle);
   padding-left: 1.25rem;
 }
 
+.article-body :deep(ul) {
+  list-style-type: disc;
+}
+
+.article-body :deep(ol) {
+  list-style-type: decimal;
+}
+
+.article-body :deep(.dash-list) {
+  list-style-type: '- ';
+}
+
+.article-body :deep(u) {
+  text-underline-offset: 0.18em;
+}
+
 .main-section-video {
   width: 100%;
   max-height: 540px;

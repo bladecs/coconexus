@@ -54,10 +54,25 @@ const rendered = computed(() => renderSimpleRichText(props.content));
 .rich-preview :deep(ul) {
   margin: 0 0 1rem 1.25rem;
   padding: 0;
+  list-style-type: disc;
+}
+
+.rich-preview :deep(ol) {
+  margin: 0 0 1rem 1.25rem;
+  padding: 0;
+  list-style-type: decimal;
+}
+
+.rich-preview :deep(.dash-list) {
+  list-style-type: '- ';
 }
 
 .rich-preview :deep(li) {
   margin-bottom: 0.4rem;
   line-height: 1.8;
+}
+
+.rich-preview :deep(u) {
+  text-underline-offset: 0.18em;
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
 import { useArticleStore } from '@/stores/articles';
 import RichTextPreview from '@/components/editor/RichTextPreview.vue';
@@ -18,6 +18,22 @@ const props = defineProps({
 const emit = defineEmits(['create', 'update', 'publish', 'request-revision', 'delete']);
 const articleStore = useArticleStore();
 const formError = ref('');
+const sectionTextareaRefs = ref([]);
+
+const inlineToolbarItems = [
+  { label: 'B', title: 'Tebal', format: 'bold' },
+  { label: 'I', title: 'Miring', format: 'italic' },
+  { label: 'U', title: 'Underline', format: 'underline' },
+];
+
+const blockToolbarItems = [
+  { label: 'H1', title: 'Judul utama', format: 'heading1' },
+  { label: 'H2', title: 'Sub judul', format: 'heading2' },
+  { label: 'H3', title: 'Judul kecil', format: 'heading3' },
+  { label: 'Dot', title: 'List titik', format: 'bulletList' },
+  { label: '1.', title: 'List nomor', format: 'numberList' },
+  { label: '-', title: 'List dash', format: 'dashList' },
+];
 
 function emptyForm() {
   return {
@@ -251,6 +267,94 @@ function removeSectionRow(index) {
   }
 
   form.sections.splice(index, 1);
+  sectionTextareaRefs.value.splice(index, 1);
+}
+
+function setSectionTextareaRef(element, index) {
+  if (element) {
+    sectionTextareaRefs.value[index] = element;
+  }
+}
+
+function wrapInlineText(text, format) {
+  const fallbackText = text || 'teks';
+
+  if (format === 'bold') {
+    return `**${fallbackText}**`;
+  }
+
+  if (format === 'italic') {
+    return `*${fallbackText}*`;
+  }
+
+  if (format === 'underline') {
+    return `++${fallbackText}++`;
+  }
+
+  return fallbackText;
+}
+
+function stripExistingBlockMarker(line) {
+  return line.replace(/^(#{1,3}\s+|\*\s+|-\s+|\d+\.\s+)/, '');
+}
+
+function formatBlockText(text, format) {
+  const selectedText = text || 'Tulis teks di sini';
+  const lines = selectedText.split('\n');
+
+  return lines
+    .map((line, lineIndex) => {
+      const cleanLine = stripExistingBlockMarker(line);
+
+      if (format === 'heading1') {
+        return `# ${cleanLine}`;
+      }
+
+      if (format === 'heading2') {
+        return `## ${cleanLine}`;
+      }
+
+      if (format === 'heading3') {
+        return `### ${cleanLine}`;
+      }
+
+      if (format === 'bulletList') {
+        return `* ${cleanLine}`;
+      }
+
+      if (format === 'numberList') {
+        return `${lineIndex + 1}. ${cleanLine}`;
+      }
+
+      if (format === 'dashList') {
+        return `- ${cleanLine}`;
+      }
+
+      return cleanLine;
+    })
+    .join('\n');
+}
+
+async function applySectionFormat(index, format) {
+  const textarea = sectionTextareaRefs.value[index];
+  const section = form.sections[index];
+
+  if (!textarea || !section) {
+    return;
+  }
+
+  const selectionStart = textarea.selectionStart;
+  const selectionEnd = textarea.selectionEnd;
+  const selectedText = section.body_content.slice(selectionStart, selectionEnd);
+  const isBlockFormat = blockToolbarItems.some((item) => item.format === format);
+  const replacement = isBlockFormat ? formatBlockText(selectedText, format) : wrapInlineText(selectedText, format);
+
+  section.body_content =
+    section.body_content.slice(0, selectionStart) + replacement + section.body_content.slice(selectionEnd);
+
+  await nextTick();
+  textarea.focus();
+  textarea.setSelectionRange(selectionStart, selectionStart + replacement.length);
 }
 
 function addSourceRow() {
@@ -619,11 +723,38 @@ function submitForm() {
                   :placeholder="index === 0 ? 'Judul section utama' : 'Judul section'"
                 />
                 <textarea
+                  :ref="(element) => setSectionTextareaRef(element, index)"
                   v-model="section.body_content"
                   rows="10"
                   class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-                  placeholder="Tulis isi section... Gunakan # Judul, ## Subjudul, - list, **tebal**, *miring*."
+                  placeholder="Tulis isi section, blok teks, lalu pilih style dari toolbar."
                 />
+                <div class="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-[#252525] p-2">
+                  <button
+                    v-for="item in inlineToolbarItems"
+                    :key="item.format"
+                    type="button"
+                    class="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-[#363636] text-sm font-black text-stone-100 transition hover:border-[#ff7c35]/50 hover:bg-[#3f332d]"
+                    :class="{ italic: item.format === 'italic', underline: item.format === 'underline' }"
+                    :title="item.title"
+                    @click="applySectionFormat(index, item.format)"
+                  >
+                    {{ item.label }}
+                  </button>
+
+                  <span class="h-8 w-px bg-white/10" />
+
+                  <button
+                    v-for="item in blockToolbarItems"
+                    :key="item.format"
+                    type="button"
+                    class="min-h-9 rounded-lg border border-white/10 bg-[#363636] px-3 text-sm font-bold text-stone-100 transition hover:border-[#ff7c35]/50 hover:bg-[#3f332d]"
+                    :title="item.title"
+                    @click="applySectionFormat(index, item.format)"
+                  >
+                    {{ item.label }}
+                  </button>
+                </div>
                 <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
                   <input
                     v-model="section.video_path"
