@@ -184,6 +184,7 @@ async function listAdminComments(req, res, next) {
     const page = Math.max(Number(req.query.page || 1), 1);
     const limit = Math.min(Math.max(Number(req.query.limit || 10), 1), 50);
     const offset = (page - 1) * limit;
+    const authorArticlesOnly = req.query.author_articles_only === 'true' || req.query.author_articles_only === '1';
     const where = {};
 
     if (search) {
@@ -196,27 +197,33 @@ async function listAdminComments(req, res, next) {
       where.article_id = articleId;
     }
 
+    // Build include with optional filtering for author's articles only
+    const includes = [
+      {
+        model: User,
+        as: 'user',
+        attributes: ['id', 'email', 'role'],
+        include: [
+          {
+            model: UserProfile,
+            as: 'profile',
+            attributes: ['user_id', 'full_name', 'avatar_url'],
+          },
+        ],
+      },
+      {
+        model: Article,
+        as: 'article',
+        attributes: ['id', 'title', 'status', 'author_id'],
+        ...(authorArticlesOnly && {
+          where: { author_id: req.user.id },
+        }),
+      },
+    ];
+
     const { rows, count } = await Comment.findAndCountAll({
       where,
-      include: [
-        {
-          model: User,
-          as: 'user',
-          attributes: ['id', 'email', 'role'],
-          include: [
-            {
-              model: UserProfile,
-              as: 'profile',
-              attributes: ['user_id', 'full_name', 'avatar_url'],
-            },
-          ],
-        },
-        {
-          model: Article,
-          as: 'article',
-          attributes: ['id', 'title', 'status'],
-        },
-      ],
+      include: includes,
       order: [['created_at', 'DESC']],
       limit,
       offset,
@@ -229,7 +236,7 @@ async function listAdminComments(req, res, next) {
       data: {
         comments: rows.map((comment) => ({
           id: comment.id,
-          body: comment.body,
+          content: comment.body,
           user_id: comment.user_id,
           article_id: comment.article_id,
           parent_id: comment.parent_id,

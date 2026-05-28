@@ -140,6 +140,74 @@ async function getUserById(req, res, next) {
   }
 }
 
+async function createUser(req, res, next) {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const email = normalizeEmail(req.body.email || '');
+    const password = req.body.password || '';
+    const role = typeof req.body.role === 'string' ? req.body.role.trim().toLowerCase() : 'user';
+    const fullName = typeof req.body.full_name === 'string' ? req.body.full_name.trim() : '';
+    const jobTitle = typeof req.body.job_title === 'string' ? req.body.job_title.trim() : null;
+    const department = typeof req.body.department === 'string' ? req.body.department.trim() : null;
+    const division = typeof req.body.division === 'string' ? req.body.division.trim() : null;
+
+    if (!isValidEmail(email)) {
+      throw badRequest('Email tidak valid.');
+    }
+
+    if (!isStrongPassword(password)) {
+      throw badRequest('Password minimal 8 karakter dan harus mengandung huruf serta angka.');
+    }
+
+    if (!['admin', 'pengelola', 'user'].includes(role)) {
+      throw badRequest('Role hanya boleh admin, pengelola, atau user.');
+    }
+
+    const existing = await User.findOne({ where: { email }, transaction });
+    if (existing) {
+      throw conflict('Email sudah terdaftar.');
+    }
+
+    const hashed = await bcrypt.hash(password, 12);
+
+    const user = await User.create(
+      {
+        email,
+        password: hashed,
+        role,
+      },
+      { transaction }
+    );
+
+    await UserProfile.create(
+      {
+        user_id: user.id,
+        full_name: fullName || email.split('@')[0],
+        job_title: jobTitle,
+        department,
+        division,
+      },
+      { transaction }
+    );
+
+    await transaction.commit();
+
+    const created = await User.findByPk(user.id, {
+      include: [{ model: UserProfile, as: 'profile' }],
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'User berhasil dibuat.',
+      data: { user: sanitizeUser(created) },
+    });
+  } catch (error) {
+    await transaction.rollback();
+    return next(error);
+  }
+}
+
 async function adminUpdateUser(req, res, next) {
   const transaction = await sequelize.transaction();
 
@@ -187,8 +255,8 @@ async function adminUpdateUser(req, res, next) {
     if (req.body.role !== undefined) {
       const role = typeof req.body.role === 'string' ? req.body.role.trim().toLowerCase() : '';
 
-      if (!['admin', 'user'].includes(role)) {
-        throw badRequest('Role hanya boleh admin atau user.');
+      if (!['admin', 'pengelola', 'user'].includes(role)) {
+        throw badRequest('Role hanya boleh admin, pengelola, atau user.');
       }
 
       user.role = role;
@@ -209,6 +277,9 @@ async function adminUpdateUser(req, res, next) {
       req.body.full_name !== undefined ||
       req.body.bio !== undefined ||
       req.body.avatar_url !== undefined ||
+      req.body.job_title !== undefined ||
+      req.body.department !== undefined ||
+      req.body.division !== undefined ||
       Object.keys(profilePayload).length > 0;
 
     if (shouldUpdateProfile) {
@@ -222,6 +293,12 @@ async function adminUpdateUser(req, res, next) {
         profilePayload.bio !== undefined ? profilePayload.bio : req.body.bio;
       const avatarUrl =
         profilePayload.avatar_url !== undefined ? profilePayload.avatar_url : req.body.avatar_url;
+      const jobTitle =
+        profilePayload.job_title !== undefined ? profilePayload.job_title : req.body.job_title;
+      const department =
+        profilePayload.department !== undefined ? profilePayload.department : req.body.department;
+      const division =
+        profilePayload.division !== undefined ? profilePayload.division : req.body.division;
 
       if (fullName !== undefined) {
         const normalizedFullName = typeof fullName === 'string' ? fullName.trim() : '';
@@ -235,6 +312,18 @@ async function adminUpdateUser(req, res, next) {
 
       if (bio !== undefined) {
         user.profile.bio = isNonEmptyString(bio) ? bio.trim() : null;
+      if (jobTitle !== undefined) {
+        user.profile.job_title = isNonEmptyString(jobTitle) ? jobTitle.trim() : null;
+      }
+
+      if (department !== undefined) {
+        user.profile.department = isNonEmptyString(department) ? department.trim() : null;
+      }
+
+      if (division !== undefined) {
+        user.profile.division = isNonEmptyString(division) ? division.trim() : null;
+      }
+
       }
 
       if (avatarUrl !== undefined) {
@@ -324,4 +413,5 @@ module.exports = {
   getUserById,
   adminUpdateUser,
   adminSoftDeleteUser,
+  createUser,
 };

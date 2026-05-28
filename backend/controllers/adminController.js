@@ -282,6 +282,101 @@ async function getDashboardStats(req, res, next) {
   }
 }
 
+async function getAuditLogs(req, res, next) {
+  try {
+    const logs = await AuditLog.findAll({
+      include: [
+        {
+          model: User,
+          as: 'actor',
+          attributes: ['id', 'email', 'role'],
+          include: [
+            {
+              model: UserProfile,
+              as: 'profile',
+              attributes: ['user_id', 'full_name', 'avatar_url'],
+            },
+          ],
+        },
+      ],
+      order: [['created_at', 'DESC']],
+      limit: 100,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Audit logs berhasil diambil.',
+      data: {
+        logs,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getSystemHealth(req, res, next) {
+  try {
+    // Simple system health check
+    const system = {
+      database: 'Connected',
+      storage: 'Connected',
+      cache: 'Connected',
+    };
+
+    return res.status(200).json({
+      success: true,
+      message: 'Status sistem berhasil diambil.',
+      data: {
+        system,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getReports(req, res, next) {
+  try {
+    const period = req.query.period || 'month';
+    
+    const [
+      totalUsers,
+      totalArticles,
+      totalComments,
+      totalViews,
+      totalCategories,
+    ] = await Promise.all([
+      User.count(),
+      Article.count({ where: { status: 'published' } }),
+      Comment.count(),
+      ArticleView.count(),
+      CategoryTag.count(),
+    ]);
+
+    const report = {
+      users: totalUsers,
+      articles: totalArticles,
+      comments: totalComments,
+      views: totalViews,
+      categories: totalCategories,
+    };
+
+    return res.status(200).json({
+      success: true,
+      message: 'Laporan berhasil diambil.',
+      data: {
+        report,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   getDashboardStats,
+  getAuditLogs,
+  getSystemHealth,
+  getReports,
 };

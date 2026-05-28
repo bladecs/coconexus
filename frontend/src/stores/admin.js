@@ -119,6 +119,15 @@ export const useAdminStore = defineStore('admin', () => {
     });
   }
 
+  async function createUser(payload) {
+    return withSubmitting(async () => {
+      const { data } = await api.post('/users/admin', payload);
+      // refresh users after creation
+      await fetchUsers({ page: 1 });
+      return data.data.user;
+    });
+  }
+
   async function deleteUser(userId) {
     return withSubmitting(async () => {
       await api.delete(`/users/admin/${userId}`);
@@ -192,6 +201,7 @@ export const useAdminStore = defineStore('admin', () => {
     isSubmitting,
     error,
     fetchUsers,
+    createUser,
     updateUser,
     deleteUser,
     fetchCategories,

@@ -24,6 +24,18 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(255),
         allowNull: true,
       },
+      job_title: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      department: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      division: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
     },
     {
       tableName: 'UserProfile',

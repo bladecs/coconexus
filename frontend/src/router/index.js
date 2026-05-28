@@ -6,9 +6,20 @@ import AdminDashboardPage from '@/views/AdminDashboardPage.vue';
 import AdminArticlesPage from '@/views/AdminArticlesPage.vue';
 import AdminArticleFormPage from '@/views/AdminArticleFormPage.vue';
 import AdminUsersPage from '@/views/AdminUsersPage.vue';
+import AdminCreateUserPage from '@/views/AdminCreateUserPage.vue';
 import AdminCategoriesPage from '@/views/AdminCategoriesPage.vue';
 import AdminCommentsPage from '@/views/AdminCommentsPage.vue';
 import AdminProfilePage from '@/views/AdminProfilePage.vue';
+import AdminRoleAssignmentPage from '@/views/AdminRoleAssignmentPage.vue';
+import AdminJobDivisionPage from '@/views/AdminJobDivisionPage.vue';
+import AdminActivityPage from '@/views/AdminActivityPage.vue';
+import AdminActivityLogPage from '@/views/AdminActivityLogPage.vue';
+import AdminSystemPage from '@/views/AdminSystemPage.vue';
+import AdminReportPage from '@/views/AdminReportPage.vue';
+import PengelolaArticlesPage from '@/views/PengelolaArticlesPage.vue';
+import PengelolaArticleFormPage from '@/views/PengelolaArticleFormPage.vue';
+import PengelolaCommentsPage from '@/views/PengelolaCommentsPage.vue';
+import PengelolaTagsPage from '@/views/PengelolaTagsPage.vue';
 import ArticleDetailPage from '@/views/ArticleDetailPage.vue';
 import { useAuthStore } from '@/stores/auth';
 
@@ -76,6 +87,15 @@ const routes = [
     },
   },
   {
+    path: '/admin/users/create',
+    name: 'admin-users-create',
+    component: AdminCreateUserPage,
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+    },
+  },
+  {
     path: '/admin/users',
     name: 'admin-users',
     component: AdminUsersPage,
@@ -111,6 +131,106 @@ const routes = [
       requiresAdmin: true,
     },
   },
+  {
+    path: '/admin/roles',
+    name: 'admin-roles',
+    component: AdminRoleAssignmentPage,
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+    },
+  },
+  {
+    path: '/admin/job-division',
+    name: 'admin-job-division',
+    component: AdminJobDivisionPage,
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+    },
+  },
+  {
+    path: '/admin/activity',
+    name: 'admin-activity',
+    component: AdminActivityPage,
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+    },
+  },
+  {
+    path: '/admin/activity-log',
+    name: 'admin-activity-log',
+    component: AdminActivityLogPage,
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+    },
+  },
+  {
+    path: '/admin/system',
+    name: 'admin-system',
+    component: AdminSystemPage,
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+    },
+  },
+  {
+    path: '/admin/report',
+    name: 'admin-report',
+    component: AdminReportPage,
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+    },
+  },
+  // Pengelola Routes
+  {
+    path: '/pengelola/articles',
+    name: 'pengelola-articles',
+    component: PengelolaArticlesPage,
+    meta: {
+      requiresAuth: true,
+      requiresPengelola: true,
+    },
+  },
+  {
+    path: '/pengelola/articles/new',
+    name: 'pengelola-articles-new',
+    component: PengelolaArticleFormPage,
+    meta: {
+      requiresAuth: true,
+      requiresPengelola: true,
+    },
+  },
+  {
+    path: '/pengelola/articles/:id/edit',
+    name: 'pengelola-articles-edit',
+    component: PengelolaArticleFormPage,
+    meta: {
+      requiresAuth: true,
+      requiresPengelola: true,
+    },
+  },
+  {
+    path: '/pengelola/comments',
+    name: 'pengelola-comments',
+    component: PengelolaCommentsPage,
+    meta: {
+      requiresAuth: true,
+      requiresPengelola: true,
+    },
+  },
+  {
+    path: '/pengelola/tags',
+    name: 'pengelola-tags',
+    component: PengelolaTagsPage,
+    meta: {
+      requiresAuth: true,
+      requiresPengelola: true,
+    },
+  },
 ];
 
 const router = createRouter({
@@ -132,10 +252,17 @@ router.beforeEach((to) => {
     return { name: 'home' };
   }
 
+  if (to.meta.requiresPengelola && authStore.user?.role !== 'pengelola' && authStore.user?.role !== 'admin') {
+    return { name: 'home' };
+  }
+
   if (to.meta.guestOnly && authStore.isAuthenticated) {
-    return authStore.user?.role === 'admin'
-      ? { name: 'admin-dashboard' }
-      : { name: 'home' };
+    if (authStore.user?.role === 'admin') {
+      return { name: 'admin-dashboard' };
+    } else if (authStore.user?.role === 'pengelola') {
+      return { name: 'pengelola-articles' };
+    }
+    return { name: 'home' };
   }
 
   return true;

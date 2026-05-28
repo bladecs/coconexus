@@ -1,0 +1,129 @@
+{
+  "menu": [
+    {
+      "id": "home",
+      "title": "Beranda",
+      "path": "/",
+      "roles": ["Guest","User","Editor","Admin"],
+      "backend": {
+        "controllers": ["backend/controllers/articleController.js"],
+        "models": ["models/article.js","models/articleView.js"]
+      }
+    },
+    {
+      "id": "articles",
+      "title": "Artikel",
+      "path": "/articles",
+      "roles": ["Guest","User","Editor","Admin"],
+      "children": [
+        {
+          "id": "articles.list",
+          "title": "Daftar Artikel",
+          "path": "/articles",
+          "roles": ["Guest","User","Editor","Admin"],
+          "backend": {"controllers": ["backend/controllers/articleController.js"], "models": ["models/article.js","models/articleDetail.js"]}
+        },
+        {
+          "id": "articles.detail",
+          "title": "Detail Artikel",
+          "path": "/articles/:id",
+          "roles": ["Guest","User","Editor","Admin"],
+          "backend": {"controllers": ["backend/controllers/articleController.js"], "models": ["models/articleView.js"]}
+        },
+        {
+          "id": "articles.create",
+          "title": "Buat Artikel",
+          "path": "/articles/new",
+          "roles": ["Editor","Admin"],
+          "backend": {"controllers": ["backend/controllers/articleController.js"]}
+        },
+        {
+          "id": "articles.drafts",
+          "title": "Drafts",
+          "path": "/articles/drafts",
+          "roles": ["Editor","Admin"],
+          "backend": {"controllers": ["backend/controllers/articleController.js"]}
+        }
+      ]
+    },
+    {
+      "id": "categories",
+      "title": "Kategori & Tag",
+      "path": "/categories",
+      "roles": ["Editor","Admin"],
+      "backend": {"controllers": ["backend/controllers/categoryController.js"], "models": ["models/categoryTag.js"]}
+    },
+    {
+      "id": "media",
+      "title": "Media / Uploads",
+      "path": "/media",
+      "roles": ["User","Editor","Admin"],
+      "backend": {"controllers": ["backend/controllers/uploadController.js"], "configs": ["backend/config/storage.js"]}
+    },
+    {
+      "id": "comments",
+      "title": "Komentar",
+      "path": "/comments",
+      "roles": ["Moderator","Admin"],
+      "backend": {"controllers": ["backend/controllers/commentController.js"], "models": ["models/comment.js"]}
+    },
+    {
+      "id": "product-cards",
+      "title": "Kartu Produk",
+      "path": "/product-cards",
+      "roles": ["Editor","Admin"],
+      "backend": {"models": ["models/productCard.js"]}
+    },
+    {
+      "id": "users",
+      "title": "Pengguna",
+      "path": "/admin/users",
+      "roles": ["Admin"],
+      "children": [
+        {"id": "users.list","title":"Daftar Pengguna","path":"/admin/users","roles":["Admin" ]},
+        {"id": "users.profile","title":"Profil","path":"/profile","roles":["User","Admin"]}
+      ],
+      "backend": {"controllers": ["backend/controllers/userController.js"], "models": ["models/user.js","models/userProfile.js"]}
+    },
+    {
+      "id": "auth",
+      "title": "Autentikasi",
+      "path": "/auth",
+      "roles": ["Guest"],
+      "children": [
+        {"id":"auth.login","title":"Login","path":"/auth/login","roles":["Guest"]},
+        {"id":"auth.register","title":"Register","path":"/auth/register","roles":["Guest"]},
+        {"id":"auth.forgot","title":"Forgot","path":"/auth/forgot","roles":["Guest"]}
+      ],
+      "backend": {"controllers": ["backend/controllers/authController.js"], "utils": ["utils/jwt.js"]}
+    },
+    {
+      "id": "admin",
+      "title": "Admin Dashboard",
+      "path": "/admin",
+      "roles": ["Admin","SuperAdmin"],
+      "backend": {"models": ["models/auditLog.js"], "migrations": ["migrations/20260421000900-create-audit-log.js"]}
+    },
+    {
+      "id": "settings",
+      "title": "Pengaturan",
+      "path": "/settings",
+      "roles": ["Admin"],
+      "backend": {"configs": ["backend/config/config.js","backend/config/env.js"], "middlewares": ["backend/middlewares/rateLimiter.js"]}
+    },
+    {
+      "id": "developer",
+      "title": "API / Developer",
+      "path": "/developer",
+      "roles": ["Developer","Admin"],
+      "assets": ["postman/","docs/newman-results/"]
+    },
+    {
+      "id": "docs",
+      "title": "Dokumentasi",
+      "path": "/docs",
+      "roles": ["Guest","User","Admin"],
+      "assets": ["docs/ERD.md","docs/BAB-IV-Pengujian-Black-Box-dan-UAT.md"]
+    }
+  ]
+}

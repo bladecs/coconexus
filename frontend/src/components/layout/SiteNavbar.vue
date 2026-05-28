@@ -23,7 +23,20 @@ const navLinks = computed(() => {
       { to: '/admin/users', label: 'User' },
       { to: '/admin/categories', label: 'Kategori' },
       { to: '/admin/comments', label: 'Komentar' },
+      { to: '/admin/roles', label: 'Role' },
+      { to: '/admin/job-division', label: 'Job/Div' },
+      { to: '/admin/activity', label: 'Activity' },
+      { to: '/admin/system', label: 'Sistem' },
+      { to: '/admin/report', label: 'Report' },
       { to: '/admin/profile', label: 'Profil' },
+    ];
+  }
+
+  if (props.variant === 'pengelola') {
+    return [
+      { to: '/pengelola/articles', label: 'Artikel' },
+      { to: '/pengelola/comments', label: 'Komentar' },
+      { to: '/pengelola/tags', label: 'Kategori' },
     ];
   }
 
@@ -34,6 +47,32 @@ const navLinks = computed(() => {
     { href: '/#needs', label: 'Analisis' },
   ];
 });
+
+// Split visible and overflow links for admin navbar
+const visibleLinks = computed(() => {
+  if (props.variant !== 'admin') return navLinks.value;
+  return navLinks.value.slice(0, 4);
+});
+
+const overflowLinks = computed(() => {
+  if (props.variant !== 'admin') return [];
+  return navLinks.value.slice(4);
+});
+
+const dropdownOpen = ref(false);
+const dropdownRef = ref(null);
+
+function toggleDropdown(e) {
+  e.stopPropagation();
+  dropdownOpen.value = !dropdownOpen.value;
+}
+
+function handleDocumentClick(e) {
+  if (!dropdownRef.value) return;
+  if (!dropdownRef.value.contains(e.target)) {
+    dropdownOpen.value = false;
+  }
+}
 
 function revealNavbar() {
   isHidden.value = false;
@@ -72,11 +111,13 @@ onMounted(() => {
   lastScrollY = window.scrollY;
   window.addEventListener('scroll', handleScroll, { passive: true });
   armIdleReveal();
+  document.addEventListener('click', handleDocumentClick);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', handleScroll);
   window.clearTimeout(idleTimer);
+  document.removeEventListener('click', handleDocumentClick);
 });
 </script>
 
@@ -91,23 +132,89 @@ onBeforeUnmount(() => {
     <RouterLink to="/" class="site-brand" aria-label="COCONEXUS Home">
       <span class="site-brand__mark">CX</span>
       <span>
-        <strong>{{ variant === 'admin' ? 'COCONEXUS Admin' : 'COCONEXUS' }}</strong>
-        <small>{{ variant === 'admin' ? 'Control Center' : 'Community Article Hub' }}</small>
+        <strong>{{
+          variant === 'admin'
+            ? 'COCONEXUS Admin'
+            : variant === 'pengelola'
+              ? 'COCONEXUS Pengelola'
+              : 'COCONEXUS'
+        }}</strong>
+        <small>{{
+          variant === 'admin'
+            ? 'Control Center'
+            : variant === 'pengelola'
+              ? 'Article Manager'
+              : 'Community Article Hub'
+        }}</small>
       </span>
     </RouterLink>
 
     <nav class="site-navlinks" aria-label="Navigasi utama">
-      <template v-for="link in navLinks" :key="link.label">
-        <RouterLink v-if="link.to" :to="link.to">{{ link.label }}</RouterLink>
-        <a v-else :href="link.href">{{ link.label }}</a>
+      <template v-if="props.variant === 'admin'">
+        <template v-for="link in visibleLinks" :key="link.label">
+          <RouterLink v-if="link.to" :to="link.to">{{ link.label }}</RouterLink>
+          <a v-else :href="link.href">{{ link.label }}</a>
+        </template>
+
+        <div class="nav-overflow" ref="dropdownRef">
+          <button class="ellipsis-btn" aria-label="Lainnya" @click="toggleDropdown">
+            •••
+          </button>
+          <div v-if="dropdownOpen" class="nav-dropdown">
+            <template v-for="link in overflowLinks" :key="link.label">
+              <RouterLink v-if="link.to" :to="link.to" class="nav-dropdown-item">
+                {{ link.label }}
+              </RouterLink>
+              <a v-else :href="link.href" class="nav-dropdown-item">
+                {{ link.label }}
+              </a>
+            </template>
+          </div>
+        </div>
+      </template>
+
+      <template v-else>
+        <template v-for="link in navLinks" :key="link.label">
+          <RouterLink v-if="link.to" :to="link.to">{{ link.label }}</RouterLink>
+          <a v-else :href="link.href">{{ link.label }}</a>
+        </template>
       </template>
     </nav>
 
     <div class="site-actions">
-      <RouterLink v-if="authStore.isAdmin && variant !== 'admin'" to="/admin" class="site-action site-action--ghost">
+      <RouterLink
+        v-if="authStore.isPengelola && variant !== 'pengelola'"
+        to="/pengelola/articles"
+        class="site-action site-action--ghost"
+      >
+        Pengelola
+      </RouterLink>
+      <RouterLink
+        v-if="authStore.isAdmin && variant !== 'admin'"
+        to="/admin"
+        class="site-action site-action--ghost"
+      >
         Admin
       </RouterLink>
-      <RouterLink v-if="authStore.isAdmin && variant === 'admin'" to="/admin/articles/new" class="site-action">
+      <RouterLink
+        v-if="(authStore.isAdmin || authStore.isPengelola) && variant !== 'home'"
+        to="/"
+        class="site-action site-action--ghost"
+      >
+        Beranda
+      </RouterLink>
+      <RouterLink
+        v-if="authStore.isPengelola && variant === 'pengelola'"
+        to="/pengelola/articles/new"
+        class="site-action"
+      >
+        Artikel Baru
+      </RouterLink>
+      <RouterLink
+        v-if="authStore.isAdmin && variant === 'admin'"
+        to="/admin/articles/new"
+        class="site-action"
+      >
         Artikel Baru
       </RouterLink>
       <button
@@ -196,6 +303,50 @@ onBeforeUnmount(() => {
   color: #d0c3ba;
   font-size: 0.72rem;
   font-weight: 800;
+}
+
+.site-navlinks {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-overflow {
+  position: relative;
+}
+
+.ellipsis-btn {
+  background: transparent;
+  border: none;
+  color: #fff7f0;
+  font-size: 20px;
+  line-height: 1;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.nav-dropdown {
+  position: absolute;
+  right: 0;
+  margin-top: 8px;
+  background: rgba(20,20,20,0.95);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 6px;
+  min-width: 160px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  z-index: 80;
+}
+
+.nav-dropdown-item {
+  display: block;
+  padding: 8px 12px;
+  color: #fff7f0;
+  text-decoration: none;
+}
+
+.nav-dropdown-item:hover {
+  background: rgba(255,255,255,0.03);
 }
 
 .site-navlinks {

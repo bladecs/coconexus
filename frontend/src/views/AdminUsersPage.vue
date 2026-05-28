@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
+import { RouterLink } from 'vue-router';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import { useAdminStore } from '@/stores/admin';
 
@@ -81,11 +82,14 @@ onMounted(async () => {
 
     <section class="mx-auto max-w-[1600px]">
       <header class="admin-ops-header">
-        <div>
-          <p class="admin-section-label">ACCESS / USER LEDGER</p>
-          <h1>Direktori Pengguna</h1>
-        </div>
-      </header>
+          <div>
+            <p class="admin-section-label">ACCESS / USER LEDGER</p>
+            <h1>Direktori Pengguna</h1>
+          </div>
+          <div>
+            <router-link class="admin-primary-action" :to="{ name: 'admin-users-create' }">Buat User Baru</router-link>
+          </div>
+        </header>
 
       <p v-if="feedback" class="mt-6 rounded-lg border border-[#ff7c35]/20 bg-[#ff7c35]/10 px-5 py-4 text-sm font-medium text-[#ffd1b8]">
         {{ feedback }}
@@ -117,9 +121,7 @@ onMounted(async () => {
               placeholder="Cari nama atau email..."
               @keyup.enter="submitSearch"
             />
-            <button type="button" class="admin-primary-action w-full" @click="submitSearch">
-              Cari User
-            </button>
+            <RouterLink class="admin-primary-action" :to="{ name: 'admin-users-create' }">Buat User Baru</RouterLink>
           </div>
         </aside>
 

@@ -11,5 +11,9 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
+  },
+  "dependencies": {
+    "newman": "^4.6.1",
+    "newman-reporter-html": "^1.0.5"
   }
 }

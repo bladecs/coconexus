@@ -596,7 +596,13 @@ async function listAdminArticles(req, res, next) {
     const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
     const status = typeof req.query.status === 'string' ? req.query.status.trim().toLowerCase() : '';
     const category = typeof req.query.category === 'string' ? req.query.category.trim() : '';
+    const authorOnly = req.query.author_only === 'true' || req.query.author_only === '1';
     const where = {};
+
+    // If author_only, filter by current user
+    if (authorOnly) {
+      where.author_id = req.user.id;
+    }
 
     if (search) {
       where[Op.or] = [

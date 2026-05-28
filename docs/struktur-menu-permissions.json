@@ -1,0 +1,53 @@
+{
+  "roles": {
+    "SuperAdmin": {
+      "can": [
+        "*"
+      ]
+    },
+    "Admin": {
+      "can": [
+        "articles:crud",
+        "users:manage",
+        "settings:edit",
+        "media:manage",
+        "comments:moderate",
+        "product-cards:manage"
+      ]
+    },
+    "Editor": {
+      "can": [
+        "articles:create",
+        "articles:edit",
+        "articles:publish",
+        "product-cards:manage",
+        "categories:manage"
+      ]
+    },
+    "Moderator": {
+      "can": [
+        "comments:moderate"
+      ]
+    },
+    "Developer": {
+      "can": [
+        "developer:access",
+        "tests:run"
+      ]
+    },
+    "User": {
+      "can": [
+        "comments:create",
+        "profile:edit",
+        "articles:create:optional"
+      ]
+    },
+    "Guest": {
+      "can": [
+        "articles:view",
+        "docs:view",
+        "home:view"
+      ]
+    }
+  }
+}

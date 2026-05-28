@@ -18,9 +18,17 @@ const { authorize } = require('../middlewares/authorize');
 
 const router = express.Router();
 
+// Public routes
 router.get('/published', listPublishedArticles);
 router.get('/published/:id', optionalAuthenticate, getPublishedArticleDetail);
 
+// Author/Pengelola routes (authenticated users)
+router.get('/', authenticate, listAdminArticles);
+router.post('/', authenticate, createArticle);
+router.put('/:id', authenticate, updateArticle);
+router.delete('/:id', authenticate, deleteArticle);
+
+// Admin routes
 router.get('/admin', authenticate, authorize('admin'), listAdminArticles);
 router.get('/admin/main-articles', authenticate, authorize('admin'), listMainArticles);
 router.get('/admin/product-cards/available', authenticate, authorize('admin'), listAvailableProductCards);
