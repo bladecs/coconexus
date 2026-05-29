@@ -7,6 +7,10 @@ import api from '@/lib/api';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const jobTitle = computed(() => authStore.user?.profile?.job_title || '');
+const canWriteArticle = computed(() => ['Penulis Artikel', 'Editor Konten'].includes(jobTitle.value));
+const canValidateArticle = computed(() => jobTitle.value === 'Validator Artikel');
+const canPublishArticle = computed(() => jobTitle.value === 'Publisher Artikel');
 
 const articles = ref([]);
 const isLoading = ref(false);
@@ -37,7 +41,8 @@ async function fetchArticles() {
   error.value = null;
   
   try {
-    const { data } = await api.get('/articles?author_only=true');
+    const params = canWriteArticle.value ? { author_only: true } : {};
+    const { data } = await api.get('/articles', { params });
     articles.value = data.data.articles || [];
   } catch (err) {
     error.value = err.message;
@@ -65,6 +70,17 @@ function editArticle(id) {
   router.push({ name: 'pengelola-articles-edit', params: { id } });
 }
 
+async function updateArticleStatus(id, status) {
+  if (!confirm(`Ubah status artikel menjadi ${status}?`)) return;
+
+  try {
+    await api.patch(`/articles/${id}/status`, { status });
+    await fetchArticles();
+  } catch (err) {
+    error.value = err.message;
+  }
+}
+
 onMounted(() => {
   fetchArticles();
 });
@@ -83,7 +99,7 @@ onMounted(() => {
         <div class="admin-header-actions">
           <span>{{ authStore.user?.profile?.full_name || authStore.user?.email }}</span>
           <div>
-            <RouterLink to="/pengelola/articles/new" class="admin-primary-action">
+            <RouterLink v-if="canWriteArticle" to="/pengelola/articles/new" class="admin-primary-action">
               Buat Artikel Baru
             </RouterLink>
           </div>
@@ -193,16 +209,32 @@ onMounted(() => {
                     Lihat
                   </button>
                   <button
+                    v-if="canWriteArticle && article.author_id === authStore.user?.id"
                     @click="editArticle(article.id)"
                     class="text-yellow-400 hover:text-yellow-300 text-xs"
                   >
                     Edit
                   </button>
                   <button
+                    v-if="canWriteArticle && article.author_id === authStore.user?.id"
                     @click="deleteArticle(article.id)"
                     class="text-red-400 hover:text-red-300 text-xs"
                   >
                     Hapus
+                  </button>
+                  <button
+                    v-if="canValidateArticle && article.status !== 'revision'"
+                    @click="updateArticleStatus(article.id, 'revision')"
+                    class="text-orange-400 hover:text-orange-300 text-xs"
+                  >
+                    Revisi
+                  </button>
+                  <button
+                    v-if="canPublishArticle && article.status !== 'published'"
+                    @click="updateArticleStatus(article.id, 'published')"
+                    class="text-green-400 hover:text-green-300 text-xs"
+                  >
+                    Publish
                   </button>
                 </div>
               </td>

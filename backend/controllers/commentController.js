@@ -3,8 +3,13 @@
 const { Op } = require('sequelize');
 const { Article, Comment, User, UserProfile } = require('../models');
 const { badRequest, notFound, forbidden } = require('../utils/httpErrors');
-const { isNonEmptyString } = require('../utils/validators');
-const { buildCommentTree } = require('../utils/serializers');
+const {
+  isNonEmptyString,
+  isValidCommentStatus,
+  normalizeCommentStatus,
+  normalizeJobTitle,
+} = require('../utils/validators');
+const { buildCommentTree, sanitizeComment } = require('../utils/serializers');
 const { writeAuditLog } = require('../utils/auditLogger');
 
 async function listArticleComments(req, res, next) {
@@ -42,6 +47,9 @@ async function listArticleComments(req, res, next) {
           ],
         },
       ],
+      where: {
+        status: 'approved',
+      },
       order: [['created_at', 'ASC']],
     });
 
@@ -98,6 +106,7 @@ async function createComment(req, res, next) {
 
     const comment = await Comment.create({
       body,
+      status: 'pending',
       user_id: req.user.id,
       article_id: articleId,
       parent_id: parentId,
@@ -122,9 +131,11 @@ async function createComment(req, res, next) {
 
     return res.status(201).json({
       success: true,
-      message: parentId ? 'Balasan komentar berhasil ditambahkan.' : 'Komentar berhasil ditambahkan.',
+      message: parentId
+        ? 'Balasan komentar berhasil ditambahkan dan menunggu moderasi.'
+        : 'Komentar berhasil ditambahkan dan menunggu moderasi.',
       data: {
-        comment: buildCommentTree([createdComment])[0],
+        comment: sanitizeComment(createdComment),
       },
     });
   } catch (error) {
@@ -148,17 +159,19 @@ async function deleteComment(req, res, next) {
 
     const isOwner = req.user.id === comment.user_id;
     const isAdmin = req.user.role === 'admin';
+    const isCommentModerator =
+      req.user.role === 'pengelola' && normalizeJobTitle(req.user.profile?.job_title) === 'Moderator Komentar';
 
-    if (!isOwner && !isAdmin) {
+    if (!isOwner && !isAdmin && !isCommentModerator) {
       throw forbidden('Anda tidak memiliki akses untuk menghapus komentar ini.');
     }
 
     await comment.destroy();
 
-    if (isAdmin) {
+    if (isAdmin || isCommentModerator) {
       await writeAuditLog({
         actorId: req.user.id,
-        action: 'admin.delete_comment',
+        action: isAdmin ? 'admin.delete_comment' : 'moderator.delete_comment',
         entityType: 'comment',
         entityId: commentId,
         metadata: {
@@ -185,16 +198,50 @@ async function listAdminComments(req, res, next) {
     const limit = Math.min(Math.max(Number(req.query.limit || 10), 1), 50);
     const offset = (page - 1) * limit;
     const authorArticlesOnly = req.query.author_articles_only === 'true' || req.query.author_articles_only === '1';
+    const requestedStatus = normalizeCommentStatus(req.query.status);
+    const jobTitle = normalizeJobTitle(req.user.profile?.job_title);
+    const status =
+      requestedStatus ||
+      (req.user.role === 'pengelola' && jobTitle === 'Moderator Komentar' ? 'pending' : '');
     const where = {};
 
     if (search) {
-      where.body = {
-        [Op.like]: `%${search}%`,
-      };
+      where[Op.or] = [
+        {
+          body: {
+            [Op.like]: `%${search}%`,
+          },
+        },
+        {
+          '$article.title$': {
+            [Op.like]: `%${search}%`,
+          },
+        },
+        {
+          '$user.email$': {
+            [Op.like]: `%${search}%`,
+          },
+        },
+        {
+          '$user.profile.full_name$': {
+            [Op.like]: `%${search}%`,
+          },
+        },
+      ];
     }
 
     if (articleId > 0) {
       where.article_id = articleId;
+    }
+
+    if (status) {
+      if (status !== 'all' && !isValidCommentStatus(status)) {
+        throw badRequest('Status komentar tidak valid.');
+      }
+
+      if (status !== 'all') {
+        where.status = status;
+      }
     }
 
     // Build include with optional filtering for author's articles only
@@ -237,6 +284,7 @@ async function listAdminComments(req, res, next) {
         comments: rows.map((comment) => ({
           id: comment.id,
           content: comment.body,
+          status: comment.status,
           user_id: comment.user_id,
           article_id: comment.article_id,
           parent_id: comment.parent_id,
@@ -251,6 +299,87 @@ async function listAdminComments(req, res, next) {
           total_pages: Math.ceil(count / limit),
           search,
           article_id: articleId || null,
+          status: status || 'all',
+        },
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function updateCommentStatus(req, res, next) {
+  try {
+    const commentId = Number(req.params.id);
+    const status = normalizeCommentStatus(req.body.status);
+
+    if (!Number.isInteger(commentId) || commentId <= 0) {
+      throw badRequest('Parameter comment id tidak valid.');
+    }
+
+    if (!['approved', 'rejected'].includes(status)) {
+      throw badRequest('Status komentar hanya boleh approved atau rejected.');
+    }
+
+    const comment = await Comment.findByPk(commentId, {
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'email', 'role'],
+          include: [
+            {
+              model: UserProfile,
+              as: 'profile',
+              attributes: ['user_id', 'full_name', 'avatar_url', 'job_title', 'department', 'division'],
+            },
+          ],
+        },
+        {
+          model: Article,
+          as: 'article',
+          attributes: ['id', 'title', 'status', 'author_id'],
+        },
+      ],
+    });
+
+    if (!comment) {
+      throw notFound('Komentar tidak ditemukan.');
+    }
+
+    comment.status = status;
+    await comment.save();
+
+    await writeAuditLog({
+      actorId: req.user.id,
+      action: `moderator.${status}_comment`,
+      entityType: 'comment',
+      entityId: comment.id,
+      metadata: {
+        article_id: comment.article_id,
+        owner_id: comment.user_id,
+        status,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message:
+        status === 'approved'
+          ? 'Komentar berhasil disetujui.'
+          : 'Komentar berhasil ditolak.',
+      data: {
+        comment: {
+          id: comment.id,
+          content: comment.body,
+          status: comment.status,
+          user_id: comment.user_id,
+          article_id: comment.article_id,
+          parent_id: comment.parent_id,
+          created_at: comment.created_at,
+          updated_at: comment.updated_at,
+          article: comment.article,
+          user: comment.user,
         },
       },
     });
@@ -264,4 +393,5 @@ module.exports = {
   createComment,
   deleteComment,
   listAdminComments,
+  updateCommentStatus,
 };

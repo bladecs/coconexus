@@ -193,6 +193,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       requiresPengelola: true,
+      requiredJobs: ['Penulis Artikel', 'Editor Konten', 'Validator Artikel', 'Publisher Artikel'],
     },
   },
   {
@@ -202,6 +203,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       requiresPengelola: true,
+      requiredJobs: ['Penulis Artikel', 'Editor Konten'],
     },
   },
   {
@@ -211,6 +213,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       requiresPengelola: true,
+      requiredJobs: ['Penulis Artikel', 'Editor Konten'],
     },
   },
   {
@@ -220,6 +223,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       requiresPengelola: true,
+      requiredJobs: ['Moderator Komentar'],
     },
   },
   {
@@ -229,6 +233,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       requiresPengelola: true,
+      requiredJobs: ['Pengelola Tag/Kategori'],
     },
   },
 ];
@@ -254,6 +259,14 @@ router.beforeEach((to) => {
 
   if (to.meta.requiresPengelola && authStore.user?.role !== 'pengelola' && authStore.user?.role !== 'admin') {
     return { name: 'home' };
+  }
+
+  const requiredJobs = to.meta.requiredJobs;
+  if (requiredJobs && authStore.user?.role === 'pengelola') {
+    const jobTitle = authStore.user?.profile?.job_title;
+    if (!requiredJobs.includes(jobTitle)) {
+      return { name: 'home' };
+    }
   }
 
   if (to.meta.guestOnly && authStore.isAuthenticated) {

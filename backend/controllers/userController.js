@@ -5,7 +5,14 @@ const { Op } = require('sequelize');
 const { User, UserProfile, sequelize } = require('../models');
 const { badRequest, notFound, conflict, forbidden } = require('../utils/httpErrors');
 const { sanitizeUser } = require('../utils/serializers');
-const { isValidEmail, normalizeEmail, isNonEmptyString, isStrongPassword } = require('../utils/validators');
+const {
+  isValidEmail,
+  normalizeEmail,
+  isNonEmptyString,
+  isStrongPassword,
+  isValidPengelolaJob,
+  normalizeJobTitle,
+} = require('../utils/validators');
 const { writeAuditLog } = require('../utils/auditLogger');
 
 async function updateMyProfile(req, res, next) {
@@ -164,6 +171,10 @@ async function createUser(req, res, next) {
       throw badRequest('Role hanya boleh admin, pengelola, atau user.');
     }
 
+    if (role === 'pengelola' && !isValidPengelolaJob(jobTitle)) {
+      throw badRequest('Jabatan pengelola wajib dipilih dan harus valid.');
+    }
+
     const existing = await User.findOne({ where: { email }, transaction });
     if (existing) {
       throw conflict('Email sudah terdaftar.');
@@ -184,9 +195,9 @@ async function createUser(req, res, next) {
       {
         user_id: user.id,
         full_name: fullName || email.split('@')[0],
-        job_title: jobTitle,
-        department,
-        division,
+        job_title: role === 'pengelola' ? jobTitle : null,
+        department: role === 'pengelola' ? department : null,
+        division: role === 'pengelola' ? division : null,
       },
       { transaction }
     );
@@ -300,6 +311,8 @@ async function adminUpdateUser(req, res, next) {
       const division =
         profilePayload.division !== undefined ? profilePayload.division : req.body.division;
 
+      const nextRole = user.role;
+
       if (fullName !== undefined) {
         const normalizedFullName = typeof fullName === 'string' ? fullName.trim() : '';
 
@@ -312,8 +325,16 @@ async function adminUpdateUser(req, res, next) {
 
       if (bio !== undefined) {
         user.profile.bio = isNonEmptyString(bio) ? bio.trim() : null;
+      }
+
       if (jobTitle !== undefined) {
-        user.profile.job_title = isNonEmptyString(jobTitle) ? jobTitle.trim() : null;
+        const normalizedJobTitle = isNonEmptyString(jobTitle) ? normalizeJobTitle(jobTitle) : '';
+
+        if (normalizedJobTitle && !isValidPengelolaJob(normalizedJobTitle)) {
+          throw badRequest('Jabatan pengelola tidak valid.');
+        }
+
+        user.profile.job_title = normalizedJobTitle || null;
       }
 
       if (department !== undefined) {
@@ -324,10 +345,18 @@ async function adminUpdateUser(req, res, next) {
         user.profile.division = isNonEmptyString(division) ? division.trim() : null;
       }
 
-      }
-
       if (avatarUrl !== undefined) {
         user.profile.avatar_url = isNonEmptyString(avatarUrl) ? avatarUrl.trim() : null;
+      }
+
+      if (nextRole === 'pengelola' && !isValidPengelolaJob(user.profile.job_title)) {
+        throw badRequest('Pengelola wajib memiliki jabatan yang valid.');
+      }
+
+      if (nextRole !== 'pengelola') {
+        user.profile.job_title = null;
+        user.profile.department = null;
+        user.profile.division = null;
       }
 
       await user.profile.save({ transaction });

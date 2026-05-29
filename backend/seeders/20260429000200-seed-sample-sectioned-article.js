@@ -66,7 +66,6 @@ module.exports = {
     await queryInterface.bulkInsert('Article', [
       {
         author_id: admins[0].id,
-        category_id: categoryId,
         parent_article_id: null,
         title: SAMPLE_TITLE,
         version: 1,
@@ -88,6 +87,15 @@ module.exports = {
     if (!articleId) {
       return;
     }
+
+    // Mapping to junction table as per ERD many-to-many design
+    await queryInterface.bulkInsert('ArticleCategoryTag', [
+      {
+        article_id: articleId,
+        category_tag_id: categoryId,
+        created_at: now,
+      },
+    ]);
 
     const sections = [
       {

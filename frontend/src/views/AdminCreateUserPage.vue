@@ -11,6 +11,28 @@ const creating = ref(false);
 const createError = ref('');
 const feedback = ref('');
 
+const jobTitleOptions = [
+  'Penulis Artikel',
+  'Editor Konten',
+  'Validator Artikel',
+  'Publisher Artikel',
+  'Moderator Komentar',
+  'Pengelola Tag/Kategori',
+];
+const departmentOptions = [
+  'Produksi Konten',
+  'Redaksi',
+  'Validasi & Publikasi',
+  'Moderasi Komentar',
+  'Kategori & Tag',
+];
+const divisionOptions = [
+  'Artikel Utama',
+  'Artikel Detail',
+  'Komentar',
+  'Kategori',
+];
+
 const form = reactive({
   email: '',
   password: '',
@@ -70,9 +92,24 @@ async function submit() {
             <option value="admin">Admin</option>
           </select>
           <input v-model="form.full_name" placeholder="Nama lengkap" class="w-full px-4 py-3" />
-          <input v-model="form.job_title" placeholder="Job title" class="w-full px-4 py-3" />
-          <input v-model="form.department" placeholder="Department" class="w-full px-4 py-3" />
-          <input v-model="form.division" placeholder="Division" class="w-full px-4 py-3" />
+          <p v-if="form.role === 'pengelola'" class="text-xs text-stone-400">
+            Pilih jabatan yang mengikuti alur kerja artikel: penulisan, editing, validasi, atau publikasi.
+          </p>
+          
+          <template v-if="form.role === 'pengelola'">
+            <select v-model="form.job_title" class="w-full px-4 py-3">
+              <option value="">Pilih Jabatan Pengelola</option>
+              <option v-for="opt in jobTitleOptions" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+            <select v-model="form.department" class="w-full px-4 py-3">
+              <option value="">Pilih Departemen Artikel</option>
+              <option v-for="opt in departmentOptions" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+            <select v-model="form.division" class="w-full px-4 py-3">
+              <option value="">Pilih Divisi Kerja</option>
+              <option v-for="opt in divisionOptions" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+          </template>
 
           <div class="flex items-center gap-3">
             <button class="admin-primary-action" @click="submit" :disabled="creating">{{ creating ? 'Membuat...' : 'Buat User' }}</button>

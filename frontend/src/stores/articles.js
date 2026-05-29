@@ -183,8 +183,9 @@ export const useArticleStore = defineStore('articles', () => {
 
   async function postComment(articleId, payload) {
     return withSubmitting(async () => {
-      await api.post(`/articles/${articleId}/comments`, payload);
+      const { data } = await api.post(`/articles/${articleId}/comments`, payload);
       await fetchArticleComments(articleId);
+      return data;
     });
   }
 

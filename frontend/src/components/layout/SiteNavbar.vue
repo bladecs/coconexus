@@ -14,6 +14,31 @@ const authStore = useAuthStore();
 const isHidden = ref(false);
 let lastScrollY = 0;
 let idleTimer = null;
+const pengelolaJob = computed(() => authStore.user?.profile?.job_title || '');
+
+function getDefaultPengelolaRoute(jobTitle) {
+  if (jobTitle === 'Moderator Komentar') {
+    return '/pengelola/comments';
+  }
+
+  if (jobTitle === 'Pengelola Tag/Kategori') {
+    return '/pengelola/tags';
+  }
+
+  return '/pengelola/articles';
+}
+
+function getPengelolaNavLinks(jobTitle) {
+  if (jobTitle === 'Moderator Komentar') {
+    return [{ to: '/pengelola/comments', label: 'Komentar' }];
+  }
+
+  if (jobTitle === 'Pengelola Tag/Kategori') {
+    return [{ to: '/pengelola/tags', label: 'Kategori' }];
+  }
+
+  return [{ to: '/pengelola/articles', label: 'Artikel' }];
+}
 
 const navLinks = computed(() => {
   if (props.variant === 'admin') {
@@ -33,11 +58,7 @@ const navLinks = computed(() => {
   }
 
   if (props.variant === 'pengelola') {
-    return [
-      { to: '/pengelola/articles', label: 'Artikel' },
-      { to: '/pengelola/comments', label: 'Komentar' },
-      { to: '/pengelola/tags', label: 'Kategori' },
-    ];
+    return getPengelolaNavLinks(pengelolaJob.value);
   }
 
   return [
@@ -184,7 +205,7 @@ onBeforeUnmount(() => {
     <div class="site-actions">
       <RouterLink
         v-if="authStore.isPengelola && variant !== 'pengelola'"
-        to="/pengelola/articles"
+        :to="getDefaultPengelolaRoute(pengelolaJob)"
         class="site-action site-action--ghost"
       >
         Pengelola
@@ -204,7 +225,7 @@ onBeforeUnmount(() => {
         Beranda
       </RouterLink>
       <RouterLink
-        v-if="authStore.isPengelola && variant === 'pengelola'"
+        v-if="authStore.isPengelola && variant === 'pengelola' && ['Penulis Artikel', 'Editor Konten'].includes(pengelolaJob)"
         to="/pengelola/articles/new"
         class="site-action"
       >

@@ -14,19 +14,25 @@ const {
   deleteArticle,
 } = require('../controllers/articleController');
 const { authenticate, optionalAuthenticate } = require('../middlewares/authenticate');
-const { authorize } = require('../middlewares/authorize');
+const { authorize, authorizeJobs } = require('../middlewares/authorize');
 
 const router = express.Router();
+
+const ARTICLE_MANAGEMENT_JOBS = ['Penulis Artikel', 'Editor Konten'];
+const ARTICLE_REVIEW_JOBS = ['Editor Konten', 'Validator Artikel'];
+const ARTICLE_PUBLISH_JOBS = ['Publisher Artikel'];
 
 // Public routes
 router.get('/published', listPublishedArticles);
 router.get('/published/:id', optionalAuthenticate, getPublishedArticleDetail);
 
-// Author/Pengelola routes (authenticated users)
-router.get('/', authenticate, listAdminArticles);
-router.post('/', authenticate, createArticle);
-router.put('/:id', authenticate, updateArticle);
-router.delete('/:id', authenticate, deleteArticle);
+// Author/Pengelola routes
+router.get('/', authenticate, authorizeJobs(...ARTICLE_MANAGEMENT_JOBS, ...ARTICLE_REVIEW_JOBS, ...ARTICLE_PUBLISH_JOBS), listAdminArticles);
+router.post('/', authenticate, authorizeJobs(...ARTICLE_MANAGEMENT_JOBS), createArticle);
+router.put('/:id', authenticate, authorizeJobs(...ARTICLE_MANAGEMENT_JOBS), updateArticle);
+router.delete('/:id', authenticate, authorizeJobs(...ARTICLE_MANAGEMENT_JOBS), deleteArticle);
+router.patch('/:id/status', authenticate, authorizeJobs(...ARTICLE_REVIEW_JOBS, ...ARTICLE_PUBLISH_JOBS), updateArticleStatus);
+router.get('/:id', authenticate, authorizeJobs(...ARTICLE_MANAGEMENT_JOBS, ...ARTICLE_REVIEW_JOBS, ...ARTICLE_PUBLISH_JOBS), getAdminArticleDetail);
 
 // Admin routes
 router.get('/admin', authenticate, authorize('admin'), listAdminArticles);

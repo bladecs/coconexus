@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1400" viewBox="0 0 1800 1400" role="img" aria-label="Activity diagram COCONEXUS dengan Pengguna Umum, Pengelola, Admin, dan System">
+  <defs>
+    <style>
+      .bg { fill: #edf2f7; }
+      .lane-bg { fill: #f8fafc; }
+      .lane-border { fill: none; stroke: #c5d0dc; stroke-width: 26; }
+      .lane-title { font: 600 32px Arial, Helvetica, sans-serif; fill: #334155; }
+      .caption { font: 14px Arial, Helvetica, sans-serif; fill: #94a3b8; }
+      .box { fill: #ffffff; stroke: #d0d8e3; stroke-width: 2; rx: 8; ry: 8; }
+      .box-text { font: 15px Arial, Helvetica, sans-serif; fill: #475569; text-anchor: middle; dominant-baseline: middle; }
+      .small-text { font: 14px Arial, Helvetica, sans-serif; fill: #475569; text-anchor: middle; dominant-baseline: middle; }
+      .decision { fill: #ffffff; stroke: #d0d8e3; stroke-width: 2; }
+      .arrow { stroke: #7a8796; stroke-width: 3; fill: none; marker-end: url(#arrowhead); }
+      .arrow-thin { stroke: #7a8796; stroke-width: 2.5; fill: none; marker-end: url(#arrowhead); }
+      .label { font: 14px Arial, Helvetica, sans-serif; fill: #64748b; }
+      .start-end { fill: #ffffff; stroke: #b8c4d0; stroke-width: 2; }
+      .start-inner { fill: #ffffff; stroke: #b8c4d0; stroke-width: 6; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#7a8796" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1800" height="1400" />
+  <text class="caption" x="34" y="34">Activity Diagram</text>
+
+  <rect class="lane-border" x="40" y="50" width="1720" height="1290" />
+
+  <rect class="lane-bg" x="70" y="80" width="400" height="1230" />
+  <rect class="lane-bg" x="490" y="80" width="400" height="1230" />
+  <rect class="lane-bg" x="910" y="80" width="400" height="1230" />
+  <rect class="lane-bg" x="1330" y="80" width="400" height="1230" />
+
+  <text class="lane-title" x="270" y="145">Pengguna Umum</text>
+  <text class="lane-title" x="690" y="145">Pengelola</text>
+  <text class="lane-title" x="1110" y="145">Admin</text>
+  <text class="lane-title" x="1530" y="145">System</text>
+
+  <!-- Pengguna Umum lane -->
+  <circle class="start-end" cx="270" cy="220" r="20" />
+  <line class="arrow" x1="270" y1="240" x2="270" y2="300" />
+  <rect class="box" x="220" y="300" width="100" height="58" />
+  <text class="small-text" x="270" y="329">view articles</text>
+
+  <line class="arrow" x1="270" y1="358" x2="270" y2="430" />
+  <rect class="box" x="210" y="430" width="120" height="58" />
+  <text class="small-text" x="270" y="459">view detail</text>
+
+  <line class="arrow" x1="270" y1="488" x2="270" y2="560" />
+  <polygon class="decision" points="270,575 300,605 270,635 240,605" />
+  <line class="arrow-thin" x1="300" y1="605" x2="355" y2="605" />
+  <text class="label" x="330" y="594">no</text>
+  <circle class="start-end" cx="390" cy="605" r="18" />
+  <circle class="start-inner" cx="390" cy="605" r="10" />
+
+  <line class="arrow-thin" x1="270" y1="635" x2="270" y2="700" />
+  <text class="label" x="270" y="677" text-anchor="middle">yes</text>
+  <rect class="box" x="220" y="700" width="100" height="58" />
+  <text class="small-text" x="270" y="729">comment</text>
+
+  <line class="arrow" x1="270" y1="758" x2="270" y2="1210" />
+
+  <!-- Pengelola lane -->
+  <rect class="box" x="650" y="280" width="80" height="58" />
+  <text class="small-text" x="690" y="309">create</text>
+  <line class="arrow" x1="690" y1="338" x2="690" y2="405" />
+  <rect class="box" x="610" y="405" width="160" height="58" />
+  <text class="small-text" x="690" y="434">input category/content</text>
+  <line class="arrow" x1="690" y1="463" x2="690" y2="530" />
+  <polygon class="decision" points="690,545 720,575 690,605 660,575" />
+  <line class="arrow-thin" x1="720" y1="575" x2="775" y2="575" />
+  <text class="label" x="750" y="564">new category</text>
+  <rect class="box" x="760" y="546" width="105" height="58" />
+  <text class="small-text" x="812" y="575">insert category</text>
+  <path class="arrow" d="M 865 575 C 985 575, 1140 575, 1330 575" />
+
+  <line class="arrow-thin" x1="690" y1="605" x2="690" y2="675" />
+  <text class="label" x="690" y="647" text-anchor="middle">available category</text>
+  <rect class="box" x="610" y="675" width="160" height="58" />
+  <text class="small-text" x="690" y="704">draft article</text>
+  <path class="arrow" d="M 690 733 C 870 733, 1040 733, 1330 733" />
+
+  <line class="arrow" x1="690" y1="733" x2="690" y2="820" />
+  <rect class="box" x="610" y="820" width="160" height="58" />
+  <text class="small-text" x="690" y="849">article validation</text>
+  <line class="arrow" x1="690" y1="878" x2="690" y2="950" />
+  <polygon class="decision" points="690,965 720,995 690,1025 660,995" />
+  <line class="arrow-thin" x1="720" y1="995" x2="790" y2="995" />
+  <text class="label" x="760" y="984">revision</text>
+  <rect class="box" x="800" y="968" width="110" height="54" />
+  <text class="small-text" x="855" y="995">edit content</text>
+  <path class="arrow" d="M 910 995 C 1040 995, 1140 995, 1330 995" />
+
+  <line class="arrow" x1="690" y1="1025" x2="690" y2="1095" />
+  <text class="label" x="690" y="1063" text-anchor="middle">approved</text>
+  <rect class="box" x="610" y="1095" width="160" height="58" />
+  <text class="small-text" x="690" y="1124">publish article</text>
+  <path class="arrow" d="M 770 1124 C 915 1124, 1080 1124, 1330 1124" />
+
+  <!-- Admin lane -->
+  <rect class="box" x="1070" y="280" width="80" height="58" />
+  <text class="small-text" x="1110" y="309">manage</text>
+  <line class="arrow" x1="1110" y1="338" x2="1110" y2="410" />
+  <rect class="box" x="1020" y="410" width="180" height="58" />
+  <text class="small-text" x="1110" y="439">manage users / categories</text>
+  <line class="arrow" x1="1110" y1="468" x2="1110" y2="545" />
+  <rect class="box" x="1020" y="545" width="180" height="58" />
+  <text class="small-text" x="1110" y="574">view dashboard statistics</text>
+  <line class="arrow" x1="1110" y1="603" x2="1110" y2="680" />
+  <rect class="box" x="1030" y="680" width="160" height="58" />
+  <text class="small-text" x="1110" y="709">audit activity log</text>
+  <line class="arrow" x1="1110" y1="738" x2="1110" y2="1210" />
+
+  <!-- System lane -->
+  <rect class="box" x="1490" y="280" width="80" height="58" />
+  <text class="small-text" x="1530" y="309">insert category to DB</text>
+  <line class="arrow" x1="1530" y1="338" x2="1530" y2="390" />
+  <rect class="box" x="1450" y="390" width="160" height="58" />
+  <text class="small-text" x="1530" y="419">insert article to DB</text>
+  <line class="arrow" x1="1530" y1="448" x2="1530" y2="520" />
+  <rect class="box" x="1450" y="520" width="160" height="58" />
+  <text class="small-text" x="1530" y="549">update status revision</text>
+  <line class="arrow" x1="1530" y1="578" x2="1530" y2="650" />
+  <rect class="box" x="1450" y="650" width="160" height="58" />
+  <text class="small-text" x="1530" y="679">update status published</text>
+  <line class="arrow" x1="1530" y1="708" x2="1530" y2="780" />
+  <rect class="box" x="1450" y="780" width="160" height="58" />
+  <text class="small-text" x="1530" y="809">display list articles</text>
+  <line class="arrow" x1="1530" y1="838" x2="1530" y2="910" />
+  <rect class="box" x="1450" y="910" width="160" height="58" />
+  <text class="small-text" x="1530" y="939">insert comment to DB</text>
+  <line class="arrow" x1="1530" y1="968" x2="1530" y2="1040" />
+  <rect class="box" x="1450" y="1040" width="160" height="58" />
+  <text class="small-text" x="1530" y="1069">display list comment</text>
+  <line class="arrow" x1="1530" y1="1098" x2="1530" y2="1210" />
+  <circle class="start-end" cx="1530" cy="1240" r="20" />
+  <circle class="start-inner" cx="1530" cy="1240" r="12" />
+
+  <!-- Cross-lane connections -->
+  <path class="arrow" d="M 320 335 C 500 335, 620 309, 1330 309" />
+  <path class="arrow" d="M 330 459 C 560 459, 760 419, 1450 419" />
+  <path class="arrow" d="M 330 729 C 560 729, 760 733, 1450 809" />
+  <path class="arrow" d="M 330 864 C 560 864, 820 545, 1450 549" />
+  <path class="arrow" d="M 330 1124 C 580 1124, 860 1124, 1450 939" />
+  <path class="arrow" d="M 1200 439 C 1290 439, 1390 419, 1450 419" />
+  <path class="arrow" d="M 1200 574 C 1290 574, 1390 574, 1450 679" />
+  <path class="arrow" d="M 1200 709 C 1290 709, 1390 709, 1450 809" />
+  <path class="arrow" d="M 1200 995 C 1290 995, 1390 995, 1450 939" />
+
+</svg>

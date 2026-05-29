@@ -3,6 +3,28 @@ import { onMounted, ref } from 'vue';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import api from '@/lib/api';
 
+const jobTitleOptions = [
+  'Penulis Artikel',
+  'Editor Konten',
+  'Validator Artikel',
+  'Publisher Artikel',
+  'Moderator Komentar',
+  'Pengelola Tag/Kategori',
+];
+const departmentOptions = [
+  'Produksi Konten',
+  'Redaksi',
+  'Validasi & Publikasi',
+  'Moderasi Komentar',
+  'Kategori & Tag',
+];
+const divisionOptions = [
+  'Artikel Utama',
+  'Artikel Detail',
+  'Komentar',
+  'Kategori',
+];
+
 const users = ref([]);
 const isLoading = ref(false);
 const error = ref(null);
@@ -99,27 +121,33 @@ onMounted(() => {
               <td class="px-4 py-3">{{ user.profile?.full_name || '-' }}</td>
               <td class="px-4 py-3">{{ user.email }}</td>
               <td v-if="editingUserId === user.id" class="px-4 py-3">
-                <input
+                <select
                   v-model="editingData.job_title"
-                  type="text"
                   class="w-full rounded bg-stone-700 px-2 py-1 text-stone-100 border border-stone-500"
-                />
+                >
+                  <option value="">Pilih jabatan</option>
+                  <option v-for="opt in jobTitleOptions" :key="opt" :value="opt">{{ opt }}</option>
+                </select>
               </td>
               <td v-else class="px-4 py-3">{{ user.profile?.job_title || '-' }}</td>
               <td v-if="editingUserId === user.id" class="px-4 py-3">
-                <input
+                <select
                   v-model="editingData.department"
-                  type="text"
                   class="w-full rounded bg-stone-700 px-2 py-1 text-stone-100 border border-stone-500"
-                />
+                >
+                  <option value="">Pilih departemen</option>
+                  <option v-for="opt in departmentOptions" :key="opt" :value="opt">{{ opt }}</option>
+                </select>
               </td>
               <td v-else class="px-4 py-3">{{ user.profile?.department || '-' }}</td>
               <td v-if="editingUserId === user.id" class="px-4 py-3">
-                <input
+                <select
                   v-model="editingData.division"
-                  type="text"
                   class="w-full rounded bg-stone-700 px-2 py-1 text-stone-100 border border-stone-500"
-                />
+                >
+                  <option value="">Pilih divisi</option>
+                  <option v-for="opt in divisionOptions" :key="opt" :value="opt">{{ opt }}</option>
+                </select>
               </td>
               <td v-else class="px-4 py-3">{{ user.profile?.division || '-' }}</td>
               <td class="px-4 py-3 text-right">

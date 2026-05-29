@@ -19,6 +19,9 @@ function sanitizeUser(userInstance) {
           full_name: user.profile.full_name,
           bio: user.profile.bio,
           avatar_url: user.profile.avatar_url,
+          job_title: user.profile.job_title,
+          department: user.profile.department,
+          division: user.profile.division,
         }
       : null,
   };
@@ -34,6 +37,7 @@ function sanitizeComment(commentInstance) {
   return {
     id: comment.id,
     body: comment.body,
+    status: comment.status,
     user_id: comment.user_id,
     article_id: comment.article_id,
     parent_id: comment.parent_id,
@@ -50,6 +54,9 @@ function sanitizeComment(commentInstance) {
                 full_name: comment.user.profile.full_name,
                 bio: comment.user.profile.bio,
                 avatar_url: comment.user.profile.avatar_url,
+                job_title: comment.user.profile.job_title,
+                department: comment.user.profile.department,
+                division: comment.user.profile.division,
               }
             : null,
         }
@@ -74,7 +81,9 @@ function buildCommentTree(commentInstances) {
       return;
     }
 
-    roots.push(comment);
+    if (!comment.parent_id) {
+      roots.push(comment);
+    }
   });
 
   return roots;
@@ -111,6 +120,9 @@ function sanitizeArticle(articleInstance, options = {}) {
                 full_name: article.author.profile.full_name,
                 bio: article.author.profile.bio,
                 avatar_url: article.author.profile.avatar_url,
+                job_title: article.author.profile.job_title,
+                department: article.author.profile.department,
+                division: article.author.profile.division,
               }
             : null,
         }

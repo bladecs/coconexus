@@ -35,6 +35,33 @@ function normalizeCategoryName(name) {
   return typeof name === 'string' ? name.trim() : '';
 }
 
+const COMMENT_STATUSES = ['pending', 'approved', 'rejected'];
+
+const PENGELOLA_JOBS = [
+  'Penulis Artikel',
+  'Editor Konten',
+  'Validator Artikel',
+  'Publisher Artikel',
+  'Moderator Komentar',
+  'Pengelola Tag/Kategori',
+];
+
+function normalizeJobTitle(jobTitle) {
+  return typeof jobTitle === 'string' ? jobTitle.trim() : '';
+}
+
+function isValidPengelolaJob(jobTitle) {
+  return PENGELOLA_JOBS.includes(normalizeJobTitle(jobTitle));
+}
+
+function normalizeCommentStatus(status) {
+  return typeof status === 'string' ? status.trim().toLowerCase() : '';
+}
+
+function isValidCommentStatus(status) {
+  return COMMENT_STATUSES.includes(normalizeCommentStatus(status));
+}
+
 module.exports = {
   normalizeEmail,
   isValidEmail,
@@ -43,4 +70,10 @@ module.exports = {
   normalizeStatus,
   isValidArticleStatus,
   normalizeCategoryName,
+  normalizeJobTitle,
+  isValidPengelolaJob,
+  PENGELOLA_JOBS,
+  normalizeCommentStatus,
+  isValidCommentStatus,
+  COMMENT_STATUSES,
 };

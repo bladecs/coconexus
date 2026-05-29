@@ -4,24 +4,39 @@
 
 ### IV.5.1 Pengujian Black Box
 
-Pengujian black box dilakukan dengan menguji masukan dan keluaran sistem tanpa melihat kode program secara langsung. Pengujian ini bertujuan untuk memastikan bahwa fitur yang tersedia dapat berjalan sesuai dengan skenario penggunaan. Pada penelitian ini, pengujian black box dilakukan menggunakan Newman berdasarkan koleksi Postman yang berisi skenario pengujian route dan fungsi sistem.
+Pengujian black box dilakukan untuk memastikan seluruh fungsi sistem berjalan sesuai kebutuhan tanpa melihat implementasi kode secara langsung. Pada tahap ini, pengujian dilakukan melalui dua sumber validasi, yaitu:
 
-Pengujian menggunakan Newman mencakup fitur publik, fitur satgas, fitur admin, serta pengujian hak akses. Fitur publik meliputi akses dashboard, form pelaporan insiden, form pelaporan potensi bahaya, peta GIS, knowledge center, dan emergency center. Fitur satgas meliputi pengelolaan laporan insiden, pengelolaan laporan potensi bahaya, peta hazard, dan artikel K3L. Fitur admin meliputi manajemen pengguna, lokasi, kategori insiden, kategori knowledge, kontak darurat, langkah tanggap darurat, dan panduan pertolongan pertama.
+1. Skenario pengujian backend otomatis pada file `backend/tests/auth-article.test.js`.
+2. Skenario pengujian API menggunakan Newman pada koleksi Postman yang tersimpan di `docs/postman/`.
+
+Berdasarkan pengujian terbaru, backend otomatis memiliki **39 skenario** dan seluruhnya berhasil. Pengujian Newman melibatkan **23 request** dengan **36 assertion** dan seluruhnya juga berhasil.
+
+Tabel-tabel pada bagian ini disusun untuk memudahkan identifikasi hasil pengujian berdasarkan kelompok fungsi. Penyajian dilakukan mulai dari autentikasi dan hak akses, validasi data, pengelolaan kategori dan user, pengelolaan artikel dan media, hingga fitur product card dan relasi artikel.
+
+#### Ringkasan Hasil Pengujian Backend Otomatis
+
+| Komponen | Hasil |
+|---|---:|
+| Jumlah skenario | 39 |
+| Skenario berhasil | 39 |
+| Skenario gagal | 0 |
+| Persentase keberhasilan | 100% |
 
 #### Ringkasan Hasil Pengujian Newman
 
 | Komponen | Hasil |
 |---|---:|
-| Jumlah Iterasi | 1 |
-| Jumlah Request | 23 |
-| Request Gagal | 0 |
-| Jumlah Assertion | 36 |
-| Assertion Gagal | 0 |
-| Total Durasi Pengujian | 3,5 detik |
-| Rata-rata Response Time | 68 ms |
-| Data Diterima | 11,4 kB |
+| Jumlah iterasi | 1 |
+| Jumlah request | 23 |
+| Request gagal | 0 |
+| Jumlah assertion | 36 |
+| Assertion gagal | 0 |
+| Total durasi pengujian | 3,5 detik |
+| Rata-rata response time | 68 ms |
+| Data diterima | 11,4 kB |
 
-**Perintah Pengujian:**
+**Perintah pengujian Newman:**
+
 ```bash
 npx newman run docs/postman/coconexus-api-newman.collection.json \
   -e docs/postman/coconexus-api-newman.environment.json \
@@ -29,255 +44,247 @@ npx newman run docs/postman/coconexus-api-newman.collection.json \
   --reporter-json-export docs/newman-results/coconexus-api-newman-result.json
 ```
 
-#### Tabel IV.5.1.1 Skenario Pengujian Black Box
+#### Tabel IV.5.1.1 Pengujian Autentikasi, Akses, dan Hak Role
 
-| No | Kategori | Skenario Pengujian | Endpoint | Metode | Data Uji | Hasil yang Diharapkan | Hasil Aktual | Status |
-|---:|---|---|---|---|---|---|---|---|
-| **Autentikasi dan Otorisasi** |  |  |  |  |  |  |  |  |
-| 1 | Auth | Health check backend | `/health` | GET | Tidak ada | Backend aktif dan mengembalikan status 200 | Status 200, `success: true` | ✅ Berhasil |
-| 2 | Auth | Login admin berhasil | `/api/auth/login` | POST | Email dan password admin valid | Sistem mengembalikan token admin | Status 200, token tersedia | ✅ Berhasil |
-| 3 | Auth | Login user publik | `/api/auth/login` | POST | Email dan password user valid | Sistem mengembalikan token user | Status 200, token tersedia | ✅ Berhasil |
-| 4 | Auth | Login dengan password salah | `/api/auth/login` | POST | Password tidak valid | Sistem menolak login | Status 401 | ✅ Berhasil |
-| 5 | Auth | Registrasi publik dengan role admin | `/api/auth/register` | POST | `role: admin` dalam request | Akun tetap dibuat sebagai user | Status 201, role menjadi `user` | ✅ Berhasil |
-| 6 | Auth | Registrasi password lemah | `/api/auth/register` | POST | Password kurang dari standar | Sistem menolak registrasi | Status 400 | ✅ Berhasil |
-| 7 | Auth | Registrasi email baru | `/api/auth/register` | POST | Email baru yang belum terdaftar | User berhasil dibuat | Status 201 | ✅ Berhasil |
-| 8 | Auth | Registrasi email duplikat | `/api/auth/register` | POST | Email yang sudah terdaftar | Sistem menolak registrasi | Status 409 | ✅ Berhasil |
-| 9 | Otorisasi | User biasa akses dashboard admin | `/api/admin/stats` | GET | Token user biasa | Sistem menolak akses admin | Status 403, `success: false` | ✅ Berhasil |
-| 10 | Otorisasi | Akses admin tanpa token | `/api/articles/admin` | GET | Tidak ada token | Sistem menolak akses | Status 401 | ✅ Berhasil |
-| 11 | Otorisasi | Akses admin dengan token tidak valid | `/api/articles/admin` | GET | Token salah/invalid | Sistem menolak akses | Status 401 | ✅ Berhasil |
-| **Manajemen Kategori** |  |  |  |  |  |  |  |  |
-| 12 | Kategori | Admin membuat kategori | `/api/categories/admin` | POST | Nama dan deskripsi kategori valid | Kategori tersimpan | Status 201, kategori tersimpan | ✅ Berhasil |
-| 13 | Kategori | Membuat kategori duplikat | `/api/categories/admin` | POST | Nama kategori yang sama | Sistem menolak duplikasi | Status 409 | ✅ Berhasil |
-| 22 | Kategori | Menghapus kategori yang masih dipakai artikel | `/api/categories/admin/:id` | DELETE | Kategori berelasi dengan artikel | Sistem menolak penghapusan | Status 409 | ✅ Berhasil |
-| **Manajemen Artikel** |  |  |  |  |  |  |  |  |
-| 14 | Artikel | Admin membuat artikel draft | `/api/articles/admin` | POST | Judul, konten, kategori, product card | Artikel tersimpan sebagai draft | Status 201, status `draft` | ✅ Berhasil |
-| 15 | Artikel | Membuat artikel tanpa konten | `/api/articles/admin` | POST | Judul dan kategori tanpa konten | Sistem menolak data | Status 400 | ✅ Berhasil |
-| 16 | Artikel | Publish artikel draft | `/api/articles/admin/:id/status` | PATCH | Status `published` | Artikel berubah menjadi published | Status 200, status `published` | ✅ Berhasil |
-| 17 | Artikel | Menampilkan artikel published | `/api/articles/published` | GET | Artikel sudah dipublikasikan | Artikel published muncul di daftar publik | Status 200, minimal 1 artikel | ✅ Berhasil |
-| 18 | Artikel | Membuka detail artikel published | `/api/articles/published/:id` | GET | ID artikel published dan session id | Detail artikel tampil dan view tercatat | Status 200, detail sesuai artikel | ✅ Berhasil |
-| **Manajemen Komentar** |  |  |  |  |  |  |  |  |
-| 19 | Komentar | Komentar kosong | `/api/articles/:id/comments` | POST | Body komentar berisi spasi | Sistem menolak komentar | Status 400 | ✅ Berhasil |
-| 20 | Komentar | User membuat komentar valid | `/api/articles/:id/comments` | POST | Body komentar valid | Komentar tersimpan | Status 201, komentar tersimpan | ✅ Berhasil |
-| **Manajemen Profil User** |  |  |  |  |  |  |  |  |
-| 21 | Profil User | User memperbarui profil sendiri | `/api/users/me/profile` | PUT | Nama dan bio baru | Profil user berubah | Status 200, nama profil berubah | ✅ Berhasil |
-| **Dashboard Admin** |  |  |  |  |  |  |  |  |
-| 23 | Admin | Statistik dashboard admin | `/api/admin/stats` | GET | Token admin valid | Statistik artikel dan view tersedia | Status 200, total artikel dan view tersedia | ✅ Berhasil |
+| No | Skenario Pengujian | Endpoint/Alur | Data Uji | Hasil yang Diharapkan | Hasil Aktual | Status |
+|---:|---|---|---|---|---|---|
+| 1 | Registrasi publik mengabaikan role admin | `/api/auth/register` | `role: admin` dalam request | Akun tetap dibuat sebagai `user` | Status 201, role tetap `user` | Berhasil |
+| 2 | User biasa mengakses dashboard admin | `/api/admin/stats` | Token user biasa | Akses ditolak | Status 403 | Berhasil |
+| 3 | User biasa membuat artikel di route pengelola | `/api/articles` | Token user biasa | Akses ditolak | Status 403, `success: false` | Berhasil |
+| 4 | Pengelola membuat dan mengambil artikel | `/api/articles` dan `/api/articles/:id` | Token pengelola valid | Artikel dapat dibuat dan dibaca | Status 201 dan 200 | Berhasil |
+| 5 | Publisher mempublikasikan draft artikel | `/api/articles/:id/status` | Status `published` | Draft berubah menjadi published | Status 200, status `published` | Berhasil |
+| 6 | Writer tidak boleh mempublikasikan artikel | `/api/articles/:id/status` | Token writer | Akses ditolak | Status 403 | Berhasil |
+| 7 | Publisher mempublikasikan draft milik pengelola lain | `/api/articles/:id/status` | Token publisher | Artikel berhasil dipublikasikan | Status 200, status `published` | Berhasil |
+| 8 | Tag manager mengelola kategori, writer tidak | `/api/categories` | Token tag manager dan writer | Tag manager berhasil, writer ditolak | Status 201 dan 403 | Berhasil |
+| 9 | Comment moderator mengakses modul komentar, writer tidak | `/api/comments?status=pending` | Token moderator dan writer | Moderator berhasil, writer ditolak | Status 200 dan 403 | Berhasil |
+| 10 | Pengelola tidak boleh mempublikasikan artikel milik penulis lain | `/api/articles/:id/status` | Token pengelola bukan pemilik | Akses ditolak | Status 403 | Berhasil |
+| 11 | Login dengan password salah | `/api/auth/login` | Password tidak valid | Login ditolak | Status 401 | Berhasil |
+| 12 | Registrasi dengan password lemah | `/api/auth/register` | Password pendek | Registrasi ditolak | Status 400 | Berhasil |
+| 13 | Registrasi email duplikat aktif | `/api/auth/register` | Email yang sudah terdaftar | Registrasi ditolak | Status 409 | Berhasil |
+| 14 | Daftar artikel admin tanpa token | `/api/articles/admin` | Tidak ada token | Akses ditolak | Status 401 | Berhasil |
+| 15 | Daftar artikel admin dengan token invalid | `/api/articles/admin` | Token salah | Akses ditolak | Status 401 | Berhasil |
+
+#### Tabel IV.5.1.2 Pengujian Validasi Data dan Interaksi Publik
+
+| No | Skenario Pengujian | Endpoint/Alur | Data Uji | Hasil yang Diharapkan | Hasil Aktual | Status |
+|---:|---|---|---|---|---|---|
+| 16 | Admin membuat artikel tanpa body content | `/api/articles/admin` | Judul tanpa konten | Data ditolak | Status 400 | Berhasil |
+| 17 | Admin mengunggah media dengan tipe tidak didukung | `/api/uploads/articles` | File `.exe` | Upload ditolak | Status 400, `success: false` | Berhasil |
+| 18 | User berkomentar pada artikel draft | `/api/articles/:id/comments` | Token user dan artikel draft | Komentar ditolak | Status 404 | Berhasil |
+| 19 | User mengirim komentar kosong pada artikel published | `/api/articles/:id/comments` | Isi komentar spasi | Komentar ditolak | Status 400 | Berhasil |
+| 20 | Komentar pending disembunyikan sampai disetujui | `/api/comments/:id/status` | Status `pending` lalu `approved` | Komentar tidak tampil sebelum disetujui | Status sesuai alur | Berhasil |
+| 21 | Moderator menolak komentar dan komentar tetap tersembunyi | `/api/comments/:id/status` | Status `rejected` | Komentar tidak tampil di publik | Status 200, komentar tetap tersembunyi | Berhasil |
+| 22 | Daftar artikel publik menyembunyikan draft | `/api/articles/published` | Artikel draft dan published | Hanya published yang tampil | Status 200, draft tidak muncul | Berhasil |
+| 23 | Detail artikel published mencatat article view | `/api/articles/published/:id` | `x-coconexus-session-id` | View tercatat | Status 200, view bertambah | Berhasil |
+
+#### Tabel IV.5.1.3 Pengujian Manajemen Kategori dan User
+
+| No | Skenario Pengujian | Endpoint/Alur | Data Uji | Hasil yang Diharapkan | Hasil Aktual | Status |
+|---:|---|---|---|---|---|---|
+| 24 | Admin membuat kategori dan menolak kategori duplikat | `/api/categories/admin` | Nama kategori sama | Kategori pertama tersimpan, duplikat ditolak | Status 201 dan 409 | Berhasil |
+| 25 | Admin tidak dapat menghapus kategori yang masih dipakai artikel | `/api/categories/admin/:id` | Kategori masih berelasi | Penghapusan ditolak | Status 409 | Berhasil |
+| 26 | Admin memperbarui role dan profil user | `/api/users/admin/:id` | `role`, `full_name`, `bio` | Data user berubah | Status 200, data terupdate | Berhasil |
+| 27 | Daftar user admin menampilkan field job, department, dan division | `/api/users/admin` | Token admin valid | Field profil tampil lengkap | Status 200, field tersedia | Berhasil |
+| 28 | Admin tidak dapat soft delete akun sendiri | `/api/users/admin/:id` | ID akun admin sendiri | Penghapusan ditolak | Status 403 | Berhasil |
+| 29 | User memperbarui profil sendiri | `/api/users/me/profile` | `full_name` dan `bio` baru | Profil berubah | Status 200, profil terupdate | Berhasil |
+
+#### Tabel IV.5.1.4 Pengujian Manajemen Artikel dan Media
+
+| No | Skenario Pengujian | Endpoint/Alur | Data Uji | Hasil yang Diharapkan | Hasil Aktual | Status |
+|---:|---|---|---|---|---|---|
+| 30 | Admin login lalu membuat draft artikel dengan kategori otomatis | `/api/articles/admin` | Judul, konten, kategori baru | Artikel draft tersimpan dan kategori dibuat otomatis | Status 201, status `draft` | Berhasil |
+| 31 | Admin membuat artikel dengan dynamic product cards | `/api/articles/admin` | `product_cards` berisi beberapa item | Product card tersimpan dan terhubung ke artikel | Status 201, card tersimpan | Berhasil |
+| 32 | Endpoint validasi artikel dapat mempublikasikan draft | `/api/articles/admin/:id/status` | Status `published` | Status artikel berubah menjadi published | Status 200, status `published` | Berhasil |
+| 33 | Admin mengunggah file media artikel | `/api/uploads/articles` | File gambar valid | Media tersimpan dan path dibentuk otomatis | Status 201, `media_type: image` | Berhasil |
+| 34 | Dashboard stats menampilkan dataset chart kategori dan komentar | `/api/admin/stats` | Token admin valid | Dataset statistik tersedia | Status 200, chart tersedia | Berhasil |
+
+#### Tabel IV.5.1.5 Pengujian Product Card dan Linking Artikel
+
+| No | Skenario Pengujian | Endpoint/Alur | Data Uji | Hasil yang Diharapkan | Hasil Aktual | Status |
+|---:|---|---|---|---|---|---|
+| 35 | Endpoint available product cards hanya menampilkan card yang belum terhubung | `/api/articles/admin/product-cards/available?article_id=...` | Article ID utama | Hanya card yang belum linked yang tampil | Status 200, card unlinked tampil | Berhasil |
+| 36 | Endpoint main articles menampilkan artikel induk untuk dropdown | `/api/articles/admin/main-articles` | Token admin valid | Hanya artikel induk yang muncul | Status 200, daftar sesuai | Berhasil |
+| 37 | Admin membuat artikel detail yang terhubung ke product card terpilih | `/api/articles/admin` | `parent_article_id` dan `linked_product_card_id` | Artikel detail tersimpan dan card terhubung | Status 201, relasi tersimpan | Berhasil |
+| 38 | Detail artikel publik menampilkan product cards untuk eksplorasi | `/api/articles/published/:id` | Artikel induk published | Product card dan artikel detail tampil | Status 200, card tampil | Berhasil |
+| 39 | Admin memperbarui unlinked product cards dari editor artikel | `/api/articles/admin/:id` | `product_cards` baru | Product card lama terganti | Status 200, card terupdate | Berhasil |
+
+Hasil pengujian black box menunjukkan bahwa seluruh skenario pada setiap kelompok fungsi memberikan keluaran yang sesuai dengan ekspektasi. Pada pengujian autentikasi dan otorisasi, sistem berhasil membedakan akses berdasarkan role sehingga user biasa tidak dapat mengakses fitur administratif. Pada pengujian validasi data, sistem menolak input yang tidak sesuai, seperti artikel tanpa konten, komentar kosong, atau file media dengan tipe yang tidak didukung.
+
+Selain itu, pengujian pengelolaan kategori dan user menunjukkan bahwa data relasional dapat dikelola dengan benar tanpa melanggar aturan integritas data. Pengujian artikel dan media juga memperlihatkan bahwa sistem mampu menangani alur draft, publikasi, penyimpanan media, dan pembentukan data statistik. Pada pengujian product card, sistem berhasil mempertahankan hubungan antara artikel utama, artikel detail, dan kartu produk yang digunakan untuk navigasi konten.
 
 #### Kesimpulan Pengujian Black Box
 
-Berdasarkan pengujian API menggunakan Newman, **seluruh endpoint yang diuji memberikan respons sesuai dengan hasil yang diharapkan**. Pengujian mencakup:
+Berdasarkan pengujian backend otomatis dan validasi API menggunakan Newman, seluruh skenario yang diuji memberikan respons sesuai dengan hasil yang diharapkan. Pengujian mencakup:
 
-1. **Autentikasi & Otorisasi** (11 test): Registrasi, login, validasi password, proteksi akses berdasarkan role
-2. **Manajemen Kategori** (3 test): Pembuatan kategori, pencegahan duplikasi, penghapusan yang aman
-3. **Manajemen Artikel** (5 test): Draft, publikasi, perubahan status, tampilan publik, detail artikel
-4. **Manajemen Komentar** (2 test): Validasi input, penyimpanan komentar
-5. **Manajemen Profil** (1 test): Pembaruan profil user
-6. **Dashboard Admin** (1 test): Statistik dan analytics
+1. Autentikasi dan otorisasi berbasis role.
+2. Validasi data pada artikel, komentar, dan media.
+3. Pengelolaan kategori serta data user.
+4. Workflow artikel, termasuk draft, publish, dan product card.
+5. Statistik dashboard dan pencatatan view artikel.
 
-**Total: 23 request berhasil ✅ | 36 assertion berhasil ✅ | 0 assertion gagal ✅**
-
----
+Secara keseluruhan, **39 skenario backend otomatis berhasil** dan **23 request Newman berhasil** dengan **0 kegagalan**.
 
 ### IV.5.2 Pengujian User Acceptance Test (UAT)
 
-User Acceptance Test (UAT) dilakukan untuk menilai apakah sistem sudah sesuai dengan kebutuhan pengguna dari sisi alur penggunaan dan ketersediaan fitur. Pengujian UAT disusun berdasarkan peran aktor dalam sistem, yaitu pengguna umum, satgas K3L, dan admin. UAT berfokus pada penerimaan pengguna terhadap fitur utama yang telah dibangun.
+User Acceptance Test (UAT) dilakukan untuk menilai kesesuaian sistem dengan kebutuhan pengguna dari sisi alur penggunaan dan ketersediaan fitur. UAT pada sistem COCONEXUS disusun berdasarkan tiga aktor utama, yaitu pengguna umum, pengelola, dan admin.
 
-Pada tahap ini, skenario UAT disusun berdasarkan kebutuhan fungsional sistem. Pengguna umum diuji pada fitur pelaporan dan akses informasi publik. Satgas K3L diuji pada fitur pengelolaan laporan dan pemetaan bahaya. Admin diuji pada fitur manajemen data utama sistem. 
+Pada tahap ini, skenario UAT disusun berdasarkan fitur yang benar-benar tersedia pada sistem, seperti membaca artikel publik, registrasi, login, komentar, pembuatan artikel, publikasi artikel, manajemen kategori, manajemen pengguna, media artikel, product card, dan statistik dashboard.
 
-#### Tabel IV.5.2.1 UAT - Pengguna Umum (Public User)
+Penyusunan skenario UAT dibagi berdasarkan role agar alur pengujian lebih mudah dipahami. Pengguna umum difokuskan pada akses konten publik dan interaksi dasar, pengelola difokuskan pada workflow konten dan moderasi, sedangkan admin difokuskan pada pengelolaan data dan statistik sistem.
 
-| No | Aktor | Skenario UAT | Kriteria Penerimaan | Verifikasi | Status |
-|---:|---|---|---|---|---|
-| 1 | Pengguna Umum | Mengakses halaman publik tanpa login | User dapat melihat dashboard publik, menu navigasi, dan informasi utama | Halaman dapat diakses, semua elemen UI tampil dengan baik, loading time < 3 detik | [ ] Diterima |
-| 2 | Pengguna Umum | Membaca knowledge center | Pengguna dapat membaca artikel K3L, kategori artikel terorganisir, fitur search bekerja | Minimal 5 artikel tampil, kategori mudah diakses, search menampilkan hasil relevan | [ ] Diterima |
-| 3 | Pengguna Umum | Mengakses emergency center | Pengguna dapat melihat kontak darurat, langkah pertama, dan panduan pertolongan | Informasi darurat lengkap, nomor kontak aktif, UI responsif | [ ] Diterima |
-| 4 | Pengguna Umum | Melihat peta GIS | Pengguna dapat melihat peta, mencari lokasi, dan melihat informasi titik bahaya | Peta loading dengan baik, marker tampil, search lokasi berfungsi | [ ] Diterima |
-| 5 | Pengguna Umum | Melakukan registrasi akun | Pengguna dapat membuat akun baru dengan email dan password | Akun berhasil dibuat, email verifikasi terkirim (jika ada), user dapat login | [ ] Diterima |
-| 6 | Pengguna Umum | Login dan akses dashboard personal | Pengguna dapat login dengan email/password dan melihat dashboard personal | Dashboard personal tampil, informasi profil tersimpan, session aktif | [ ] Diterima |
-| 7 | Pengguna Umum | Mengisi laporan insiden | Pengguna dapat mengisi form laporan insiden, upload foto, dan submit | Form lengkap, upload file berhasil, laporan tersimpan dengan ID tracking | [ ] Diterima |
-| 8 | Pengguna Umum | Mengisi laporan potensi bahaya | Pengguna dapat mengisi form laporan potensi bahaya, pilih lokasi di peta, submit | Form intuitif, lokasi GIS dapat dipilih, laporan terkirim dengan notifikasi | [ ] Diterima |
-| 9 | Pengguna Umum | Melihat riwayat laporan sendiri | Pengguna dapat melihat status dan detail laporan yang telah dibuat | Daftar laporan tampil, status update real-time, dapat filter berdasarkan tanggal/tipe | [ ] Diterima |
-| 10 | Pengguna Umum | Memberikan komentar pada artikel | Pengguna dapat memberikan feedback/komentar pada artikel knowledge center | Komentar berhasil disimpan, notifikasi dikirim, komentar tampil di article | [ ] Diterima |
-
-#### Tabel IV.5.2.2 UAT - Satgas K3L
+#### Tabel IV.5.2.1 UAT - Pengguna Umum
 
 | No | Aktor | Skenario UAT | Kriteria Penerimaan | Verifikasi | Status |
 |---:|---|---|---|---|---|
-| 1 | Satgas K3L | Login dengan akun satgas | Satgas dapat login dan masuk ke dashboard satgas | Login berhasil, dashboard satgas tampil, menu sesuai role satgas | [ ] Diterima |
-| 2 | Satgas K3L | Melihat daftar laporan yang masuk | Satgas dapat melihat semua laporan insiden dan potensi bahaya yang masuk | Daftar laporan lengkap, dapat disort dan filter, pagination bekerja | [ ] Diterima |
-| 3 | Satgas K3L | Membuka detail laporan | Satgas dapat membuka dan melihat detail lengkap laporan | Detail laporan lengkap (form, foto, lokasi, waktu), UI responsif | [ ] Diterima |
-| 4 | Satgas K3L | Mengubah status laporan | Satgas dapat mengubah status laporan (pending → review → verified) | Status laporan berubah, audit log tercatat, notifikasi dikirim ke pelapor | [ ] Diterima |
-| 5 | Satgas K3L | Memberikan tindakan pada laporan | Satgas dapat menambahkan keterangan tindakan yang diambil | Tindakan tersimpan, history perubahan tercatat, dapat dilihat oleh admin | [ ] Diterima |
-| 6 | Satgas K3L | Mengakses peta hazard | Satgas dapat melihat peta dengan marker laporan yang masuk | Peta loading, marker sesuai laporan, dapat filter berdasarkan status/tipe | [ ] Diterima |
-| 7 | Satgas K3L | Menambahkan titik bahaya pada peta | Satgas dapat menambahkan titik lokasi bahaya baru di peta | Titik baru tersimpan, muncul di peta, dapat edit keterangan | [ ] Diterima |
-| 8 | Satgas K3L | Membaca artikel K3L | Satgas dapat membaca dan menggunakan artikel K3L sebagai referensi penanganan | Artikel terbuka dengan baik, fitur search/kategori memudahkan pencarian | [ ] Diterima |
-| 9 | Satgas K3L | Export laporan untuk report | Satgas dapat export data laporan dalam format PDF/Excel untuk laporan bulanan | Export berhasil, file download, format rapi dan lengkap | [ ] Diterima |
-| 10 | Satgas K3L | Melihat statistik laporan | Satgas dapat melihat grafik dan statistik laporan yang masuk | Grafik menampilkan trend, statistik akurat, update real-time | [ ] Diterima |
+| 1 | Pengguna Umum | Mengakses halaman publik tanpa login | Daftar artikel dan navigasi publik tampil | Halaman publik dapat diakses dengan baik | [ ] Diterima |
+| 2 | Pengguna Umum | Melihat daftar artikel published | Artikel published tampil dan draft tidak ikut muncul | Hanya artikel published yang tampil | [ ] Diterima |
+| 3 | Pengguna Umum | Membuka detail artikel published | Konten artikel, media, dan product card tampil | Detail artikel dapat dibaca lengkap | [ ] Diterima |
+| 4 | Pengguna Umum | Melakukan registrasi akun baru | Akun berhasil dibuat sebagai user biasa | Registrasi berhasil dan dapat login | [ ] Diterima |
+| 5 | Pengguna Umum | Login dengan akun yang sudah terdaftar | Token atau session login aktif | User dapat masuk ke sistem | [ ] Diterima |
+| 6 | Pengguna Umum | Mengirim komentar pada artikel published | Komentar tersimpan dengan status pending | Komentar berhasil dikirim | [ ] Diterima |
+| 7 | Pengguna Umum | Mengirim komentar kosong | Sistem menolak input kosong | Validasi komentar berjalan | [ ] Diterima |
+| 8 | Pengguna Umum | Memperbarui profil sendiri | Nama dan bio user berubah | Profil berhasil disimpan | [ ] Diterima |
+| 9 | Pengguna Umum | Melihat artikel berdasarkan kategori | Artikel dapat difilter sesuai kategori | Filter kategori berjalan | [ ] Diterima |
+| 10 | Pengguna Umum | Mencari artikel melalui search | Artikel yang relevan muncul di hasil pencarian | Search menampilkan hasil yang sesuai | [ ] Diterima |
+
+Berdasarkan tabel UAT untuk pengguna umum, sistem telah menyediakan pengalaman akses publik yang lengkap. Pengguna dapat membaca artikel, melihat detail konten, berinteraksi melalui komentar, serta memperbarui profilnya. Ini menunjukkan bahwa fitur publik telah mendukung kebutuhan utama pengguna tanpa harus masuk ke area administratif.
+
+#### Tabel IV.5.2.2 UAT - Pengelola
+
+| No | Aktor | Skenario UAT | Kriteria Penerimaan | Verifikasi | Status |
+|---:|---|---|---|---|---|
+| 1 | Pengelola | Login dengan akun pengelola | Dashboard pengelola tampil sesuai role | Login berhasil | [ ] Diterima |
+| 2 | Pengelola | Membuat artikel draft | Artikel tersimpan dengan status draft | Draft berhasil dibuat | [ ] Diterima |
+| 3 | Pengelola | Melihat detail artikel yang dibuat | Detail artikel tampil lengkap | Artikel dapat dibuka dan diperiksa | [ ] Diterima |
+| 4 | Pengelola | Mempublikasikan draft artikel sebagai publisher | Status artikel berubah menjadi published | Publish berhasil | [ ] Diterima |
+| 5 | Pengelola | Gagal mempublikasikan artikel jika role tidak berwenang | Sistem menolak aksi publish | Akses dibatasi sesuai role | [ ] Diterima |
+| 6 | Pengelola | Mengelola kategori sebagai tag manager | Kategori dapat dibuat melalui modul pengelola | CRUD kategori berjalan | [ ] Diterima |
+| 7 | Pengelola | Gagal mengelola kategori jika role writer | Sistem menolak aksi kategori | Hak akses terjaga | [ ] Diterima |
+| 8 | Pengelola | Mengakses daftar komentar sebagai moderator | Daftar komentar pending tampil | Modul moderasi komentar aktif | [ ] Diterima |
+| 9 | Pengelola | Gagal mengakses komentar jika role writer | Sistem menolak akses komentar | Validasi otorisasi berjalan | [ ] Diterima |
+| 10 | Pengelola | Menangani artikel milik pengelola lain sesuai hak publish | Publish hanya berhasil jika role berwenang | Aturan kepemilikan diterapkan | [ ] Diterima |
+
+Berdasarkan tabel UAT untuk pengelola, sistem memperlihatkan pemisahan hak akses yang jelas antara writer, moderator, tag manager, dan publisher. Setiap role hanya dapat menjalankan fungsi yang sesuai dengan kewenangannya. Hal ini penting karena proses pengelolaan artikel pada COCONEXUS memang dirancang berbasis workflow, bukan hanya sekadar CRUD biasa.
 
 #### Tabel IV.5.2.3 UAT - Admin
 
 | No | Aktor | Skenario UAT | Kriteria Penerimaan | Verifikasi | Status |
 |---:|---|---|---|---|---|
-| 1 | Admin | Login dengan akun admin | Admin dapat login dan masuk ke dashboard admin | Login berhasil, dashboard admin tampil, semua menu admin tersedia | [ ] Diterima |
-| 2 | Admin | Mengelola pengguna (CRUD) | Admin dapat membuat, melihat, edit, dan hapus pengguna | User management interface lengkap, operasi CRUD berfungsi, validasi input bekerja | [ ] Diterima |
-| 3 | Admin | Mengatur role dan permission pengguna | Admin dapat mengubah role pengguna (user → satgas → admin) | Role change berhasil, permission akses update, audit log tercatat | [ ] Diterima |
-| 4 | Admin | Mengelola kategori insiden | Admin dapat membuat, edit, dan hapus kategori insiden | Kategori management interface jelas, operasi CRUD berfungsi dengan baik | [ ] Diterima |
-| 5 | Admin | Mengelola kategori knowledge | Admin dapat mengelola kategori untuk knowledge center | Kategori knowledge dapat dibuat, diedit, dihapus (jika tidak ada artikel) | [ ] Diterima |
-| 6 | Admin | Mengelola artikel knowledge center | Admin dapat membuat, publish, edit, dan hapus artikel K3L | Article editor intuitif, publish/unpublish bekerja, versi draft tersimpan | [ ] Diterima |
-| 7 | Admin | Mengelola kontak darurat | Admin dapat membuat, edit, dan hapus kontak darurat emergency center | Kontak tersimpan, tampil di emergency center publik, update real-time | [ ] Diterima |
-| 8 | Admin | Mengelola langkah tanggap darurat | Admin dapat mengelola SOP langkah pertama untuk setiap jenis insiden | SOP dapat ditambah/diedit, tersimpan dengan struktur jelas | [ ] Diterima |
-| 9 | Admin | Mengelola panduan pertolongan pertama | Admin dapat mengelola panduan first aid dengan media (teks, foto, video) | Panduan dengan media support, search berfungsi, UI user-friendly | [ ] Diterima |
-| 10 | Admin | Melihat statistik dan analytics | Admin dapat melihat dashboard dengan statistik lengkap (laporan, user, artikel) | Dashboard informatif, grafik akurat, export data tersedia | [ ] Diterima |
-| 11 | Admin | Melihat audit log | Admin dapat melihat log semua aktivitas sistem (create, update, delete oleh user) | Audit log lengkap, dapat filter, timestamp akurat | [ ] Diterima |
-| 12 | Admin | Manajemen konten (upload file) | Admin dapat upload foto, video, dokumen untuk knowledge center dan emergency center | Upload berhasil, file tersimpan, validasi tipe file bekerja | [ ] Diterima |
+| 1 | Admin | Login dengan akun admin | Dashboard admin tampil | Login berhasil | [ ] Diterima |
+| 2 | Admin | Membuat artikel draft dengan kategori otomatis | Artikel dan kategori tersimpan | Proses pembuatan artikel berhasil | [ ] Diterima |
+| 3 | Admin | Menambahkan dynamic product cards pada artikel | Product card tersimpan dan terhubung | Card artikel berhasil dibuat | [ ] Diterima |
+| 4 | Admin | Memperbarui product cards dari editor artikel | Product card lama terganti dengan data baru | Update card berhasil | [ ] Diterima |
+| 5 | Admin | Mengubah status draft menjadi published | Artikel berubah menjadi published | Publish artikel berhasil | [ ] Diterima |
+| 6 | Admin | Membuat kategori baru | Kategori tersimpan | Manajemen kategori berhasil | [ ] Diterima |
+| 7 | Admin | Menangani kategori duplikat | Sistem menolak kategori yang sama | Validasi duplikasi berjalan | [ ] Diterima |
+| 8 | Admin | Menghapus kategori yang masih dipakai artikel | Sistem menolak penghapusan | Relasi data terlindungi | [ ] Diterima |
+| 9 | Admin | Mengubah role dan profil pengguna | Role, nama, dan bio user berubah | Manajemen user berhasil | [ ] Diterima |
+| 10 | Admin | Melihat daftar user lengkap dengan job field | Field job, department, dan division tampil | Data user tampil lengkap | [ ] Diterima |
+| 11 | Admin | Mengunggah media artikel | File media tersimpan dengan benar | Upload berjalan baik | [ ] Diterima |
+| 12 | Admin | Melihat statistik dashboard | Dataset chart tampil lengkap | Statistik dapat dibaca dengan baik | [ ] Diterima |
+
+Hasil UAT untuk admin menunjukkan bahwa fungsi administratif utama telah mencakup pengelolaan user, kategori, artikel, media, dan statistik. Dengan demikian, admin memiliki kendali menyeluruh terhadap data sistem, sementara batasan akses tetap menjaga agar perubahan hanya dilakukan oleh role yang berwenang.
 
 #### Catatan UAT
 
-- Pengujian UAT dapat disesuaikan dengan data real dari sistem yang sudah berjalan
-- Checkbox di kolom "Status" dapat diisi selama melakukan user acceptance test
-- Kolom "Verifikasi" berisi checklist detail untuk memastikan setiap kriteria terpenuhi
-- UAT sebaiknya melibatkan stakeholder dari setiap role untuk mendapatkan feedback yang representatif
-- Jika ada scenario yang gagal, dokumentasikan issue dan rencana perbaikan
+- Kolom status dapat diisi saat pelaksanaan UAT berlangsung.
+- Skenario dapat disesuaikan dengan data real yang tersedia pada sistem produksi atau staging.
+- Pengujian sebaiknya melibatkan perwakilan dari setiap role agar hasil evaluasi lebih representatif.
+- Jika ada skenario yang gagal, catat kendala, penyebab, dan rencana perbaikannya.
 
----
+### IV.5.3 Activity Diagram
 
-## Kesimpulan
+Activity diagram berikut menggambarkan alur utama penggunaan sistem COCONEXUS berdasarkan role pengguna. Diagram ini menampilkan jalur akses publik oleh pengguna umum, pengelolaan konten oleh pengelola, pengelolaan data oleh admin, serta proses penyimpanan dan tampilan pada sistem.
 
-Berdasarkan pengujian black box menggunakan Newman dan persiapan UAT yang telah disusun, sistem COCONEXUS telah memenuhi kriteria pengujian teknis dengan hasil 100% success rate pada 23 skenario pengujian. Pengujian UAT selanjutnya akan memvalidasi kesesuaian sistem dengan kebutuhan pengguna dari perspektif fungsionalitas dan user experience.
+![Activity Diagram COCONEXUS](./activity-diagram-coconexus.svg)
 
----
+Diagram tersebut memperjelas bahwa alur sistem tidak hanya melibatkan pengguna umum dan admin, tetapi juga pengelola sebagai aktor inti dalam proses produksi konten. Pengelola berperan dalam pembuatan draft, validasi, revisi, dan publikasi artikel, sedangkan sistem mengeksekusi penyimpanan data dan menampilkan konten sesuai statusnya. Visualisasi ini membantu menjelaskan hubungan kerja antar role dan alur data yang terjadi di belakang layar.
 
 ## IV.6 HASIL PENGUJIAN
 
 ### IV.6.1 Hasil Pengujian Black Box
 
-Pengujian black box menggunakan Newman telah berhasil dijalankan dengan hasil yang sangat memuaskan. Semua endpoint yang diuji telah merespons sesuai dengan hasil yang diharapkan.
+Hasil pengujian black box menunjukkan bahwa sistem COCONEXUS berjalan stabil pada seluruh skenario yang diuji. Semua skenario backend otomatis berhasil, dan seluruh request Newman juga berhasil dijalankan tanpa kegagalan.
 
-**Metrik Pengujian Black Box:**
+Secara teknis, hasil tersebut memperlihatkan bahwa validasi input, mekanisme otorisasi, dan relasi data pada backend bekerja sesuai rancangan. Tidak ditemukan kegagalan pada skenario pengujian yang disiapkan, sehingga tingkat kesiapan fungsional sistem dapat dinilai baik.
 
 | Metrik | Nilai |
-|---|---|
-| Total Endpoint Diuji | 23 |
-| Endpoint Berhasil | 23 |
-| Endpoint Gagal | 0 |
-| Total Assertion | 36 |
-| Assertion Berhasil | 36 |
-| Assertion Gagal | 0 |
-| Persentase Keberhasilan | 100% |
-| Total Waktu Pengujian | 3,5 detik |
+|---|---:|
+| Total skenario backend | 39 |
+| Skenario backend berhasil | 39 |
+| Skenario backend gagal | 0 |
+| Total request Newman | 23 |
+| Request Newman gagal | 0 |
+| Total assertion Newman | 36 |
+| Assertion Newman gagal | 0 |
+| Persentase keberhasilan | 100% |
+| Total waktu Newman | 3,5 detik |
 
-**Analisis Cakupan Pengujian:**
+### IV.6.2 Hasil Persiapan UAT
 
-Cakupan pengujian black box mencakup:
-- **Autentikasi & Otorisasi: 11 test (47.8%)** - Meliputi registrasi, login, validasi password, dan kontrol akses
-- **Manajemen Artikel: 5 test (21.7%)** - Meliputi CRUD artikel, publikasi, dan tampilan publik
-- **Manajemen Kategori: 3 test (13.0%)** - Meliputi pembuatan, duplikasi, dan penghapusan kategori
-- **Manajemen Komentar: 2 test (8.7%)** - Meliputi validasi dan penyimpanan komentar
-- **Manajemen Profil: 1 test (4.3%)** - Meliputi pembaruan profil user
-- **Dashboard Admin: 1 test (4.3%)** - Meliputi statistik dan analytics
+Persiapan UAT telah disusun untuk tiga aktor utama sistem. Total skenario UAT yang disiapkan adalah 32 skenario.
 
-### IV.6.2 Hasil Persiapan Pengujian UAT
-
-Persiapan pengujian UAT telah disusun dengan detail untuk memastikan validasi komprehensif dari perspektif pengguna. UAT dirancang untuk melibatkan tiga aktor utama sistem dengan total 32 skenario pengujian.
+Distribusi skenario UAT sudah proporsional dengan peran masing-masing aktor. Pengguna umum mendapat fokus pada akses dan interaksi publik, pengelola pada workflow konten, dan admin pada pengelolaan data sistem.
 
 | Aktor | Jumlah Skenario | Fokus Pengujian |
-|---|---|---|
-| Pengguna Umum | 10 | Dashboard publik, pelaporan, knowledge center, emergency center, GIS |
-| Satgas K3L | 10 | Manajemen laporan, pemetaan bahaya, statistik, export report |
-| Admin | 12 | User management, kategori, artikel, emergency center, audit log |
+|---|---:|---|
+| Pengguna Umum | 10 | Akses publik, registrasi, login, komentar, profil |
+| Pengelola | 10 | Draft artikel, publish, kategori, komentar |
+| Admin | 12 | User management, kategori, media, statistik |
 
 ### IV.6.3 Metrik Performa
 
-- Response Time Rata-rata: 68 ms (Sangat Baik)
-- Total Data Diterima: 11,4 kB (Efisien)
-- Waktu Eksekusi Keseluruhan: 3,5 detik (Cepat)
-- Throughput: 6.57 request/detik
-- Jitter Response Time: Rendah (< 50ms)
-- Server Uptime: 100% (Stabil)
-
----
+| Metrik | Nilai |
+|---|---:|
+| Rata-rata response time | 68 ms |
+| Data diterima | 11,4 kB |
+| Waktu eksekusi keseluruhan | 3,5 detik |
+| Throughput | 6,57 request/detik |
 
 ## IV.7 PEMBAHASAN
 
-Bagian pembahasan menganalisis hasil pengujian yang telah dilakukan, interpretasi temuan, dan rekomendasi untuk pengembangan sistem lebih lanjut. Pembahasan mencakup analisis hasil black box, persiapan UAT, tantangan yang dihadapi, dan saran perbaikan.
+Bagian ini membahas hasil pengujian yang telah dilakukan, interpretasi temuan, serta implikasi terhadap kualitas sistem.
+
+Secara umum, hasil pengujian memperlihatkan bahwa sistem COCONEXUS tidak hanya berfungsi pada level teknis, tetapi juga memiliki alur penggunaan yang sesuai dengan kebutuhan masing-masing role. Dengan kata lain, sistem sudah layak dinilai dari sisi fungsionalitas dasar dan kesiapan penerimaan pengguna.
 
 ### IV.7.1 Analisis Hasil Pengujian Black Box
 
-Hasil pengujian black box menunjukkan bahwa sistem COCONEXUS telah mencapai tingkat keberhasilan 100% pada semua endpoint yang diuji. Hal ini mengindikasikan bahwa:
+Hasil pengujian menunjukkan bahwa sistem COCONEXUS telah memenuhi kebutuhan fungsional utama. Beberapa poin penting yang dapat disimpulkan adalah:
 
-1. **Integritas Data**: Semua operasi CRUD (Create, Read, Update, Delete) bekerja dengan baik dan data tersimpan dengan benar di database.
+1. Autentikasi dan otorisasi berbasis role berjalan baik.
+2. Validasi input mencegah data tidak valid masuk ke sistem.
+3. Workflow artikel, termasuk draft, publish, dan detail artikel, berjalan konsisten.
+4. Moderasi komentar dan pencatatan view artikel berjalan sesuai rancangan.
+5. Pengelolaan kategori, user, media, dan product card berhasil diintegrasikan dengan baik.
 
-2. **Validasi Input**: Sistem berhasil memvalidasi semua input yang tidak sesuai standar dan menolak dengan kode error yang tepat (400 untuk bad request, 409 untuk conflict).
+### IV.7.2 Kesiapan UAT
 
-3. **Keamanan Autentikasi**: Mekanisme login, registrasi, dan pembatasan akses berdasarkan role berfungsi optimal. Password validation mencegah password lemah dan email uniqueness constraint mencegah duplikasi akun.
-
-4. **Otorisasi Berbasis Role**: Sistem dengan baik melindungi akses admin dan satgas dari user biasa. Role-based access control (RBAC) berfungsi sesuai desain dengan status HTTP 403 untuk akses terlarang dan 401 untuk akses tanpa autentikasi.
-
-5. **Performa Sistem**: Response time rata-rata 68ms menunjukkan performa yang sangat baik untuk aplikasi web modern, memenuhi standar user experience yang responsif.
-
-### IV.7.2 Kesiapan Pengujian UAT
-
-Persiapan pengujian UAT telah disusun dengan detail meliputi 32 skenario pengujian yang mencakup semua aspek fungsionalitas sistem:
-
-1. **Keseimbangan Cakupan**: UAT mencakup ketiga aktor utama (pengguna umum, satgas K3L, admin) dengan distribusi skenario yang proporsional sesuai kompleksitas role mereka. Admin mendapat 12 skenario karena memiliki fungsi paling kompleks dalam manajemen sistem.
-
-2. **Spesifisitas Skenario**: Setiap skenario UAT dirancang dengan kriteria penerimaan yang jelas dan terukur, memudahkan pengguna menentukan apakah sistem berhasil atau gagal.
-
-3. **Representasi Alur Nyata**: Skenario UAT mewakili alur penggunaan nyata yang akan dilakukan pengguna dalam operasional sehari-hari, bukan hanya test case teknis.
-
-4. **Verifikasi Multi-aspek**: Kolom verifikasi mencakup aspek fungsionalitas, performa (loading time), dan user experience (responsiveness, intuitif), bukan hanya keberhasilan operasi.
+Skenario UAT yang disusun sudah mencakup alur utama penggunaan sistem oleh pengguna umum, pengelola, dan admin. Dengan cakupan tersebut, UAT dapat digunakan untuk memvalidasi kesesuaian sistem dengan kebutuhan pengguna akhir secara lebih menyeluruh.
 
 ### IV.7.3 Temuan Penting
 
-- **Sistem Stabil**: Tidak ada failure point atau crash selama pengujian, menunjukkan stabilitas yang baik.
-- **Error Handling Baik**: Sistem menangani error cases dengan graceful dan memberikan pesan error yang informatif.
-- **Proteksi Keamanan**: Sistem berhasil mencegah berbagai skenario keamanan seperti privilege escalation dan unauthorized access.
-- **Validasi Data Ketat**: Input validation berfungsi dengan baik mencegah data yang tidak valid masuk ke sistem.
-- **Audit Trail**: Sistem mencatat setiap perubahan untuk keperluan auditing dan compliance.
-- **API Konsisten**: Response format konsisten dan mengikuti standar REST API yang baik.
+- Sistem stabil dan tidak mengalami kegagalan pada skenario pengujian yang dijalankan.
+- Error handling sudah baik karena sistem memberikan respons yang sesuai saat input tidak valid.
+- Pembatasan akses berdasarkan role berjalan konsisten.
+- Data relasional seperti kategori, artikel, komentar, dan product card terhubung dengan benar.
 
-### IV.7.4 Tantangan dan Limitasi
+### IV.7.4 Limitasi
 
-Beberapa tantangan dan limitasi yang diidentifikasi:
+Beberapa keterbatasan yang masih perlu diperhatikan adalah:
 
-1. **Load Testing**: Pengujian black box yang dilakukan belum mencakup load testing untuk menentukan kapasitas sistem under stress (concurrent users, large data volume).
-
-2. **Integration Testing Parsial**: Pengujian API dilakukan secara terpisah belum fully integrated dengan frontend, sehingga end-to-end testing masih perlu dilakukan.
-
-3. **Security Testing Terbatas**: Pengujian keamanan masih basic level, belum mencakup penetration testing atau security audit mendalam.
-
-4. **Browser Compatibility**: UAT masih fokus pada fungsionalitas belum mencakup cross-browser compatibility testing.
-
-5. **Performance Under Load**: Performance metrics yang diperoleh adalah untuk kondisi light load, perlu dilakukan stress testing untuk kondisi production.
+1. UAT masih berupa skenario terstruktur dan belum seluruhnya dijalankan oleh responden.
+2. Pengujian load dan stress belum dilakukan.
+3. Pengujian lintas browser dan lintas perangkat belum dicantumkan pada tahap ini.
 
 ### IV.7.5 Rekomendasi
 
-Rekomendasi untuk pengembangan dan pengujian lebih lanjut:
+Rekomendasi untuk pengembangan lebih lanjut adalah:
 
-- **Load Testing**: Lakukan load testing menggunakan tools seperti JMeter atau Locust untuk menentukan kapasitas maksimal sistem dan identify bottleneck points.
-
-- **Security Audit**: Lakukan comprehensive security audit dan penetration testing untuk mengidentifikasi vulnerability yang mungkin terlewat.
-
-- **End-to-End Testing**: Lakukan E2E testing dengan Selenium atau Cypress untuk menguji integrasi frontend-backend secara keseluruhan.
-
-- **Performance Optimization**: Optimize database queries, implement caching strategy, dan optimize asset delivery untuk meningkatkan response time.
-
-- **Browser Compatibility**: Test aplikasi di berbagai browser (Chrome, Firefox, Safari, Edge) dan perangkat (desktop, tablet, mobile).
-
-- **Continuous Testing**: Implementasikan automated testing dalam CI/CD pipeline untuk continuous quality assurance.
-
-- **Monitoring & Logging**: Setup comprehensive monitoring dan logging untuk production environment.
+- Menjalankan load testing untuk mengukur kemampuan sistem saat trafik tinggi.
+- Menambah end-to-end testing agar integrasi frontend dan backend tervalidasi penuh.
+- Menyusun UAT bersama responden agar hasil penerimaan pengguna terdokumentasi secara formal.
+- Menambahkan pengujian kompatibilitas browser dan perangkat.
 
 ### IV.7.6 Kesimpulan Pembahasan
 
-Berdasarkan analisis hasil pengujian black box dan persiapan UAT yang telah disusun, sistem COCONEXUS menunjukkan:
-
-✅ Kualitas teknis yang baik dengan 100% success rate pada 23 skenario pengujian API
-✅ Arsitektur yang solid dengan mekanisme autentikasi dan otorisasi yang robust
-✅ Performa yang responsif dengan average response time 68ms
-✅ Kesiapan untuk melakukan User Acceptance Testing dengan 32 skenario komprehensif
-
-Sistem siap untuk fase UAT dan deployment ke production dengan rekomendasi untuk melakukan load testing dan security audit tambahan sebelum go-live. Dengan implementasi rekomendasi yang diberikan, sistem COCONEXUS akan mencapai level production-ready yang memenuhi standar industri.
-
----
-
+Berdasarkan pengujian black box, persiapan UAT, dan activity diagram yang disusun, sistem COCONEXUS telah menunjukkan kualitas teknis yang baik. Seluruh skenario backend otomatis berhasil, pengujian Newman juga berhasil tanpa kegagalan, dan skenario UAT telah mencakup alur utama pengguna sistem.

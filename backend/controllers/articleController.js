@@ -14,7 +14,7 @@ const {
 } = require('../models');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
-const { badRequest, notFound } = require('../utils/httpErrors');
+const { badRequest, forbidden, notFound } = require('../utils/httpErrors');
 const {
   isNonEmptyString,
   isValidArticleStatus,
@@ -551,6 +551,9 @@ async function getPublishedArticleDetail(req, res, next) {
           model: Comment,
           as: 'comments',
           separate: true,
+          where: {
+            status: 'approved',
+          },
           order: [['created_at', 'ASC']],
           include: [
             {
@@ -842,6 +845,10 @@ async function updateArticle(req, res, next) {
       throw notFound('Artikel tidak ditemukan.');
     }
 
+    if (article.status === 'published' && req.user.role !== 'admin') {
+      throw badRequest('Artikel published tidak dapat diubah. Ubah status ke revision terlebih dahulu.');
+    }
+
     const parentArticleId =
       req.body.parent_article_id === undefined
         ? article.parent_article_id
@@ -1040,6 +1047,16 @@ async function updateArticleStatus(req, res, next) {
       throw notFound('Artikel tidak ditemukan.');
     }
 
+    const jobTitle = req.user.profile?.job_title || '';
+
+    if (status === 'revision' && req.user.role !== 'admin' && !['Editor Konten', 'Validator Artikel'].includes(jobTitle)) {
+      throw forbidden('Jabatan Anda tidak memiliki akses untuk mengubah artikel ke revision.');
+    }
+
+    if (status === 'published' && req.user.role !== 'admin' && jobTitle !== 'Publisher Artikel') {
+      throw forbidden('Jabatan Anda tidak memiliki akses untuk mempublish artikel.');
+    }
+
     if (!['draft', 'revision'].includes(article.status)) {
       throw badRequest('Hanya artikel draft atau revision yang dapat divalidasi.');
     }
@@ -1088,6 +1105,10 @@ async function deleteArticle(req, res, next) {
 
     if (!article) {
       throw notFound('Artikel tidak ditemukan.');
+    }
+
+    if (req.user.role !== 'admin' && article.author_id !== req.user.id) {
+      throw forbidden('Anda hanya dapat menghapus artikel milik Anda sendiri.');
     }
 
     await article.destroy();

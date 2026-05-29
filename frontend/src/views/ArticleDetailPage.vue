@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, RouterLink } from 'vue-router';
 import SiteFooter from '@/components/layout/SiteFooter.vue';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
@@ -14,6 +14,7 @@ import { renderSimpleRichText } from '@/lib/richText';
 const route = useRoute();
 const articleStore = useArticleStore();
 const authStore = useAuthStore();
+const commentNotice = ref('');
 
 const articleId = computed(() => Number(route.params.id));
 const article = computed(() => articleStore.currentArticle);
@@ -48,6 +49,8 @@ const heroImage = computed(() => {
 });
 
 async function loadArticle() {
+  commentNotice.value = '';
+
   if (!Number.isInteger(articleId.value) || articleId.value <= 0) {
     return;
   }
@@ -56,7 +59,12 @@ async function loadArticle() {
 }
 
 async function handleCommentSubmit(payload) {
-  await articleStore.postComment(articleId.value, payload);
+  try {
+    const response = await articleStore.postComment(articleId.value, payload);
+    commentNotice.value = response?.message || 'Komentar berhasil dikirim.';
+  } catch (error) {
+    commentNotice.value = error.message;
+  }
 }
 
 async function handleDeleteComment(commentId) {
@@ -231,6 +239,9 @@ onMounted(loadArticle);
               :placeholder="authStore.isAuthenticated ? 'Bagikan pendapat Anda tentang artikel ini...' : 'Login terlebih dahulu untuk menulis komentar...'"
               @submit="handleCommentSubmit"
             />
+            <p v-if="commentNotice" class="comment-note">
+              {{ commentNotice }}
+            </p>
             <div class="comment-list">
               <CommentItem
                 v-for="comment in articleStore.comments"
@@ -588,6 +599,17 @@ onMounted(loadArticle);
   border-radius: 8px;
   color: #d0c3ba;
   padding: 18px;
+}
+
+.comment-note {
+  margin-top: 14px;
+  border: 1px solid rgba(255, 123, 51, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 123, 51, 0.08);
+  color: #ffd1b8;
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 
 .detail-empty {

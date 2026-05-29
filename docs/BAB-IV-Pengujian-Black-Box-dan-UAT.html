@@ -1,887 +1,400 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BAB IV - Pengujian Black Box dan UAT</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background-color: #f5f5f5;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: white;
-        }
-        
-        h1 {
-            color: #1a73e8;
-            border-bottom: 3px solid #1a73e8;
-            padding-bottom: 10px;
-            margin: 30px 0 20px 0;
-            font-size: 2.5em;
-        }
-        
-        h2 {
-            color: #1a73e8;
-            margin: 25px 0 15px 0;
-            font-size: 2em;
-            border-left: 5px solid #1a73e8;
-            padding-left: 15px;
-        }
-        
-        h3 {
-            color: #333;
-            margin: 20px 0 12px 0;
-            font-size: 1.5em;
-            border-left: 3px solid #f57c00;
-            padding-left: 10px;
-        }
-        
-        h4 {
-            color: #555;
-            margin: 15px 0 10px 0;
-            font-size: 1.2em;
-        }
-        
-        p {
-            margin-bottom: 12px;
-            text-align: justify;
-        }
-        
-        .summary-box {
-            background-color: #e3f2fd;
-            border-left: 4px solid #1a73e8;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-        }
-        
-        .success-box {
-            background-color: #e8f5e9;
-            border-left: 4px solid #4caf50;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        
-        th {
-            background-color: #1a73e8;
-            color: white;
-            padding: 12px;
-            text-align: left;
-            font-weight: 600;
-            border: 1px solid #1a73e8;
-        }
-        
-        td {
-            padding: 10px 12px;
-            border: 1px solid #ddd;
-        }
-        
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        
-        tr:hover {
-            background-color: #f0f0f0;
-        }
-        
-        .category-header {
-            background-color: #fff3e0;
-            font-weight: bold;
-            color: #e65100;
-        }
-        
-        .status-success {
-            color: #4caf50;
-            font-weight: bold;
-        }
-        
-        .status-pending {
-            color: #ff9800;
-            font-weight: bold;
-        }
-        
-        .page-break {
-            page-break-after: always;
-            margin-top: 40px;
-        }
-        
-        pre {
-            background-color: #f5f5f5;
-            border: 1px solid #ddd;
-            padding: 12px;
-            border-radius: 4px;
-            overflow-x: auto;
-            margin: 15px 0;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9em;
-        }
-        
-        code {
-            background-color: #f5f5f5;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: 'Courier New', monospace;
-        }
-        
-        ul, ol {
-            margin-left: 20px;
-            margin-bottom: 12px;
-        }
-        
-        li {
-            margin-bottom: 8px;
-        }
-        
-        .checkbox {
-            display: inline-block;
-            width: 18px;
-            height: 18px;
-            border: 2px solid #ccc;
-            border-radius: 2px;
-            margin-right: 8px;
-            vertical-align: middle;
-        }
-        
-        @media print {
-            body {
-                background-color: white;
-            }
-            .container {
-                box-shadow: none;
-            }
-            table {
-                page-break-inside: avoid;
-            }
-            h2 {
-                page-break-after: avoid;
-            }
-            h3 {
-                page-break-after: avoid;
-            }
-        }
-        
-        .note {
-            background-color: #fce4ec;
-            border-left: 4px solid #e91e63;
-            padding: 12px;
-            margin: 15px 0;
-            border-radius: 4px;
-            font-style: italic;
-        }
-        
-        .metric {
-            display: inline-block;
-            background-color: #f0f0f0;
-            padding: 8px 12px;
-            margin: 5px;
-            border-radius: 4px;
-            border-left: 3px solid #1a73e8;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BAB IV - Pengujian Black Box dan UAT</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --primary: #1a73e8;
+      --primary-2: #0f4c81;
+      --accent: #f57c00;
+      --border: #dbe3ee;
+      --success: #2e7d32;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background: linear-gradient(180deg, #eef3f9 0%, var(--bg) 100%);
+    }
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+    h1, h2, h3, h4 { margin: 0 0 14px; line-height: 1.25; }
+    h1 { color: var(--primary-2); font-size: 2.1rem; }
+    h2 { color: var(--primary); font-size: 1.55rem; margin-top: 10px; }
+    h3 { color: #273244; font-size: 1.22rem; border-left: 4px solid var(--accent); padding-left: 10px; }
+    h4 { color: #374151; font-size: 1.05rem; }
+    p { margin: 0 0 12px; text-align: justify; }
+    ol, ul { margin: 0 0 12px 20px; }
+    li { margin-bottom: 6px; }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin: 16px 0 18px;
+    }
+    .metric {
+      background: #f1f6ff;
+      border: 1px solid #cfe0ff;
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .metric .label { color: var(--muted); font-size: .9rem; }
+    .metric .value { font-weight: 700; color: var(--primary-2); font-size: 1.05rem; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0 22px;
+      overflow: hidden;
+      border-radius: 10px;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 9px 10px;
+      vertical-align: top;
+      font-size: .95rem;
+    }
+    th {
+      background: linear-gradient(180deg, var(--primary), var(--primary-2));
+      color: #fff;
+      text-align: left;
+    }
+    tr:nth-child(even) td { background: #fbfdff; }
+    .section-tag {
+      display: inline-block;
+      background: #eff6ff;
+      color: var(--primary-2);
+      border: 1px solid #d7e6ff;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: .86rem;
+      margin-bottom: 10px;
+    }
+    .ok { color: var(--success); font-weight: 700; }
+    code, pre {
+      font-family: "Courier New", Courier, monospace;
+      font-size: .92rem;
+    }
+    pre {
+      background: #0b1220;
+      color: #e5eefc;
+      padding: 14px 16px;
+      border-radius: 12px;
+      overflow-x: auto;
+      margin: 10px 0 18px;
+    }
+    .note {
+      background: #fff8ed;
+      border-left: 4px solid var(--accent);
+      padding: 14px 16px;
+      border-radius: 10px;
+    }
+    .success-box {
+      background: #ecfdf3;
+      border: 1px solid #b9ebc7;
+      border-left: 4px solid var(--success);
+      padding: 16px;
+      border-radius: 10px;
+    }
+    .diagram {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      overflow-x: auto;
+    }
+    .page-break { margin-top: 16px; }
+    @media print {
+      body { background: #fff; }
+      .card { box-shadow: none; }
+      .page-break { page-break-before: always; }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        
-        <h1>📋 BAB IV ANALISIS DAN PENGUJIAN</h1>
-        
-        <h2>IV.5 PENGUJIAN SISTEM</h2>
-        
-        <!-- BLACK BOX TESTING SECTION -->
-        <h3>IV.5.1 Pengujian Black Box</h3>
-        
-        <p>Pengujian black box dilakukan dengan menguji masukan dan keluaran sistem tanpa melihat kode program secara langsung. Pengujian ini bertujuan untuk memastikan bahwa fitur yang tersedia dapat berjalan sesuai dengan skenario penggunaan. Pada penelitian ini, pengujian black box dilakukan menggunakan <strong>Newman</strong> berdasarkan koleksi Postman yang berisi skenario pengujian route dan fungsi sistem.</p>
-        
-        <p>Pengujian menggunakan Newman mencakup fitur publik, fitur satgas, fitur admin, serta pengujian hak akses. Fitur publik meliputi akses dashboard, form pelaporan insiden, form pelaporan potensi bahaya, peta GIS, knowledge center, dan emergency center. Fitur satgas meliputi pengelolaan laporan insiden, pengelolaan laporan potensi bahaya, peta hazard, dan artikel K3L. Fitur admin meliputi manajemen pengguna, lokasi, kategori insiden, kategori knowledge, kontak darurat, langkah tanggap darurat, dan panduan pertolongan pertama.</p>
-        
-        <h4>Ringkasan Hasil Pengujian Newman</h4>
-        
-        <div class="summary-box">
-            <div class="metric">Iterasi: <strong>1</strong></div>
-            <div class="metric">Request: <strong>23</strong></div>
-            <div class="metric">Gagal: <strong>0</strong></div>
-            <div class="metric">Assertion: <strong>36</strong></div>
-            <div class="metric">Assertion Gagal: <strong>0</strong></div>
-            <div class="metric">Durasi: <strong>3,5 detik</strong></div>
-            <div class="metric">Avg Response: <strong>68 ms</strong></div>
-            <div class="metric">Data: <strong>11,4 kB</strong></div>
-        </div>
-        
-        <p><strong>Perintah Pengujian:</strong></p>
-        <pre><code>npx newman run docs/postman/coconexus-api-newman.collection.json \
+  <div class="container">
+    <div class="card">
+      <h1>BAB IV ANALISIS DAN PENGUJIAN</h1>
+      <p>Dokumen ini memuat hasil pengujian black box, persiapan UAT, activity diagram, hasil pengujian, dan pembahasan untuk sistem COCONEXUS.</p>
+
+      <h2>IV.5 PENGUJIAN SISTEM</h2>
+      <h3>IV.5.1 Pengujian Black Box</h3>
+      <p>Pengujian black box dilakukan untuk memastikan seluruh fungsi sistem berjalan sesuai kebutuhan tanpa melihat implementasi kode secara langsung. Pada tahap ini, pengujian dilakukan melalui dua sumber validasi, yaitu skenario pengujian backend otomatis pada file <code>backend/tests/auth-article.test.js</code> dan pengujian API menggunakan Newman pada koleksi Postman yang tersimpan di <code>docs/postman/</code>.</p>
+      <p>Berdasarkan pengujian terbaru, backend otomatis memiliki <strong>39 skenario</strong> dan seluruhnya berhasil. Pengujian Newman melibatkan <strong>23 request</strong> dengan <strong>36 assertion</strong> dan seluruhnya juga berhasil.</p>
+
+      <h4>Ringkasan Hasil Pengujian Backend Otomatis</h4>
+      <div class="summary">
+        <div class="metric"><div class="label">Jumlah skenario</div><div class="value">39</div></div>
+        <div class="metric"><div class="label">Skenario berhasil</div><div class="value">39</div></div>
+        <div class="metric"><div class="label">Skenario gagal</div><div class="value">0</div></div>
+        <div class="metric"><div class="label">Persentase keberhasilan</div><div class="value">100%</div></div>
+      </div>
+
+      <h4>Ringkasan Hasil Pengujian Newman</h4>
+      <div class="summary">
+        <div class="metric"><div class="label">Jumlah iterasi</div><div class="value">1</div></div>
+        <div class="metric"><div class="label">Jumlah request</div><div class="value">23</div></div>
+        <div class="metric"><div class="label">Request gagal</div><div class="value">0</div></div>
+        <div class="metric"><div class="label">Jumlah assertion</div><div class="value">36</div></div>
+        <div class="metric"><div class="label">Assertion gagal</div><div class="value">0</div></div>
+        <div class="metric"><div class="label">Total durasi pengujian</div><div class="value">3,5 detik</div></div>
+        <div class="metric"><div class="label">Rata-rata response time</div><div class="value">68 ms</div></div>
+        <div class="metric"><div class="label">Data diterima</div><div class="value">11,4 kB</div></div>
+      </div>
+
+      <p><strong>Perintah pengujian Newman:</strong></p>
+      <pre>npx newman run docs/postman/coconexus-api-newman.collection.json \
   -e docs/postman/coconexus-api-newman.environment.json \
   --reporters "cli,json" \
-  --reporter-json-export docs/newman-results/coconexus-api-newman-result.json</code></pre>
-        
-        <h4>Tabel IV.5.1.1 Skenario Pengujian Black Box</h4>
-        
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 4%;">No</th>
-                    <th style="width: 12%;">Kategori</th>
-                    <th style="width: 18%;">Skenario Pengujian</th>
-                    <th style="width: 12%;">Endpoint</th>
-                    <th style="width: 6%;">Metode</th>
-                    <th style="width: 18%;">Data Uji</th>
-                    <th style="width: 15%;">Hasil Diharapkan</th>
-                    <th style="width: 12%;">Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr class="category-header">
-                    <td colspan="8">🔐 Autentikasi dan Otorisasi</td>
-                </tr>
-                <tr>
-                    <td>1</td>
-                    <td>Auth</td>
-                    <td>Health check backend</td>
-                    <td><code>/health</code></td>
-                    <td>GET</td>
-                    <td>Tidak ada</td>
-                    <td>Backend aktif, status 200</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr>
-                    <td>2</td>
-                    <td>Auth</td>
-                    <td>Login admin berhasil</td>
-                    <td><code>/api/auth/login</code></td>
-                    <td>POST</td>
-                    <td>Email + password admin valid</td>
-                    <td>Token admin tersedia</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr>
-                    <td>3</td>
-                    <td>Auth</td>
-                    <td>Login user publik</td>
-                    <td><code>/api/auth/login</code></td>
-                    <td>POST</td>
-                    <td>Email + password user valid</td>
-                    <td>Token user tersedia</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr>
-                    <td>4</td>
-                    <td>Auth</td>
-                    <td>Login dengan password salah</td>
-                    <td><code>/api/auth/login</code></td>
-                    <td>POST</td>
-                    <td>Password tidak valid</td>
-                    <td>Sistem menolak (401)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr>
-                    <td>5</td>
-                    <td>Auth</td>
-                    <td>Registrasi dengan role admin</td>
-                    <td><code>/api/auth/register</code></td>
-                    <td>POST</td>
-                    <td>role: admin dalam request</td>
-                    <td>Akun dibuat sebagai user</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr>
-                    <td>6</td>
-                    <td>Auth</td>
-                    <td>Registrasi password lemah</td>
-                    <td><code>/api/auth/register</code></td>
-                    <td>POST</td>
-                    <td>Password &lt; standar</td>
-                    <td>Sistem menolak (400)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr>
-                    <td>7</td>
-                    <td>Auth</td>
-                    <td>Registrasi email baru</td>
-                    <td><code>/api/auth/register</code></td>
-                    <td>POST</td>
-                    <td>Email belum terdaftar</td>
-                    <td>User berhasil dibuat (201)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr>
-                    <td>8</td>
-                    <td>Auth</td>
-                    <td>Registrasi email duplikat</td>
-                    <td><code>/api/auth/register</code></td>
-                    <td>POST</td>
-                    <td>Email sudah terdaftar</td>
-                    <td>Sistem menolak (409)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr>
-                    <td>9</td>
-                    <td>Otorisasi</td>
-                    <td>User biasa akses admin dashboard</td>
-                    <td><code>/api/admin/stats</code></td>
-                    <td>GET</td>
-                    <td>Token user biasa</td>
-                    <td>Sistem menolak (403)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr>
-                    <td>10</td>
-                    <td>Otorisasi</td>
-                    <td>Akses admin tanpa token</td>
-                    <td><code>/api/articles/admin</code></td>
-                    <td>GET</td>
-                    <td>Tidak ada token</td>
-                    <td>Sistem menolak (401)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr>
-                    <td>11</td>
-                    <td>Otorisasi</td>
-                    <td>Akses admin token invalid</td>
-                    <td><code>/api/articles/admin</code></td>
-                    <td>GET</td>
-                    <td>Token salah/invalid</td>
-                    <td>Sistem menolak (401)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr class="category-header">
-                    <td colspan="8">📂 Manajemen Kategori</td>
-                </tr>
-                <tr>
-                    <td>12</td>
-                    <td>Kategori</td>
-                    <td>Admin membuat kategori</td>
-                    <td><code>/api/categories/admin</code></td>
-                    <td>POST</td>
-                    <td>Nama + deskripsi valid</td>
-                    <td>Kategori tersimpan (201)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr>
-                    <td>13</td>
-                    <td>Kategori</td>
-                    <td>Membuat kategori duplikat</td>
-                    <td><code>/api/categories/admin</code></td>
-                    <td>POST</td>
-                    <td>Nama kategori sama</td>
-                    <td>Sistem menolak (409)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr>
-                    <td>22</td>
-                    <td>Kategori</td>
-                    <td>Hapus kategori yang dipakai</td>
-                    <td><code>/api/categories/admin/:id</code></td>
-                    <td>DELETE</td>
-                    <td>Kategori ada artikel</td>
-                    <td>Sistem menolak (409)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr class="category-header">
-                    <td colspan="8">📰 Manajemen Artikel</td>
-                </tr>
-                <tr>
-                    <td>14</td>
-                    <td>Artikel</td>
-                    <td>Admin membuat artikel draft</td>
-                    <td><code>/api/articles/admin</code></td>
-                    <td>POST</td>
-                    <td>Judul, konten, kategori</td>
-                    <td>Artikel draft tersimpan (201)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr>
-                    <td>15</td>
-                    <td>Artikel</td>
-                    <td>Buat artikel tanpa konten</td>
-                    <td><code>/api/articles/admin</code></td>
-                    <td>POST</td>
-                    <td>Tanpa konten</td>
-                    <td>Sistem menolak (400)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr>
-                    <td>16</td>
-                    <td>Artikel</td>
-                    <td>Publish artikel draft</td>
-                    <td><code>/api/articles/admin/:id/status</code></td>
-                    <td>PATCH</td>
-                    <td>Status: published</td>
-                    <td>Artikel published (200)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr>
-                    <td>17</td>
-                    <td>Artikel</td>
-                    <td>Tampilkan artikel published</td>
-                    <td><code>/api/articles/published</code></td>
-                    <td>GET</td>
-                    <td>Query articles</td>
-                    <td>Artikel published muncul (200)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr>
-                    <td>18</td>
-                    <td>Artikel</td>
-                    <td>Buka detail artikel published</td>
-                    <td><code>/api/articles/published/:id</code></td>
-                    <td>GET</td>
-                    <td>ID artikel + session id</td>
-                    <td>Detail tampil, view tercatat (200)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr class="category-header">
-                    <td colspan="8">💬 Manajemen Komentar</td>
-                </tr>
-                <tr>
-                    <td>19</td>
-                    <td>Komentar</td>
-                    <td>Komentar kosong</td>
-                    <td><code>/api/articles/:id/comments</code></td>
-                    <td>POST</td>
-                    <td>Body spasi</td>
-                    <td>Sistem menolak (400)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr>
-                    <td>20</td>
-                    <td>Komentar</td>
-                    <td>User buat komentar valid</td>
-                    <td><code>/api/articles/:id/comments</code></td>
-                    <td>POST</td>
-                    <td>Body komentar valid</td>
-                    <td>Komentar tersimpan (201)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr class="category-header">
-                    <td colspan="8">👤 Manajemen Profil User</td>
-                </tr>
-                <tr>
-                    <td>21</td>
-                    <td>Profil</td>
-                    <td>User update profil sendiri</td>
-                    <td><code>/api/users/me/profile</code></td>
-                    <td>PUT</td>
-                    <td>Nama + bio baru</td>
-                    <td>Profil berubah (200)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-                <tr class="category-header">
-                    <td colspan="8">📊 Dashboard Admin</td>
-                </tr>
-                <tr>
-                    <td>23</td>
-                    <td>Admin</td>
-                    <td>Statistik dashboard admin</td>
-                    <td><code>/api/admin/stats</code></td>
-                    <td>GET</td>
-                    <td>Token admin valid</td>
-                    <td>Statistik tersedia (200)</td>
-                    <td class="status-success">✅ Berhasil</td>
-                </tr>
-            </tbody>
-        </table>
-        
-        <h4>Kesimpulan Pengujian Black Box</h4>
-        
-        <div class="success-box">
-            <strong>✅ HASIL: Seluruh endpoint yang diuji memberikan respons sesuai dengan hasil yang diharapkan</strong><br><br>
-            
-            <strong>Ringkasan Kategori Pengujian:</strong>
-            <ul>
-                <li><strong>🔐 Autentikasi & Otorisasi (11 test):</strong> Registrasi, login, validasi password, proteksi akses berdasarkan role</li>
-                <li><strong>📂 Manajemen Kategori (3 test):</strong> Pembuatan kategori, pencegahan duplikasi, penghapusan yang aman</li>
-                <li><strong>📰 Manajemen Artikel (5 test):</strong> Draft, publikasi, perubahan status, tampilan publik, detail artikel</li>
-                <li><strong>💬 Manajemen Komentar (2 test):</strong> Validasi input, penyimpanan komentar</li>
-                <li><strong>👤 Manajemen Profil (1 test):</strong> Pembaruan profil user</li>
-                <li><strong>📊 Dashboard Admin (1 test):</strong> Statistik dan analytics</li>
-            </ul>
-            
-            <strong>Total Hasil:</strong>
-            <div style="margin-top: 10px;">
-                <div class="metric">23 Request ✅</div>
-                <div class="metric">36 Assertion ✅</div>
-                <div class="metric">0 Gagal ✅</div>
-                <div class="metric">100% Success ✅</div>
-            </div>
-        </div>
-        
-        <div class="page-break"></div>
-        
-        <!-- UAT TESTING SECTION -->
-        <h3>IV.5.2 Pengujian User Acceptance Test (UAT)</h3>
-        
-        <p>User Acceptance Test (UAT) dilakukan untuk menilai apakah sistem sudah sesuai dengan kebutuhan pengguna dari sisi alur penggunaan dan ketersediaan fitur. Pengujian UAT disusun berdasarkan peran aktor dalam sistem, yaitu pengguna umum, satgas K3L, dan admin. UAT berfokus pada penerimaan pengguna terhadap fitur utama yang telah dibangun.</p>
-        
-        <p>Pada tahap ini, skenario UAT disusun berdasarkan kebutuhan fungsional sistem. Pengguna umum diuji pada fitur pelaporan dan akses informasi publik. Satgas K3L diuji pada fitur pengelolaan laporan dan pemetaan bahaya. Admin diuji pada fitur manajemen data utama sistem.</p>
-        
-        <h4>Tabel IV.5.2.1 UAT - Pengguna Umum (Public User)</h4>
-        
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 4%;">No</th>
-                    <th style="width: 12%;">Aktor</th>
-                    <th style="width: 20%;">Skenario UAT</th>
-                    <th style="width: 22%;">Kriteria Penerimaan</th>
-                    <th style="width: 32%;">Verifikasi</th>
-                    <th style="width: 10%;">Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>1</td>
-                    <td>Pengguna Umum</td>
-                    <td>Akses halaman publik tanpa login</td>
-                    <td>Dashboard publik, menu navigasi, informasi utama dapat diakses</td>
-                    <td>Halaman dapat diakses, elemen UI tampil baik, loading &lt; 3s</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>2</td>
-                    <td>Pengguna Umum</td>
-                    <td>Membaca knowledge center</td>
-                    <td>Artikel K3L dapat dibaca, kategori terorganisir, search berfungsi</td>
-                    <td>Minimal 5 artikel tampil, kategori mudah, search relevan</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>3</td>
-                    <td>Pengguna Umum</td>
-                    <td>Akses emergency center</td>
-                    <td>Kontak darurat, langkah pertama, panduan pertolongan tersedia</td>
-                    <td>Info lengkap, nomor aktif, UI responsif</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>4</td>
-                    <td>Pengguna Umum</td>
-                    <td>Lihat peta GIS</td>
-                    <td>Peta dapat dilihat, lokasi dicari, informasi titik bahaya tampil</td>
-                    <td>Peta loading baik, marker tampil, search lokasi berfungsi</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>5</td>
-                    <td>Pengguna Umum</td>
-                    <td>Melakukan registrasi akun</td>
-                    <td>Akun baru dapat dibuat dengan email dan password</td>
-                    <td>Akun berhasil, email verifikasi (jika ada), dapat login</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>6</td>
-                    <td>Pengguna Umum</td>
-                    <td>Login dan akses dashboard personal</td>
-                    <td>Login dengan email/password, dashboard personal tampil</td>
-                    <td>Dashboard personal tampil, profil tersimpan, session aktif</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>7</td>
-                    <td>Pengguna Umum</td>
-                    <td>Mengisi laporan insiden</td>
-                    <td>Form lengkap, upload foto, submit laporan</td>
-                    <td>Form intuitif, upload berhasil, laporan tersimpan dengan ID tracking</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>8</td>
-                    <td>Pengguna Umum</td>
-                    <td>Mengisi laporan potensi bahaya</td>
-                    <td>Form lengkap, pilih lokasi GIS, submit laporan</td>
-                    <td>Form intuitif, lokasi GIS dapat dipilih, terkirim dengan notifikasi</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>9</td>
-                    <td>Pengguna Umum</td>
-                    <td>Lihat riwayat laporan sendiri</td>
-                    <td>Daftar laporan, status, detail laporan dapat dilihat</td>
-                    <td>Daftar tampil, status real-time, dapat filter tanggal/tipe</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>10</td>
-                    <td>Pengguna Umum</td>
-                    <td>Memberikan komentar pada artikel</td>
-                    <td>Feedback/komentar dapat ditambahkan pada artikel K3L</td>
-                    <td>Komentar tersimpan, notifikasi dikirim, tampil di article</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-            </tbody>
-        </table>
-        
-        <h4>Tabel IV.5.2.2 UAT - Satgas K3L</h4>
-        
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 4%;">No</th>
-                    <th style="width: 12%;">Aktor</th>
-                    <th style="width: 20%;">Skenario UAT</th>
-                    <th style="width: 22%;">Kriteria Penerimaan</th>
-                    <th style="width: 32%;">Verifikasi</th>
-                    <th style="width: 10%;">Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>1</td>
-                    <td>Satgas K3L</td>
-                    <td>Login dengan akun satgas</td>
-                    <td>Login berhasil, dashboard satgas tampil, menu sesuai role</td>
-                    <td>Login berhasil, dashboard satgas tampil, menu satgas tersedia</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>2</td>
-                    <td>Satgas K3L</td>
-                    <td>Lihat daftar laporan yang masuk</td>
-                    <td>Semua laporan insiden dan potensi bahaya dapat dilihat</td>
-                    <td>Daftar lengkap, dapat disort/filter, pagination bekerja</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>3</td>
-                    <td>Satgas K3L</td>
-                    <td>Membuka detail laporan</td>
-                    <td>Detail lengkap laporan dapat dilihat</td>
-                    <td>Detail lengkap (form, foto, lokasi, waktu), UI responsif</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>4</td>
-                    <td>Satgas K3L</td>
-                    <td>Mengubah status laporan</td>
-                    <td>Status laporan dapat diubah (pending → review → verified)</td>
-                    <td>Status berubah, audit log tercatat, notifikasi terkirim</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>5</td>
-                    <td>Satgas K3L</td>
-                    <td>Memberikan tindakan pada laporan</td>
-                    <td>Keterangan tindakan dapat ditambahkan pada laporan</td>
-                    <td>Tindakan tersimpan, history tercatat, visible untuk admin</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>6</td>
-                    <td>Satgas K3L</td>
-                    <td>Akses peta hazard</td>
-                    <td>Peta dengan marker laporan dapat dilihat</td>
-                    <td>Peta loading, marker sesuai, dapat filter status/tipe</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>7</td>
-                    <td>Satgas K3L</td>
-                    <td>Tambah titik bahaya pada peta</td>
-                    <td>Titik lokasi bahaya baru dapat ditambahkan</td>
-                    <td>Titik tersimpan, muncul di peta, dapat edit keterangan</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>8</td>
-                    <td>Satgas K3L</td>
-                    <td>Baca artikel K3L sebagai referensi</td>
-                    <td>Artikel K3L dapat dibaca untuk referensi penanganan</td>
-                    <td>Artikel terbuka baik, search/kategori memudahkan pencarian</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>9</td>
-                    <td>Satgas K3L</td>
-                    <td>Export laporan untuk report</td>
-                    <td>Data laporan dapat di-export PDF/Excel untuk report bulanan</td>
-                    <td>Export berhasil, file download, format rapi dan lengkap</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>10</td>
-                    <td>Satgas K3L</td>
-                    <td>Lihat statistik laporan</td>
-                    <td>Grafik dan statistik laporan dapat dilihat</td>
-                    <td>Grafik menampilkan trend, statistik akurat, update real-time</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-            </tbody>
-        </table>
-        
-        <h4>Tabel IV.5.2.3 UAT - Admin</h4>
-        
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 4%;">No</th>
-                    <th style="width: 12%;">Aktor</th>
-                    <th style="width: 18%;">Skenario UAT</th>
-                    <th style="width: 22%;">Kriteria Penerimaan</th>
-                    <th style="width: 34%;">Verifikasi</th>
-                    <th style="width: 10%;">Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>1</td>
-                    <td>Admin</td>
-                    <td>Login dengan akun admin</td>
-                    <td>Login berhasil, dashboard admin tampil, semua menu tersedia</td>
-                    <td>Login berhasil, dashboard admin tampil, semua menu admin ada</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>2</td>
-                    <td>Admin</td>
-                    <td>Mengelola pengguna (CRUD)</td>
-                    <td>User dapat dibuat, dilihat, diedit, dan dihapus</td>
-                    <td>Interface lengkap, CRUD berfungsi, validasi input bekerja</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>3</td>
-                    <td>Admin</td>
-                    <td>Atur role dan permission user</td>
-                    <td>Role user dapat diubah (user → satgas → admin)</td>
-                    <td>Role change berhasil, permission update, audit log tercatat</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>4</td>
-                    <td>Admin</td>
-                    <td>Kelola kategori insiden</td>
-                    <td>Kategori insiden dapat dibuat, diedit, dan dihapus</td>
-                    <td>Interface jelas, CRUD berfungsi dengan baik</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>5</td>
-                    <td>Admin</td>
-                    <td>Kelola kategori knowledge</td>
-                    <td>Kategori knowledge dapat dikelola</td>
-                    <td>CRUD berfungsi, tidak bisa hapus jika ada artikel</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>6</td>
-                    <td>Admin</td>
-                    <td>Kelola artikel knowledge center</td>
-                    <td>Artikel dapat dibuat, dipublish, diedit, dihapus</td>
-                    <td>Editor intuitif, publish/unpublish bekerja, draft tersimpan</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>7</td>
-                    <td>Admin</td>
-                    <td>Kelola kontak darurat</td>
-                    <td>Kontak darurat dapat ditambah, diedit, dihapus</td>
-                    <td>Kontak tersimpan, tampil di emergency center publik, real-time</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>8</td>
-                    <td>Admin</td>
-                    <td>Kelola langkah tanggap darurat</td>
-                    <td>SOP langkah pertama dapat dikelola per jenis insiden</td>
-                    <td>SOP dapat ditambah/diedit, tersimpan dengan struktur jelas</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>9</td>
-                    <td>Admin</td>
-                    <td>Kelola panduan pertolongan pertama</td>
-                    <td>Panduan first aid dengan media (teks, foto, video) dapat dikelola</td>
-                    <td>Panduan dengan media support, search berfungsi, UI friendly</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>10</td>
-                    <td>Admin</td>
-                    <td>Lihat statistik dan analytics</td>
-                    <td>Dashboard dengan statistik lengkap (laporan, user, artikel)</td>
-                    <td>Dashboard informatif, grafik akurat, export data tersedia</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>11</td>
-                    <td>Admin</td>
-                    <td>Lihat audit log</td>
-                    <td>Log semua aktivitas sistem dapat dilihat</td>
-                    <td>Log lengkap, dapat filter, timestamp akurat</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-                <tr>
-                    <td>12</td>
-                    <td>Admin</td>
-                    <td>Manajemen konten (upload file)</td>
-                    <td>Foto, video, dokumen dapat di-upload untuk knowledge/emergency</td>
-                    <td>Upload berhasil, file tersimpan, validasi tipe bekerja</td>
-                    <td><span class="checkbox"></span></td>
-                </tr>
-            </tbody>
-        </table>
-        
-        <h4>Catatan Pengujian UAT</h4>
-        
-        <div class="note">
-            <strong>📝 Panduan Pelaksanaan UAT:</strong><br>
-            ✓ Pengujian UAT dapat disesuaikan dengan data real dari sistem yang sudah berjalan<br>
-            ✓ Checkbox di kolom "Status" dapat diisi selama melakukan user acceptance test<br>
-            ✓ Kolom "Verifikasi" berisi checklist detail untuk memastikan setiap kriteria terpenuhi<br>
-            ✓ UAT sebaiknya melibatkan stakeholder dari setiap role untuk feedback representatif<br>
-            ✓ Jika ada scenario yang gagal, dokumentasikan issue dan rencana perbaikan<br>
-            ✓ Setiap role sebaiknya ditest oleh minimal 2-3 user representative
-        </div>
-        
-        <div class="page-break"></div>
-        
-        <h2>Kesimpulan Pengujian Sistem</h2>
-        
-        <div class="success-box">
-            <h4>📊 Hasil Pengujian Keseluruhan</h4>
-            
-            <p><strong>1. Pengujian Black Box (Newman):</strong></p>
-            <ul>
-                <li>✅ 23 endpoint tested</li>
-                <li>✅ 36 assertions passed</li>
-                <li>✅ 0 failures</li>
-                <li>✅ 100% success rate</li>
-                <li>✅ Average response time: 68 ms</li>
-            </ul>
-            
-            <p><strong>2. Pengujian UAT (Prepared):</strong></p>
-            <ul>
-                <li>✅ 10 skenario untuk Pengguna Umum</li>
-                <li>✅ 10 skenario untuk Satgas K3L</li>
-                <li>✅ 12 skenario untuk Admin</li>
-                <li>✅ Total 32 skenario UAT siap ditest</li>
-            </ul>
-            
-            <p><strong>Kesimpulan:</strong> Sistem COCONEXUS telah memenuhi kriteria pengujian teknis dengan hasil 100% success rate pada pengujian black box. Pengujian UAT selanjutnya akan memvalidasi kesesuaian sistem dengan kebutuhan pengguna dari perspektif fungsionalitas dan user experience.</p>
-        </div>
-        
-        <p style="text-align: center; color: #999; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd;">
-            <small>Dokumen ini dibuat untuk keperluan akademik. Tanggal: 23 Mei 2026</small>
-        </p>
+  --reporter-json-export docs/newman-results/coconexus-api-newman-result.json</pre>
+
+      <h4>Tabel IV.5.1.1 Pengujian Autentikasi, Akses, dan Hak Role</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>No</th><th>Skenario Pengujian</th><th>Endpoint/Alur</th><th>Data Uji</th><th>Hasil yang Diharapkan</th><th>Hasil Aktual</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Registrasi publik mengabaikan role admin</td><td><code>/api/auth/register</code></td><td><code>role: admin</code> dalam request</td><td>Akun tetap dibuat sebagai <code>user</code></td><td>Status 201, role tetap <code>user</code></td><td class="ok">Berhasil</td></tr>
+          <tr><td>2</td><td>User biasa mengakses dashboard admin</td><td><code>/api/admin/stats</code></td><td>Token user biasa</td><td>Akses ditolak</td><td>Status 403</td><td class="ok">Berhasil</td></tr>
+          <tr><td>3</td><td>User biasa membuat artikel di route pengelola</td><td><code>/api/articles</code></td><td>Token user biasa</td><td>Akses ditolak</td><td>Status 403, <code>success: false</code></td><td class="ok">Berhasil</td></tr>
+          <tr><td>4</td><td>Pengelola membuat dan mengambil artikel</td><td><code>/api/articles</code> dan <code>/api/articles/:id</code></td><td>Token pengelola valid</td><td>Artikel dapat dibuat dan dibaca</td><td>Status 201 dan 200</td><td class="ok">Berhasil</td></tr>
+          <tr><td>5</td><td>Publisher mempublikasikan draft artikel</td><td><code>/api/articles/:id/status</code></td><td>Status <code>published</code></td><td>Draft berubah menjadi published</td><td>Status 200, status <code>published</code></td><td class="ok">Berhasil</td></tr>
+          <tr><td>6</td><td>Writer tidak boleh mempublikasikan artikel</td><td><code>/api/articles/:id/status</code></td><td>Token writer</td><td>Akses ditolak</td><td>Status 403</td><td class="ok">Berhasil</td></tr>
+          <tr><td>7</td><td>Publisher mempublikasikan draft milik pengelola lain</td><td><code>/api/articles/:id/status</code></td><td>Token publisher</td><td>Artikel berhasil dipublikasikan</td><td>Status 200, status <code>published</code></td><td class="ok">Berhasil</td></tr>
+          <tr><td>8</td><td>Tag manager mengelola kategori, writer tidak</td><td><code>/api/categories</code></td><td>Token tag manager dan writer</td><td>Tag manager berhasil, writer ditolak</td><td>Status 201 dan 403</td><td class="ok">Berhasil</td></tr>
+          <tr><td>9</td><td>Comment moderator mengakses modul komentar, writer tidak</td><td><code>/api/comments?status=pending</code></td><td>Token moderator dan writer</td><td>Moderator berhasil, writer ditolak</td><td>Status 200 dan 403</td><td class="ok">Berhasil</td></tr>
+          <tr><td>10</td><td>Pengelola tidak boleh mempublikasikan artikel milik penulis lain</td><td><code>/api/articles/:id/status</code></td><td>Token pengelola bukan pemilik</td><td>Akses ditolak</td><td>Status 403</td><td class="ok">Berhasil</td></tr>
+          <tr><td>11</td><td>Login dengan password salah</td><td><code>/api/auth/login</code></td><td>Password tidak valid</td><td>Login ditolak</td><td>Status 401</td><td class="ok">Berhasil</td></tr>
+          <tr><td>12</td><td>Registrasi dengan password lemah</td><td><code>/api/auth/register</code></td><td>Password pendek</td><td>Registrasi ditolak</td><td>Status 400</td><td class="ok">Berhasil</td></tr>
+          <tr><td>13</td><td>Registrasi email duplikat aktif</td><td><code>/api/auth/register</code></td><td>Email yang sudah terdaftar</td><td>Registrasi ditolak</td><td>Status 409</td><td class="ok">Berhasil</td></tr>
+          <tr><td>14</td><td>Daftar artikel admin tanpa token</td><td><code>/api/articles/admin</code></td><td>Tidak ada token</td><td>Akses ditolak</td><td>Status 401</td><td class="ok">Berhasil</td></tr>
+          <tr><td>15</td><td>Daftar artikel admin dengan token invalid</td><td><code>/api/articles/admin</code></td><td>Token salah</td><td>Akses ditolak</td><td>Status 401</td><td class="ok">Berhasil</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Tabel IV.5.1.2 Pengujian Validasi Data dan Interaksi Publik</h4>
+      <table>
+        <thead><tr><th>No</th><th>Skenario Pengujian</th><th>Endpoint/Alur</th><th>Data Uji</th><th>Hasil yang Diharapkan</th><th>Hasil Aktual</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>16</td><td>Admin membuat artikel tanpa body content</td><td><code>/api/articles/admin</code></td><td>Judul tanpa konten</td><td>Data ditolak</td><td>Status 400</td><td class="ok">Berhasil</td></tr>
+          <tr><td>17</td><td>Admin mengunggah media dengan tipe tidak didukung</td><td><code>/api/uploads/articles</code></td><td>File <code>.exe</code></td><td>Upload ditolak</td><td>Status 400, <code>success: false</code></td><td class="ok">Berhasil</td></tr>
+          <tr><td>18</td><td>User berkomentar pada artikel draft</td><td><code>/api/articles/:id/comments</code></td><td>Token user dan artikel draft</td><td>Komentar ditolak</td><td>Status 404</td><td class="ok">Berhasil</td></tr>
+          <tr><td>19</td><td>User mengirim komentar kosong pada artikel published</td><td><code>/api/articles/:id/comments</code></td><td>Isi komentar spasi</td><td>Komentar ditolak</td><td>Status 400</td><td class="ok">Berhasil</td></tr>
+          <tr><td>20</td><td>Komentar pending disembunyikan sampai disetujui</td><td><code>/api/comments/:id/status</code></td><td>Status <code>pending</code> lalu <code>approved</code></td><td>Komentar tidak tampil sebelum disetujui</td><td>Status sesuai alur</td><td class="ok">Berhasil</td></tr>
+          <tr><td>21</td><td>Moderator menolak komentar dan komentar tetap tersembunyi</td><td><code>/api/comments/:id/status</code></td><td>Status <code>rejected</code></td><td>Komentar tidak tampil di publik</td><td>Status 200, komentar tetap tersembunyi</td><td class="ok">Berhasil</td></tr>
+          <tr><td>22</td><td>Daftar artikel publik menyembunyikan draft</td><td><code>/api/articles/published</code></td><td>Artikel draft dan published</td><td>Hanya published yang tampil</td><td>Status 200, draft tidak muncul</td><td class="ok">Berhasil</td></tr>
+          <tr><td>23</td><td>Detail artikel published mencatat article view</td><td><code>/api/articles/published/:id</code></td><td><code>x-coconexus-session-id</code></td><td>View tercatat</td><td>Status 200, view bertambah</td><td class="ok">Berhasil</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Tabel IV.5.1.3 Pengujian Manajemen Kategori dan User</h4>
+      <table>
+        <thead><tr><th>No</th><th>Skenario Pengujian</th><th>Endpoint/Alur</th><th>Data Uji</th><th>Hasil yang Diharapkan</th><th>Hasil Aktual</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>24</td><td>Admin membuat kategori dan menolak kategori duplikat</td><td><code>/api/categories/admin</code></td><td>Nama kategori sama</td><td>Kategori pertama tersimpan, duplikat ditolak</td><td>Status 201 dan 409</td><td class="ok">Berhasil</td></tr>
+          <tr><td>25</td><td>Admin tidak dapat menghapus kategori yang masih dipakai artikel</td><td><code>/api/categories/admin/:id</code></td><td>Kategori masih berelasi</td><td>Penghapusan ditolak</td><td>Status 409</td><td class="ok">Berhasil</td></tr>
+          <tr><td>26</td><td>Admin memperbarui role dan profil user</td><td><code>/api/users/admin/:id</code></td><td><code>role</code>, <code>full_name</code>, <code>bio</code></td><td>Data user berubah</td><td>Status 200, data terupdate</td><td class="ok">Berhasil</td></tr>
+          <tr><td>27</td><td>Daftar user admin menampilkan field job, department, dan division</td><td><code>/api/users/admin</code></td><td>Token admin valid</td><td>Field profil tampil lengkap</td><td>Status 200, field tersedia</td><td class="ok">Berhasil</td></tr>
+          <tr><td>28</td><td>Admin tidak dapat soft delete akun sendiri</td><td><code>/api/users/admin/:id</code></td><td>ID akun admin sendiri</td><td>Penghapusan ditolak</td><td>Status 403</td><td class="ok">Berhasil</td></tr>
+          <tr><td>29</td><td>User memperbarui profil sendiri</td><td><code>/api/users/me/profile</code></td><td><code>full_name</code> dan <code>bio</code> baru</td><td>Profil berubah</td><td>Status 200, profil terupdate</td><td class="ok">Berhasil</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Tabel IV.5.1.4 Pengujian Manajemen Artikel dan Media</h4>
+      <table>
+        <thead><tr><th>No</th><th>Skenario Pengujian</th><th>Endpoint/Alur</th><th>Data Uji</th><th>Hasil yang Diharapkan</th><th>Hasil Aktual</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>30</td><td>Admin login lalu membuat draft artikel dengan kategori otomatis</td><td><code>/api/articles/admin</code></td><td>Judul, konten, kategori baru</td><td>Artikel draft tersimpan dan kategori dibuat otomatis</td><td>Status 201, status <code>draft</code></td><td class="ok">Berhasil</td></tr>
+          <tr><td>31</td><td>Admin membuat artikel dengan dynamic product cards</td><td><code>/api/articles/admin</code></td><td><code>product_cards</code> berisi beberapa item</td><td>Product card tersimpan dan terhubung ke artikel</td><td>Status 201, card tersimpan</td><td class="ok">Berhasil</td></tr>
+          <tr><td>32</td><td>Endpoint validasi artikel dapat mempublikasikan draft</td><td><code>/api/articles/admin/:id/status</code></td><td>Status <code>published</code></td><td>Status artikel berubah menjadi published</td><td>Status 200, status <code>published</code></td><td class="ok">Berhasil</td></tr>
+          <tr><td>33</td><td>Admin mengunggah file media artikel</td><td><code>/api/uploads/articles</code></td><td>File gambar valid</td><td>Media tersimpan dan path dibentuk otomatis</td><td>Status 201, <code>media_type: image</code></td><td class="ok">Berhasil</td></tr>
+          <tr><td>34</td><td>Dashboard stats menampilkan dataset chart kategori dan komentar</td><td><code>/api/admin/stats</code></td><td>Token admin valid</td><td>Dataset statistik tersedia</td><td>Status 200, chart tersedia</td><td class="ok">Berhasil</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Tabel IV.5.1.5 Pengujian Product Card dan Linking Artikel</h4>
+      <table>
+        <thead><tr><th>No</th><th>Skenario Pengujian</th><th>Endpoint/Alur</th><th>Data Uji</th><th>Hasil yang Diharapkan</th><th>Hasil Aktual</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>35</td><td>Endpoint available product cards hanya menampilkan card yang belum terhubung</td><td><code>/api/articles/admin/product-cards/available?article_id=...</code></td><td>Article ID utama</td><td>Hanya card yang belum linked yang tampil</td><td>Status 200, card unlinked tampil</td><td class="ok">Berhasil</td></tr>
+          <tr><td>36</td><td>Endpoint main articles menampilkan artikel induk untuk dropdown</td><td><code>/api/articles/admin/main-articles</code></td><td>Token admin valid</td><td>Hanya artikel induk yang muncul</td><td>Status 200, daftar sesuai</td><td class="ok">Berhasil</td></tr>
+          <tr><td>37</td><td>Admin membuat artikel detail yang terhubung ke product card terpilih</td><td><code>/api/articles/admin</code></td><td><code>parent_article_id</code> dan <code>linked_product_card_id</code></td><td>Artikel detail tersimpan dan card terhubung</td><td>Status 201, relasi tersimpan</td><td class="ok">Berhasil</td></tr>
+          <tr><td>38</td><td>Detail artikel publik menampilkan product cards untuk eksplorasi</td><td><code>/api/articles/published/:id</code></td><td>Artikel induk published</td><td>Product card dan artikel detail tampil</td><td>Status 200, card tampil</td><td class="ok">Berhasil</td></tr>
+          <tr><td>39</td><td>Admin memperbarui unlinked product cards dari editor artikel</td><td><code>/api/articles/admin/:id</code></td><td><code>product_cards</code> baru</td><td>Product card lama terganti</td><td>Status 200, card terupdate</td><td class="ok">Berhasil</td></tr>
+        </tbody>
+      </table>
+
+      <div class="success-box">
+        <strong>Kesimpulan Pengujian Black Box</strong>
+        <p style="margin-top: 10px;">Berdasarkan pengujian backend otomatis dan validasi API menggunakan Newman, seluruh skenario yang diuji memberikan respons sesuai dengan hasil yang diharapkan. Pengujian mencakup autentikasi dan otorisasi berbasis role, validasi data, pengelolaan kategori, user, artikel, media, product card, statistik dashboard, dan pencatatan view artikel.</p>
+        <p><strong>Ringkasan:</strong> 39 skenario backend otomatis berhasil dan 23 request Newman berhasil dengan 0 kegagalan.</p>
+      </div>
+
+      <h3>IV.5.2 Pengujian User Acceptance Test (UAT)</h3>
+      <p>User Acceptance Test (UAT) dilakukan untuk menilai kesesuaian sistem dengan kebutuhan pengguna dari sisi alur penggunaan dan ketersediaan fitur. UAT pada sistem COCONEXUS disusun berdasarkan tiga aktor utama, yaitu pengguna umum, pengelola, dan admin.</p>
+
+      <h4>Tabel IV.5.2.1 UAT - Pengguna Umum</h4>
+      <table>
+        <thead><tr><th>No</th><th>Aktor</th><th>Skenario UAT</th><th>Kriteria Penerimaan</th><th>Verifikasi</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Pengguna Umum</td><td>Mengakses halaman publik tanpa login</td><td>Daftar artikel dan navigasi publik tampil</td><td>Halaman publik dapat diakses dengan baik</td><td>[ ] Diterima</td></tr>
+          <tr><td>2</td><td>Pengguna Umum</td><td>Melihat daftar artikel published</td><td>Artikel published tampil dan draft tidak ikut muncul</td><td>Hanya artikel published yang tampil</td><td>[ ] Diterima</td></tr>
+          <tr><td>3</td><td>Pengguna Umum</td><td>Membuka detail artikel published</td><td>Konten artikel, media, dan product card tampil</td><td>Detail artikel dapat dibaca lengkap</td><td>[ ] Diterima</td></tr>
+          <tr><td>4</td><td>Pengguna Umum</td><td>Melakukan registrasi akun baru</td><td>Akun berhasil dibuat sebagai user biasa</td><td>Registrasi berhasil dan dapat login</td><td>[ ] Diterima</td></tr>
+          <tr><td>5</td><td>Pengguna Umum</td><td>Login dengan akun yang sudah terdaftar</td><td>Token atau session login aktif</td><td>User dapat masuk ke sistem</td><td>[ ] Diterima</td></tr>
+          <tr><td>6</td><td>Pengguna Umum</td><td>Mengirim komentar pada artikel published</td><td>Komentar tersimpan dengan status pending</td><td>Komentar berhasil dikirim</td><td>[ ] Diterima</td></tr>
+          <tr><td>7</td><td>Pengguna Umum</td><td>Mengirim komentar kosong</td><td>Sistem menolak input kosong</td><td>Validasi komentar berjalan</td><td>[ ] Diterima</td></tr>
+          <tr><td>8</td><td>Pengguna Umum</td><td>Memperbarui profil sendiri</td><td>Nama dan bio user berubah</td><td>Profil berhasil disimpan</td><td>[ ] Diterima</td></tr>
+          <tr><td>9</td><td>Pengguna Umum</td><td>Melihat artikel berdasarkan kategori</td><td>Artikel dapat difilter sesuai kategori</td><td>Filter kategori berjalan</td><td>[ ] Diterima</td></tr>
+          <tr><td>10</td><td>Pengguna Umum</td><td>Mencari artikel melalui search</td><td>Artikel yang relevan muncul di hasil pencarian</td><td>Search menampilkan hasil yang sesuai</td><td>[ ] Diterima</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Tabel IV.5.2.2 UAT - Pengelola</h4>
+      <table>
+        <thead><tr><th>No</th><th>Aktor</th><th>Skenario UAT</th><th>Kriteria Penerimaan</th><th>Verifikasi</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Pengelola</td><td>Login dengan akun pengelola</td><td>Dashboard pengelola tampil sesuai role</td><td>Login berhasil</td><td>[ ] Diterima</td></tr>
+          <tr><td>2</td><td>Pengelola</td><td>Membuat artikel draft</td><td>Artikel tersimpan dengan status draft</td><td>Draft berhasil dibuat</td><td>[ ] Diterima</td></tr>
+          <tr><td>3</td><td>Pengelola</td><td>Melihat detail artikel yang dibuat</td><td>Detail artikel tampil lengkap</td><td>Artikel dapat dibuka dan diperiksa</td><td>[ ] Diterima</td></tr>
+          <tr><td>4</td><td>Pengelola</td><td>Mempublikasikan draft artikel sebagai publisher</td><td>Status artikel berubah menjadi published</td><td>Publish berhasil</td><td>[ ] Diterima</td></tr>
+          <tr><td>5</td><td>Pengelola</td><td>Gagal mempublikasikan artikel jika role tidak berwenang</td><td>Sistem menolak aksi publish</td><td>Akses dibatasi sesuai role</td><td>[ ] Diterima</td></tr>
+          <tr><td>6</td><td>Pengelola</td><td>Mengelola kategori sebagai tag manager</td><td>Kategori dapat dibuat melalui modul pengelola</td><td>CRUD kategori berjalan</td><td>[ ] Diterima</td></tr>
+          <tr><td>7</td><td>Pengelola</td><td>Gagal mengelola kategori jika role writer</td><td>Sistem menolak aksi kategori</td><td>Hak akses terjaga</td><td>[ ] Diterima</td></tr>
+          <tr><td>8</td><td>Pengelola</td><td>Mengakses daftar komentar sebagai moderator</td><td>Daftar komentar pending tampil</td><td>Modul moderasi komentar aktif</td><td>[ ] Diterima</td></tr>
+          <tr><td>9</td><td>Pengelola</td><td>Gagal mengakses komentar jika role writer</td><td>Sistem menolak akses komentar</td><td>Validasi otorisasi berjalan</td><td>[ ] Diterima</td></tr>
+          <tr><td>10</td><td>Pengelola</td><td>Menangani artikel milik pengelola lain sesuai hak publish</td><td>Publish hanya berhasil jika role berwenang</td><td>Aturan kepemilikan diterapkan</td><td>[ ] Diterima</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Tabel IV.5.2.3 UAT - Admin</h4>
+      <table>
+        <thead><tr><th>No</th><th>Aktor</th><th>Skenario UAT</th><th>Kriteria Penerimaan</th><th>Verifikasi</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Admin</td><td>Login dengan akun admin</td><td>Dashboard admin tampil</td><td>Login berhasil</td><td>[ ] Diterima</td></tr>
+          <tr><td>2</td><td>Admin</td><td>Membuat artikel draft dengan kategori otomatis</td><td>Artikel dan kategori tersimpan</td><td>Proses pembuatan artikel berhasil</td><td>[ ] Diterima</td></tr>
+          <tr><td>3</td><td>Admin</td><td>Menambahkan dynamic product cards pada artikel</td><td>Product card tersimpan dan terhubung</td><td>Card artikel berhasil dibuat</td><td>[ ] Diterima</td></tr>
+          <tr><td>4</td><td>Admin</td><td>Memperbarui product cards dari editor artikel</td><td>Product card lama terganti dengan data baru</td><td>Update card berhasil</td><td>[ ] Diterima</td></tr>
+          <tr><td>5</td><td>Admin</td><td>Mengubah status draft menjadi published</td><td>Artikel berubah menjadi published</td><td>Publish artikel berhasil</td><td>[ ] Diterima</td></tr>
+          <tr><td>6</td><td>Admin</td><td>Membuat kategori baru</td><td>Kategori tersimpan</td><td>Manajemen kategori berhasil</td><td>[ ] Diterima</td></tr>
+          <tr><td>7</td><td>Admin</td><td>Menangani kategori duplikat</td><td>Sistem menolak kategori yang sama</td><td>Validasi duplikasi berjalan</td><td>[ ] Diterima</td></tr>
+          <tr><td>8</td><td>Admin</td><td>Menghapus kategori yang masih dipakai artikel</td><td>Sistem menolak penghapusan</td><td>Relasi data terlindungi</td><td>[ ] Diterima</td></tr>
+          <tr><td>9</td><td>Admin</td><td>Mengubah role dan profil pengguna</td><td>Role, nama, dan bio user berubah</td><td>Manajemen user berhasil</td><td>[ ] Diterima</td></tr>
+          <tr><td>10</td><td>Admin</td><td>Melihat daftar user lengkap dengan job field</td><td>Field job, department, dan division tampil</td><td>Data user tampil lengkap</td><td>[ ] Diterima</td></tr>
+          <tr><td>11</td><td>Admin</td><td>Mengunggah media artikel</td><td>File media tersimpan dengan benar</td><td>Upload berjalan baik</td><td>[ ] Diterima</td></tr>
+          <tr><td>12</td><td>Admin</td><td>Melihat statistik dashboard</td><td>Dataset chart tampil lengkap</td><td>Statistik dapat dibaca dengan baik</td><td>[ ] Diterima</td></tr>
+        </tbody>
+      </table>
+
+      <div class="note">
+        <strong>Catatan UAT</strong>
+        <ul>
+          <li>Kolom status dapat diisi saat pelaksanaan UAT berlangsung.</li>
+          <li>Skenario dapat disesuaikan dengan data real yang tersedia pada sistem produksi atau staging.</li>
+          <li>Pengujian sebaiknya melibatkan perwakilan dari setiap role agar hasil evaluasi lebih representatif.</li>
+          <li>Jika ada skenario yang gagal, catat kendala, penyebab, dan rencana perbaikannya.</li>
+        </ul>
+      </div>
+
+      <h3>IV.5.3 Activity Diagram</h3>
+      <p>Activity diagram berikut menggambarkan alur utama penggunaan sistem COCONEXUS berdasarkan role pengguna. Diagram ini menampilkan jalur akses publik oleh pengguna umum, pengelolaan konten oleh pengelola, pengelolaan data oleh admin, serta proses penyimpanan dan tampilan pada sistem.</p>
+      <div class="diagram">
+        <img src="./activity-diagram-coconexus.svg" alt="Activity Diagram COCONEXUS" style="width: 100%; height: auto; display: block;" />
+      </div>
+
+      <div class="page-break"></div>
+      <h2>IV.6 HASIL PENGUJIAN</h2>
+      <h3>IV.6.1 Hasil Pengujian Black Box</h3>
+      <p>Hasil pengujian black box menunjukkan bahwa sistem COCONEXUS berjalan stabil pada seluruh skenario yang diuji. Semua skenario backend otomatis berhasil, dan seluruh request Newman juga berhasil dijalankan tanpa kegagalan.</p>
+      <table>
+        <thead><tr><th>Metrik</th><th>Nilai</th></tr></thead>
+        <tbody>
+          <tr><td>Total skenario backend</td><td>39</td></tr>
+          <tr><td>Skenario backend berhasil</td><td>39</td></tr>
+          <tr><td>Skenario backend gagal</td><td>0</td></tr>
+          <tr><td>Total request Newman</td><td>23</td></tr>
+          <tr><td>Request Newman gagal</td><td>0</td></tr>
+          <tr><td>Total assertion Newman</td><td>36</td></tr>
+          <tr><td>Assertion Newman gagal</td><td>0</td></tr>
+          <tr><td>Persentase keberhasilan</td><td>100%</td></tr>
+          <tr><td>Total waktu Newman</td><td>3,5 detik</td></tr>
+        </tbody>
+      </table>
+
+      <h3>IV.6.2 Hasil Persiapan UAT</h3>
+      <p>Persiapan UAT telah disusun untuk tiga aktor utama sistem. Total skenario UAT yang disiapkan adalah 32 skenario.</p>
+      <table>
+        <thead><tr><th>Aktor</th><th>Jumlah Skenario</th><th>Fokus Pengujian</th></tr></thead>
+        <tbody>
+          <tr><td>Pengguna Umum</td><td>10</td><td>Akses publik, registrasi, login, komentar, profil</td></tr>
+          <tr><td>Pengelola</td><td>10</td><td>Draft artikel, publish, kategori, komentar</td></tr>
+          <tr><td>Admin</td><td>12</td><td>User management, kategori, media, statistik</td></tr>
+        </tbody>
+      </table>
+
+      <h3>IV.6.3 Metrik Performa</h3>
+      <table>
+        <thead><tr><th>Metrik</th><th>Nilai</th></tr></thead>
+        <tbody>
+          <tr><td>Rata-rata response time</td><td>68 ms</td></tr>
+          <tr><td>Data diterima</td><td>11,4 kB</td></tr>
+          <tr><td>Waktu eksekusi keseluruhan</td><td>3,5 detik</td></tr>
+          <tr><td>Throughput</td><td>6,57 request/detik</td></tr>
+        </tbody>
+      </table>
+
+      <h2>IV.7 PEMBAHASAN</h2>
+      <p>Bagian ini membahas hasil pengujian yang telah dilakukan, interpretasi temuan, serta implikasi terhadap kualitas sistem.</p>
+      <h3>IV.7.1 Analisis Hasil Pengujian Black Box</h3>
+      <p>Hasil pengujian menunjukkan bahwa sistem COCONEXUS telah memenuhi kebutuhan fungsional utama. Autentikasi dan otorisasi berbasis role berjalan baik, validasi input mencegah data tidak valid masuk ke sistem, workflow artikel berjalan konsisten, moderasi komentar dan pencatatan view berjalan sesuai rancangan, dan pengelolaan kategori, user, media, serta product card berhasil diintegrasikan dengan baik.</p>
+      <h3>IV.7.2 Kesiapan UAT</h3>
+      <p>Skenario UAT yang disusun sudah mencakup alur utama penggunaan sistem oleh pengguna umum, pengelola, dan admin. Dengan cakupan tersebut, UAT dapat digunakan untuk memvalidasi kesesuaian sistem dengan kebutuhan pengguna akhir secara lebih menyeluruh.</p>
+      <h3>IV.7.3 Temuan Penting</h3>
+      <ul>
+        <li>Sistem stabil dan tidak mengalami kegagalan pada skenario pengujian yang dijalankan.</li>
+        <li>Error handling sudah baik karena sistem memberikan respons yang sesuai saat input tidak valid.</li>
+        <li>Pembatasan akses berdasarkan role berjalan konsisten.</li>
+        <li>Data relasional seperti kategori, artikel, komentar, dan product card terhubung dengan benar.</li>
+      </ul>
+      <h3>IV.7.4 Limitasi</h3>
+      <ol>
+        <li>UAT masih berupa skenario terstruktur dan belum seluruhnya dijalankan oleh responden.</li>
+        <li>Pengujian load dan stress belum dilakukan.</li>
+        <li>Pengujian lintas browser dan lintas perangkat belum dicantumkan pada tahap ini.</li>
+      </ol>
+      <h3>IV.7.5 Rekomendasi</h3>
+      <ul>
+        <li>Menjalankan load testing untuk mengukur kemampuan sistem saat trafik tinggi.</li>
+        <li>Menambah end-to-end testing agar integrasi frontend dan backend tervalidasi penuh.</li>
+        <li>Menyusun UAT bersama responden agar hasil penerimaan pengguna terdokumentasi secara formal.</li>
+        <li>Menambahkan pengujian kompatibilitas browser dan perangkat.</li>
+      </ul>
+      <h3>IV.7.6 Kesimpulan Pembahasan</h3>
+      <div class="success-box">
+        Berdasarkan pengujian black box, persiapan UAT, dan activity diagram yang disusun, sistem COCONEXUS telah menunjukkan kualitas teknis yang baik. Seluruh skenario backend otomatis berhasil, pengujian Newman juga berhasil tanpa kegagalan, dan skenario UAT telah mencakup alur utama pengguna sistem.
+      </div>
     </div>
+  </div>
+
 </body>
 </html>

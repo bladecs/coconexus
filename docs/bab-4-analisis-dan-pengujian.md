@@ -271,7 +271,7 @@ Kebutuhan sistem dalam penelitian ini terdiri dari kebutuhan pengguna, kebutuhan
 Kebutuhan pengguna menjelaskan pihak-pihak yang menggunakan sistem beserta hak aksesnya. Pengguna sistem terdiri dari tiga kategori:
 
 1. **Admin**: Memiliki hak akses penuh untuk mengelola data pengguna, artikel, komentar, kategori, log audit, serta mengakses dashboard statistik sistem.
-2. **Moderator Konten**: Memiliki hak akses untuk membuat, menyunting, dan mempublikasikan artikel dengan workflow (draft → revision → published), mengelola kategori pembelajaran, serta mengelola komentar yang masuk.
+2. **Pengelola Konten (Moderator)**: Memiliki hak akses untuk membuat, menyunting, dan mempublikasikan artikel dengan workflow (draft → revision → published), mengelola kategori pembelajaran, serta mengelola komentar yang masuk untuk memastikan kualitas diskusi.
 3. **Pengguna Umum**: Memiliki hak akses untuk membaca artikel, memberikan komentar bersarang, melakukan registrasi dan login, serta mengakses profil pribadi dan statistik pembelajaran.
 
 ### 3.5.2 Kebutuhan Fungsional
@@ -286,7 +286,6 @@ Kebutuhan fungsional merupakan kebutuhan yang berkaitan dengan fungsi atau layan
 2. **Manajemen Konten Pembelajaran**:
    - Sistem dapat membuat, menyunting, dan mempublikasikan artikel dengan workflow (draft → revision → published).
    - Sistem dapat mengelola kategori pembelajaran secara otomatis saat pembuatan atau pembaruan artikel.
-   - Sistem dapat menangani detail artikel dengan media pendukung seperti gambar, video, dan dokumen.
    - Sistem dapat melacak jumlah views artikel untuk mengukur popularitas konten.
 
 3. **Interaksi Pengguna**:
@@ -364,7 +363,7 @@ Use case diagram menjelaskan peran user dan admin dalam sistem:
    - Memperbarui profil pengguna
    - Melihat statistik pembelajaran
 
-2. **Admin** dapat:
+2. **Admin (SuperAdmin)** dapat:
    - Mengelola artikel (create, read, update, delete dengan workflow approval)
    - Mengelola kategori pembelajaran
    - Mengelola pengguna (create, read, update, soft delete)
@@ -373,11 +372,10 @@ Use case diagram menjelaskan peran user dan admin dalam sistem:
    - Mengakses log audit sistem
    - Melihat dashboard statistik dan laporan
 
-3. **Moderator Konten** dapat:
+3. **Pengelola Konten (Moderator)** dapat:
    - Membuat dan menyunting artikel
    - Mengatur kategori pembelajaran
-   - Mengelola komentar di artikel mereka
-   - Melihat statistik artikel mereka
+   - Memoderasi komentar pada artikel
 
 ### 3.6.3 Activity Diagram / Flowchart Sistem
 

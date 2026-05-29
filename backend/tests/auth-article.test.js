@@ -21,7 +21,7 @@ const {
   User,
   UserProfile,
 } = require('../models');
-const { resetTestDatabase, createAdminUser } = require('./helpers/testDb');
+const { resetTestDatabase, createAdminUser, createPengelolaUser } = require('./helpers/testDb');
 
 test.beforeEach(async () => {
   await resetTestDatabase();
@@ -72,6 +72,368 @@ test('regular user cannot access admin dashboard stats', async () => {
     .set('Authorization', `Bearer ${loginResponse.body.data.token}`);
 
   assert.equal(statsResponse.status, 403);
+});
+
+test('regular user cannot create article from pengelola workspace route', async () => {
+  await request(app)
+    .post('/api/auth/register')
+    .send({
+      email: 'penulis.biasa@coconexus.local',
+      password: 'User12345',
+      full_name: 'Penulis Biasa',
+    });
+
+  const loginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: 'penulis.biasa@coconexus.local',
+      password: 'User12345',
+    });
+
+  const createResponse = await request(app)
+    .post('/api/articles')
+    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .send({
+      title: 'Artikel dari User Biasa',
+      body_content: 'Konten tidak semestinya bisa dibuat oleh user umum.',
+      category: {
+        name: 'Uji Akses',
+      },
+    });
+
+  assert.equal(createResponse.status, 403);
+  assert.equal(createResponse.body.success, false);
+});
+
+test('pengelola can create and fetch article from workspace route', async () => {
+  const { user: pengelolaUser, plainPassword } = await createPengelolaUser({
+    email: 'pengelola.konten@coconexus.local',
+    full_name: 'Pengelola Konten',
+    bio: 'Mengelola alur artikel.',
+  });
+
+  const loginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: pengelolaUser.email,
+      password: plainPassword,
+    });
+
+  const createResponse = await request(app)
+    .post('/api/articles')
+    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .send({
+      title: 'Artikel Pengelola',
+      body_content: 'Konten artikel dari pengelola.',
+      meta_description: 'Ringkasan artikel pengelola.',
+      status: 'draft',
+      category: {
+        name: 'Alur Pengelola',
+      },
+    });
+
+  const detailResponse = await request(app)
+    .get(`/api/articles/${createResponse.body.data.article.id}`)
+    .set('Authorization', `Bearer ${loginResponse.body.data.token}`);
+
+  assert.equal(createResponse.status, 201);
+  assert.equal(detailResponse.status, 200);
+  assert.equal(detailResponse.body.data.article.title, 'Artikel Pengelola');
+});
+
+test('pengelola publisher can publish draft article to published', async () => {
+  const { user: writerUser, plainPassword: writerPassword } = await createPengelolaUser({
+    email: 'penulis.publish.flow@coconexus.local',
+    full_name: 'Penulis Publish Flow',
+    job_title: 'Penulis Artikel',
+    department: 'Produksi Konten',
+    division: 'Artikel Utama',
+    bio: 'Menyiapkan draft untuk publish.',
+  });
+
+  const { user: publisherUser, plainPassword: publisherPassword } = await createPengelolaUser({
+    email: 'publisher.flow@coconexus.local',
+    full_name: 'Publisher Flow',
+    job_title: 'Publisher Artikel',
+    department: 'Validasi & Publikasi',
+    division: 'Artikel Utama',
+    bio: 'Menangani publikasi artikel.',
+  });
+
+  const writerLogin = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: writerUser.email,
+      password: writerPassword,
+    });
+
+  const createResponse = await request(app)
+    .post('/api/articles')
+    .set('Authorization', `Bearer ${writerLogin.body.data.token}`)
+    .send({
+      title: 'Artikel Publish Flow',
+      body_content: 'Konten artikel publish flow.',
+      meta_description: 'Ringkasan publish flow.',
+      status: 'draft',
+      category: {
+        name: 'Publish Flow',
+      },
+    });
+
+  const publisherLogin = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: publisherUser.email,
+      password: publisherPassword,
+    });
+
+  const publishResponse = await request(app)
+    .patch(`/api/articles/${createResponse.body.data.article.id}/status`)
+    .set('Authorization', `Bearer ${publisherLogin.body.data.token}`)
+    .send({
+      status: 'published',
+    });
+
+  const publishedDetailResponse = await request(app).get(
+    `/api/articles/published/${createResponse.body.data.article.id}`
+  );
+
+  assert.equal(createResponse.status, 201);
+  assert.equal(publishResponse.status, 200);
+  assert.equal(publishResponse.body.data.article.status, 'published');
+  assert.equal(publishedDetailResponse.status, 200);
+  assert.equal(publishedDetailResponse.body.data.article.status, 'published');
+});
+
+test('pengelola penulis cannot publish article', async () => {
+  const { user: writerUser, plainPassword } = await createPengelolaUser({
+    email: 'penulis.uji@coconexus.local',
+    full_name: 'Penulis Uji',
+    job_title: 'Penulis Artikel',
+    department: 'Produksi Konten',
+    division: 'Artikel Utama',
+  });
+
+  const loginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: writerUser.email,
+      password: plainPassword,
+    });
+
+  const createResponse = await request(app)
+    .post('/api/articles')
+    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .send({
+      title: 'Draft Penulis',
+      body_content: 'Konten penulis.',
+      meta_description: 'Meta penulis.',
+      status: 'draft',
+      category: {
+        name: 'Penulis Uji',
+      },
+    });
+
+  const publishResponse = await request(app)
+    .patch(`/api/articles/${createResponse.body.data.article.id}/status`)
+    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .send({
+      status: 'published',
+    });
+
+  assert.equal(createResponse.status, 201);
+  assert.equal(publishResponse.status, 403);
+  assert.equal(publishResponse.body.success, false);
+});
+
+test('pengelola publisher can publish draft article written by other pengelola', async () => {
+  const { user: writerUser, plainPassword: writerPassword } = await createPengelolaUser({
+    email: 'penulis.publish@coconexus.local',
+    full_name: 'Penulis Publish',
+    job_title: 'Penulis Artikel',
+    department: 'Produksi Konten',
+    division: 'Artikel Utama',
+  });
+
+  const { user: publisherUser, plainPassword: publisherPassword } = await createPengelolaUser({
+    email: 'publisher.publish@coconexus.local',
+    full_name: 'Publisher Publish',
+    job_title: 'Publisher Artikel',
+    department: 'Validasi & Publikasi',
+    division: 'Artikel Utama',
+  });
+
+  const writerLogin = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: writerUser.email,
+      password: writerPassword,
+    });
+
+  const createResponse = await request(app)
+    .post('/api/articles')
+    .set('Authorization', `Bearer ${writerLogin.body.data.token}`)
+    .send({
+      title: 'Draft Untuk Publish',
+      body_content: 'Konten yang akan dipublish publisher.',
+      meta_description: 'Meta publish.',
+      status: 'draft',
+      category: {
+        name: 'Publisher Uji',
+      },
+    });
+
+  const publisherLogin = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: publisherUser.email,
+      password: publisherPassword,
+    });
+
+  const publishResponse = await request(app)
+    .patch(`/api/articles/${createResponse.body.data.article.id}/status`)
+    .set('Authorization', `Bearer ${publisherLogin.body.data.token}`)
+    .send({
+      status: 'published',
+    });
+
+  assert.equal(publishResponse.status, 200);
+  assert.equal(publishResponse.body.data.article.status, 'published');
+});
+
+test('pengelola tag manager can manage categories while writer cannot', async () => {
+  const { user: tagUser, plainPassword: tagPassword } = await createPengelolaUser({
+    email: 'tag.manager@coconexus.local',
+    full_name: 'Tag Manager',
+    job_title: 'Pengelola Tag/Kategori',
+    department: 'Kategori & Tag',
+    division: 'Kategori',
+  });
+
+  const { user: writerUser, plainPassword: writerPassword } = await createPengelolaUser({
+    email: 'category.writer@coconexus.local',
+    full_name: 'Category Writer',
+    job_title: 'Penulis Artikel',
+    department: 'Produksi Konten',
+    division: 'Artikel Utama',
+  });
+
+  const tagLogin = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: tagUser.email,
+      password: tagPassword,
+    });
+
+  const createCategoryResponse = await request(app)
+    .post('/api/categories')
+    .set('Authorization', `Bearer ${tagLogin.body.data.token}`)
+    .send({
+      name: 'Kategori Job Test',
+    });
+
+  const writerLogin = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: writerUser.email,
+      password: writerPassword,
+    });
+
+  const writerCategoryResponse = await request(app)
+    .post('/api/categories')
+    .set('Authorization', `Bearer ${writerLogin.body.data.token}`)
+    .send({
+      name: 'Kategori Dilarang',
+    });
+
+  assert.equal(createCategoryResponse.status, 201);
+  assert.equal(writerCategoryResponse.status, 403);
+});
+
+test('pengelola comment moderator can access comment management while writer cannot', async () => {
+  const { user: commentUser, plainPassword: commentPassword } = await createPengelolaUser({
+    email: 'comment.moderator@coconexus.local',
+    full_name: 'Comment Moderator',
+    job_title: 'Moderator Komentar',
+    department: 'Moderasi Komentar',
+    division: 'Komentar',
+  });
+
+  const { user: writerUser, plainPassword: writerPassword } = await createPengelolaUser({
+    email: 'comment.writer@coconexus.local',
+    full_name: 'Comment Writer',
+    job_title: 'Penulis Artikel',
+    department: 'Produksi Konten',
+    division: 'Artikel Utama',
+  });
+
+  const commentLogin = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: commentUser.email,
+      password: commentPassword,
+    });
+
+  const writerLogin = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: writerUser.email,
+      password: writerPassword,
+    });
+
+  const moderatorResponse = await request(app)
+    .get('/api/comments?status=pending')
+    .set('Authorization', `Bearer ${commentLogin.body.data.token}`);
+
+  const writerResponse = await request(app)
+    .get('/api/comments?status=pending')
+    .set('Authorization', `Bearer ${writerLogin.body.data.token}`);
+
+  assert.equal(moderatorResponse.status, 200);
+  assert.equal(writerResponse.status, 403);
+});
+
+test('pengelola cannot publish another author article', async () => {
+  const { user: adminUser } = await createAdminUser();
+  const { user: pengelolaUser, plainPassword } = await createPengelolaUser({
+    email: 'pengelola.lain@coconexus.local',
+    full_name: 'Pengelola Lain',
+  });
+
+  const category = await CategoryTag.create({
+    name: 'Artikel Milik Admin',
+    description: 'Kategori pengujian kepemilikan.',
+  });
+
+  const ownedByAdmin = await Article.create({
+    author_id: adminUser.id,
+    category_id: category.id,
+    title: 'Draft Admin',
+    status: 'draft',
+  });
+
+  await ArticleDetail.create({
+    article_id: ownedByAdmin.id,
+    body_content: 'Konten draft admin.',
+    meta_description: 'Draft admin.',
+  });
+
+  const loginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: pengelolaUser.email,
+      password: plainPassword,
+    });
+
+  const publishResponse = await request(app)
+    .patch(`/api/articles/${ownedByAdmin.id}/status`)
+    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .send({
+      status: 'published',
+    });
+
+  assert.equal(publishResponse.status, 403);
+  assert.equal(publishResponse.body.success, false);
 });
 
 test('login rejects invalid password', async () => {
@@ -277,6 +639,179 @@ test('user cannot submit empty comment on published article', async () => {
   assert.equal(commentResponse.body.success, false);
 });
 
+test('pending comments are hidden until moderator approves them', async () => {
+  const { user: adminUser, plainPassword: adminPassword } = await createAdminUser();
+  const { user: commenterUser, plainPassword: commenterPassword } = await createPengelolaUser({
+    email: 'commenter.pending@coconexus.local',
+    full_name: 'Commenter Pending',
+    job_title: 'Penulis Artikel',
+    department: 'Produksi Konten',
+    division: 'Artikel Utama',
+  });
+  const { user: moderatorUser, plainPassword: moderatorPassword } = await createPengelolaUser({
+    email: 'comment.moderator.queue@coconexus.local',
+    full_name: 'Comment Moderator Queue',
+    job_title: 'Moderator Komentar',
+    department: 'Moderasi Komentar',
+    division: 'Komentar',
+  });
+
+  const adminLoginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: adminUser.email,
+      password: adminPassword,
+    });
+
+  const commenterLoginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: commenterUser.email,
+      password: commenterPassword,
+    });
+
+  const createArticleResponse = await request(app)
+    .post('/api/articles/admin')
+    .set('Authorization', `Bearer ${adminLoginResponse.body.data.token}`)
+    .send({
+      title: 'Artikel Moderasi Komentar',
+      body_content: 'Artikel untuk menguji alur moderasi komentar.',
+      category: {
+        name: 'Moderasi Komentar',
+      },
+    });
+
+  await request(app)
+    .patch(`/api/articles/admin/${createArticleResponse.body.data.article.id}/status`)
+    .set('Authorization', `Bearer ${adminLoginResponse.body.data.token}`)
+    .send({
+      status: 'published',
+    });
+
+  const commentResponse = await request(app)
+    .post(`/api/articles/${createArticleResponse.body.data.article.id}/comments`)
+    .set('Authorization', `Bearer ${commenterLoginResponse.body.data.token}`)
+    .send({
+      body: 'Komentar yang masih pending moderasi.',
+    });
+
+  const publicDetailBeforeModeration = await request(app).get(
+    `/api/articles/published/${createArticleResponse.body.data.article.id}`
+  );
+
+  const moderatorLoginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: moderatorUser.email,
+      password: moderatorPassword,
+    });
+
+  const queueResponse = await request(app)
+    .get('/api/comments?status=pending')
+    .set('Authorization', `Bearer ${moderatorLoginResponse.body.data.token}`);
+
+  const approveResponse = await request(app)
+    .patch(`/api/comments/${commentResponse.body.data.comment.id}/status`)
+    .set('Authorization', `Bearer ${moderatorLoginResponse.body.data.token}`)
+    .send({
+      status: 'approved',
+    });
+
+  const publicDetailAfterModeration = await request(app).get(
+    `/api/articles/published/${createArticleResponse.body.data.article.id}`
+  );
+
+  assert.equal(commentResponse.status, 201);
+  assert.equal(commentResponse.body.data.comment.status, 'pending');
+  assert.equal(publicDetailBeforeModeration.body.data.article.comments.length, 0);
+  assert.equal(queueResponse.status, 200);
+  assert.equal(queueResponse.body.data.comments[0].status, 'pending');
+  assert.equal(approveResponse.status, 200);
+  assert.equal(approveResponse.body.data.comment.status, 'approved');
+  assert.equal(publicDetailAfterModeration.body.data.article.comments.length, 1);
+  assert.equal(publicDetailAfterModeration.body.data.article.comments[0].body, 'Komentar yang masih pending moderasi.');
+});
+
+test('moderator can reject comment and it stays hidden publicly', async () => {
+  const { user: adminUser, plainPassword: adminPassword } = await createAdminUser();
+  const { user: commenterUser, plainPassword: commenterPassword } = await createPengelolaUser({
+    email: 'commenter.reject@coconexus.local',
+    full_name: 'Commenter Reject',
+    job_title: 'Penulis Artikel',
+    department: 'Produksi Konten',
+    division: 'Artikel Utama',
+  });
+  const { user: moderatorUser, plainPassword: moderatorPassword } = await createPengelolaUser({
+    email: 'comment.moderator.reject@coconexus.local',
+    full_name: 'Comment Moderator Reject',
+    job_title: 'Moderator Komentar',
+    department: 'Moderasi Komentar',
+    division: 'Komentar',
+  });
+
+  const adminLoginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: adminUser.email,
+      password: adminPassword,
+    });
+
+  const commenterLoginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: commenterUser.email,
+      password: commenterPassword,
+    });
+
+  const createArticleResponse = await request(app)
+    .post('/api/articles/admin')
+    .set('Authorization', `Bearer ${adminLoginResponse.body.data.token}`)
+    .send({
+      title: 'Artikel Moderasi Tolak',
+      body_content: 'Artikel untuk menguji penolakan komentar.',
+      category: {
+        name: 'Moderasi Tolak',
+      },
+    });
+
+  await request(app)
+    .patch(`/api/articles/admin/${createArticleResponse.body.data.article.id}/status`)
+    .set('Authorization', `Bearer ${adminLoginResponse.body.data.token}`)
+    .send({
+      status: 'published',
+    });
+
+  const commentResponse = await request(app)
+    .post(`/api/articles/${createArticleResponse.body.data.article.id}/comments`)
+    .set('Authorization', `Bearer ${commenterLoginResponse.body.data.token}`)
+    .send({
+      body: 'Komentar yang akan ditolak.',
+    });
+
+  const moderatorLoginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: moderatorUser.email,
+      password: moderatorPassword,
+    });
+
+  const rejectResponse = await request(app)
+    .patch(`/api/comments/${commentResponse.body.data.comment.id}/status`)
+    .set('Authorization', `Bearer ${moderatorLoginResponse.body.data.token}`)
+    .send({
+      status: 'rejected',
+    });
+
+  const publicDetailResponse = await request(app).get(
+    `/api/articles/published/${createArticleResponse.body.data.article.id}`
+  );
+
+  assert.equal(commentResponse.body.data.comment.status, 'pending');
+  assert.equal(rejectResponse.status, 200);
+  assert.equal(rejectResponse.body.data.comment.status, 'rejected');
+  assert.equal(publicDetailResponse.body.data.article.comments.length, 0);
+});
+
 test('published article list hides draft articles', async () => {
   const { user } = await createAdminUser();
 
@@ -450,6 +985,44 @@ test('admin can update user role and profile data', async () => {
   assert.equal(updateResponse.status, 200);
   assert.equal(updateResponse.body.data.user.role, 'admin');
   assert.equal(updateResponse.body.data.user.profile.full_name, 'Target Admin');
+});
+
+test('admin user list exposes job division fields', async () => {
+  const { user: adminUser, plainPassword } = await createAdminUser();
+
+  const targetUser = await User.create({
+    email: 'pengelola.konten@coconexus.local',
+    password: 'hashed-password-placeholder',
+    role: 'pengelola',
+  });
+
+  await UserProfile.create({
+    user_id: targetUser.id,
+    full_name: 'Pengelola Konten',
+    bio: 'Menangani alur artikel.',
+    avatar_url: null,
+    job_title: 'Editor Konten',
+    department: 'Redaksi & Konten',
+    division: 'Artikel Detail',
+  });
+
+  const loginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: adminUser.email,
+      password: plainPassword,
+    });
+
+  const usersResponse = await request(app)
+    .get('/api/users/admin')
+    .set('Authorization', `Bearer ${loginResponse.body.data.token}`);
+
+  const fetchedUser = usersResponse.body.data.users.find((item) => item.id === targetUser.id);
+
+  assert.equal(usersResponse.status, 200);
+  assert.equal(fetchedUser.profile.job_title, 'Editor Konten');
+  assert.equal(fetchedUser.profile.department, 'Redaksi & Konten');
+  assert.equal(fetchedUser.profile.division, 'Artikel Detail');
 });
 
 test('admin cannot soft delete own account', async () => {

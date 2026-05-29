@@ -14,10 +14,6 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
       },
-      category_id: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: false,
-      },
       parent_article_id: {
         type: DataTypes.INTEGER.UNSIGNED,
         allowNull: true,
@@ -56,12 +52,23 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: 'CASCADE',
     });
 
+    // Relasi kategori untuk endpoint artikel.
+    // Model lain memakai alias 'categories' untuk relasi many-to-many.
+    Article.belongsToMany(models.CategoryTag, {
+      through: 'ArticleCategoryTag',
+      foreignKey: 'article_id',
+      otherKey: 'category_tag_id',
+      as: 'categories',
+    });
+
+    // Untuk kompatibilitas query yang mengharapkan alias 'category'.
+    // Ini tidak menggantikan relasi many-to-many, tapi menyediakan relasi langsung via column `category_id`.
     Article.belongsTo(models.CategoryTag, {
       foreignKey: 'category_id',
       as: 'category',
-      onDelete: 'RESTRICT',
-      onUpdate: 'CASCADE',
     });
+
+
 
     Article.belongsTo(models.Article, {
       foreignKey: 'parent_article_id',

@@ -1,23 +1,49 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import api from '@/lib/api';
 
 const comments = ref([]);
 const isLoading = ref(false);
 const error = ref(null);
+const feedback = ref('');
+const meta = ref({
+  page: 1,
+  limit: 10,
+  total_items: 0,
+  total_pages: 1,
+});
 const filters = reactive({
-  status: 'all',
+  status: 'pending',
   search: '',
 });
 
+const statusLabels = {
+  pending: 'Pending',
+  approved: 'Approved',
+  rejected: 'Rejected',
+};
+
+const summary = computed(() => ({
+  total: comments.value.length,
+  pending: comments.value.filter((comment) => comment.status === 'pending').length,
+  approved: comments.value.filter((comment) => comment.status === 'approved').length,
+  rejected: comments.value.filter((comment) => comment.status === 'rejected').length,
+}));
+
 const filteredComments = computed(() => {
+  const keyword = filters.search.trim().toLowerCase();
+
   return comments.value.filter((comment) => {
-    const matchesStatus = filters.status === 'all' || comment.status === filters.status;
-    const matchesSearch =
-      comment.content.toLowerCase().includes(filters.search.toLowerCase()) ||
-      comment.user?.email.toLowerCase().includes(filters.search.toLowerCase());
-    return matchesStatus && matchesSearch;
+    if (!keyword) {
+      return true;
+    }
+
+    const content = (comment.content || '').toLowerCase();
+    const articleTitle = (comment.article?.title || '').toLowerCase();
+    const commenter = (comment.user?.profile?.full_name || comment.user?.email || '').toLowerCase();
+
+    return content.includes(keyword) || articleTitle.includes(keyword) || commenter.includes(keyword);
   });
 });
 
@@ -26,8 +52,19 @@ async function fetchComments() {
   error.value = null;
 
   try {
-    const { data } = await api.get('/comments?author_articles_only=true');
+    const params = {
+      status: filters.status,
+      page: meta.value.page,
+      limit: meta.value.limit,
+    };
+
+    if (filters.search.trim()) {
+      params.search = filters.search.trim();
+    }
+
+    const { data } = await api.get('/comments', { params });
     comments.value = data.data.comments || [];
+    meta.value = data.data.meta || meta.value;
   } catch (err) {
     error.value = err.message;
   } finally {
@@ -35,16 +72,56 @@ async function fetchComments() {
   }
 }
 
+async function searchComments() {
+  meta.value.page = 1;
+  await fetchComments();
+}
+
+async function updateCommentStatus(id, status) {
+  feedback.value = '';
+
+  try {
+    await api.patch(`/comments/${id}/status`, { status });
+    feedback.value =
+      status === 'approved'
+        ? 'Komentar berhasil disetujui.'
+        : 'Komentar berhasil ditolak.';
+    await fetchComments();
+  } catch (err) {
+    feedback.value = err.message;
+  }
+}
+
 async function deleteComment(id) {
   if (!confirm('Apakah Anda yakin ingin menghapus komentar ini?')) return;
 
+  feedback.value = '';
+
   try {
     await api.delete(`/comments/${id}`);
-    comments.value = comments.value.filter((c) => c.id !== id);
+    feedback.value = 'Komentar berhasil dihapus.';
+    await fetchComments();
   } catch (err) {
-    error.value = err.message;
+    feedback.value = err.message;
   }
 }
+
+async function goToPage(page) {
+  if (page < 1 || page > meta.value.total_pages) {
+    return;
+  }
+
+  meta.value.page = page;
+  await fetchComments();
+}
+
+watch(
+  () => filters.status,
+  async () => {
+    meta.value.page = 1;
+    await fetchComments();
+  }
+);
 
 onMounted(() => {
   fetchComments();
@@ -58,67 +135,160 @@ onMounted(() => {
     <section class="mx-auto max-w-[1680px]">
       <header class="admin-ops-header">
         <div>
-          <p class="admin-section-label">COCONEXUS / PENGELOLA ARTIKEL</p>
+          <p class="admin-section-label">COCONEXUS / MODERATION QUEUE</p>
           <h1>Kelola Komentar</h1>
         </div>
       </header>
 
-      <!-- Filters -->
+      <p
+        v-if="feedback"
+        class="mb-6 rounded-lg border border-[#ff7c35]/20 bg-[#ff7c35]/10 px-5 py-4 text-sm font-medium text-[#ffd1b8]"
+      >
+        {{ feedback }}
+      </p>
+
       <section class="admin-signal-board mb-6">
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div class="grid gap-4 md:grid-cols-[280px_minmax(0,1fr)]">
           <div>
-            <label class="block text-sm mb-2">Cari Komentar</label>
+            <label class="mb-2 block text-sm">Status Antrian</label>
+            <select
+              v-model="filters.status"
+              class="w-full rounded border border-stone-600 bg-stone-800 px-3 py-2 text-stone-100"
+            >
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="all">Semua Status</option>
+            </select>
+          </div>
+          <div>
+            <label class="mb-2 block text-sm">Cari Komentar</label>
             <input
               v-model="filters.search"
               type="text"
-              placeholder="Cari berdasarkan nama atau konten..."
-              class="w-full rounded bg-stone-800 px-3 py-2 text-stone-100 border border-stone-600"
+              placeholder="Cari isi komentar, artikel, atau nama..."
+              class="w-full rounded border border-stone-600 bg-stone-800 px-3 py-2 text-stone-100"
+              @keyup.enter="searchComments"
             />
+            <button
+              type="button"
+              class="mt-3 rounded border border-stone-600 bg-stone-800 px-4 py-2 text-sm font-semibold text-stone-200 transition hover:bg-stone-700"
+              @click="searchComments"
+            >
+              Cari
+            </button>
           </div>
         </div>
       </section>
 
-      <!-- Comments List -->
+      <section class="admin-signal-board mb-6">
+        <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div class="moderation-stat">
+            <span>Total</span>
+            <strong>{{ summary.total }}</strong>
+          </div>
+          <div class="moderation-stat">
+            <span>Pending</span>
+            <strong>{{ summary.pending }}</strong>
+          </div>
+          <div class="moderation-stat">
+            <span>Approved</span>
+            <strong>{{ summary.approved }}</strong>
+          </div>
+          <div class="moderation-stat">
+            <span>Rejected</span>
+            <strong>{{ summary.rejected }}</strong>
+          </div>
+        </div>
+      </section>
+
       <section class="admin-signal-board">
         <p class="admin-section-label mb-4">DAFTAR KOMENTAR</p>
 
-        <div v-if="isLoading" class="text-center py-8">
-          <p>Memuat komentar...</p>
+        <div v-if="isLoading" class="py-8 text-center">
+          <p>Memuat antrian komentar...</p>
         </div>
 
-        <div v-else-if="error" class="text-red-400 text-center py-8">
+        <div v-else-if="error" class="py-8 text-center text-red-400">
           {{ error }}
         </div>
 
-        <div v-else-if="filteredComments.length === 0" class="text-center py-8 text-stone-400">
-          Tidak ada komentar ditemukan
+        <div v-else-if="filteredComments.length === 0" class="py-8 text-center text-stone-400">
+          Tidak ada komentar yang cocok dengan filter.
         </div>
 
         <div v-else class="space-y-4">
-          <div
+          <article
             v-for="comment in filteredComments"
             :key="comment.id"
-            class="p-4 rounded border border-stone-700 hover:bg-stone-800 transition"
+            class="rounded border border-stone-700 p-4 transition hover:bg-stone-800"
           >
-            <div class="flex justify-between items-start mb-2">
+            <div class="mb-2 flex items-start justify-between gap-4">
               <div>
-                <p class="font-semibold">{{ comment.user?.profile?.full_name || comment.user?.email }}</p>
+                <p class="font-semibold">{{ comment.user?.profile?.full_name || comment.user?.email || 'User' }}</p>
                 <p class="text-xs text-stone-400">
-                  {{ new Date(comment.created_at).toLocaleString('id-ID') }}
+                  {{ comment.created_at ? new Date(comment.created_at).toLocaleString('id-ID') : 'Tanpa waktu' }}
                 </p>
               </div>
-              <p class="text-sm font-semibold">{{ comment.article?.title || 'Artikel Dihapus' }}</p>
+              <div class="text-right">
+                <p class="text-sm font-semibold">{{ comment.article?.title || 'Artikel Dihapus' }}</p>
+                <span class="comment-status" :data-status="comment.status">
+                  {{ statusLabels[comment.status] || comment.status }}
+                </span>
+              </div>
             </div>
-            <p class="text-stone-300 mb-3">{{ comment.content }}</p>
-            <div class="flex gap-2">
+
+            <p class="mb-4 text-stone-300">{{ comment.content }}</p>
+
+            <div class="flex flex-wrap gap-2">
               <button
+                type="button"
+                class="rounded border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-200 transition hover:bg-emerald-500/15"
+                @click="updateCommentStatus(comment.id, 'approved')"
+              >
+                Setujui
+              </button>
+              <button
+                type="button"
+                class="rounded border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-sm font-bold text-amber-200 transition hover:bg-amber-500/15"
+                @click="updateCommentStatus(comment.id, 'rejected')"
+              >
+                Tolak
+              </button>
+              <button
+                type="button"
+                class="rounded border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-bold text-red-200 transition hover:bg-red-500/15"
                 @click="deleteComment(comment.id)"
-                class="text-red-400 hover:text-red-300 text-sm"
               >
                 Hapus
               </button>
             </div>
-          </div>
+          </article>
+        </div>
+
+        <div
+          v-if="meta.total_pages > 1"
+          class="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-stone-700 pt-4"
+        >
+          <button
+            type="button"
+            class="rounded border border-stone-600 bg-stone-800 px-4 py-2 text-sm font-semibold text-stone-200 disabled:cursor-not-allowed disabled:opacity-50"
+            :disabled="meta.page <= 1"
+            @click="goToPage(meta.page - 1)"
+          >
+            Sebelumnya
+          </button>
+          <span class="text-sm text-stone-400">
+            Halaman {{ meta.page }} dari {{ meta.total_pages }} · {{ meta.total_items }} komentar
+          </span>
+          <button
+            type="button"
+            class="rounded border border-stone-600 bg-stone-800 px-4 py-2 text-sm font-semibold text-stone-200 disabled:cursor-not-allowed disabled:opacity-50"
+            :disabled="meta.page >= meta.total_pages"
+            @click="goToPage(meta.page + 1)"
+          >
+            Berikutnya
+          </button>
         </div>
       </section>
     </section>
@@ -154,5 +324,58 @@ onMounted(() => {
   border: 1px solid rgb(120 113 108);
   border-radius: 0.5rem;
   padding: 1.5rem;
+}
+
+.moderation-stat {
+  border: 1px solid rgb(68 64 60);
+  border-radius: 0.5rem;
+  background: rgb(28 25 23);
+  padding: 1rem;
+}
+
+.moderation-stat span {
+  display: block;
+  color: rgb(168 162 158);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.moderation-stat strong {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.comment-status {
+  display: inline-flex;
+  margin-top: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.comment-status[data-status='pending'] {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.12);
+  color: rgb(252, 211, 77);
+}
+
+.comment-status[data-status='approved'] {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.12);
+  color: rgb(134, 239, 172);
+}
+
+.comment-status[data-status='rejected'] {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.12);
+  color: rgb(252, 165, 165);
 }
 </style>
