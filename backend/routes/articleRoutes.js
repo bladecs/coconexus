@@ -32,8 +32,6 @@ router.post('/', authenticate, authorizeJobs(...ARTICLE_MANAGEMENT_JOBS), create
 router.put('/:id', authenticate, authorizeJobs(...ARTICLE_MANAGEMENT_JOBS), updateArticle);
 router.delete('/:id', authenticate, authorizeJobs(...ARTICLE_MANAGEMENT_JOBS), deleteArticle);
 router.patch('/:id/status', authenticate, authorizeJobs(...ARTICLE_REVIEW_JOBS, ...ARTICLE_PUBLISH_JOBS), updateArticleStatus);
-router.get('/:id', authenticate, authorizeJobs(...ARTICLE_MANAGEMENT_JOBS, ...ARTICLE_REVIEW_JOBS, ...ARTICLE_PUBLISH_JOBS), getAdminArticleDetail);
-
 // Admin routes
 router.get('/admin', authenticate, authorize('admin'), listAdminArticles);
 router.get('/admin/main-articles', authenticate, authorize('admin'), listMainArticles);
@@ -43,5 +41,7 @@ router.post('/admin', authenticate, authorize('admin'), createArticle);
 router.put('/admin/:id', authenticate, authorize('admin'), updateArticle);
 router.patch('/admin/:id/status', authenticate, authorize('admin'), updateArticleStatus);
 router.delete('/admin/:id', authenticate, authorize('admin'), deleteArticle);
+
+router.get('/:id', authenticate, authorizeJobs(...ARTICLE_MANAGEMENT_JOBS, ...ARTICLE_REVIEW_JOBS, ...ARTICLE_PUBLISH_JOBS), getAdminArticleDetail);
 
 module.exports = router;

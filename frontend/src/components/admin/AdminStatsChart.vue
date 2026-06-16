@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   ArcElement,
   BarController,
@@ -181,8 +181,9 @@ onMounted(() => {
 });
 
 watch(
-  () => [props.type, props.chartData],
-  () => {
+  () => props.chartData,
+  async () => {
+    await nextTick();
     renderChart();
   },
   { deep: true }

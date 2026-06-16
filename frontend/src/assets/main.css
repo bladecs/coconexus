@@ -689,6 +689,53 @@ body {
   padding: 14px;
 }
 
+.admin-role-filter-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(40, 40, 40, 0.88);
+  padding: 18px;
+}
+
+.admin-role-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-role-filter-btn {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #e7dfd3;
+  padding: 0.85rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 800;
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.admin-role-filter-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.admin-role-filter-btn.is-active {
+  border-color: rgba(255, 124, 53, 0.9);
+  background: #ff7c35;
+  color: #ffffff;
+  box-shadow: 0 14px 32px rgba(255, 124, 53, 0.18);
+}
+
+.admin-search-group input {
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  color: #f4ede6;
+}
+
+.admin-search-group input::placeholder {
+  color: rgba(255,255,255,0.5);
+}
+
 .admin-tally-stack span {
   color: #a99b92;
   font-size: 0.82rem;
@@ -713,6 +760,56 @@ body {
 
 .admin-user-row:last-child {
   border-bottom: 0;
+}
+
+.admin-user-table-wrapper {
+  overflow-x: auto;
+  background: rgba(36, 36, 36, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+}
+
+.admin-user-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.admin-user-table th,
+.admin-user-table td {
+  padding: 18px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-user-table thead th {
+  color: #f4ede6;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.admin-user-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.admin-user-table tbody tr:hover {
+  background: rgba(255, 124, 53, 0.08);
+}
+
+.admin-user-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.admin-empty-state-table {
+  padding: 2rem;
+  text-align: center;
+  color: #c8b8a8;
 }
 
 .admin-user-identity {
@@ -748,6 +845,21 @@ body {
   color: #a99b92;
   font-size: 0.86rem;
   line-height: 1.55;
+}
+
+.admin-user-position {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-user-position p {
+  margin: 0;
+}
+
+.admin-user-position-meta {
+  color: #a99b92;
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
 .admin-role-pill {

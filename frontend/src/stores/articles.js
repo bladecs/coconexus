@@ -216,6 +216,34 @@ export const useArticleStore = defineStore('articles', () => {
     });
   }
 
+  async function uploadArticleMediaMany(files) {
+    // files: FileList or Array<File>
+    const fileArray = Array.isArray(files) ? files : Array.from(files || []);
+
+    if (fileArray.length === 0) return [];
+
+    return withSubmitting(async () => {
+      const promises = fileArray.map((file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return api.post('/uploads/articles', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      });
+
+      const settled = await Promise.allSettled(promises);
+      const results = [];
+
+      for (const r of settled) {
+        if (r.status === 'fulfilled' && r.value && r.value.data && r.value.data.data && r.value.data.data.media) {
+          results.push(r.value.data.data.media);
+        }
+      }
+
+      return results;
+    });
+  }
+
   return {
     publishedArticles,
     adminArticles,

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import AdminStatsChart from '@/components/admin/AdminStatsChart.vue';
@@ -10,9 +10,28 @@ const adminStore = useAdminStore();
 const authStore = useAuthStore();
 
 const stats = computed(() => adminStore.dashboardStats);
-const totals = computed(() => stats.value.totals);
-const charts = computed(() => stats.value.charts);
-const draftQueue = computed(() => totals.value.draft_articles + totals.value.revision_articles);
+const totals = computed(() => stats.value?.totals || {
+  users: 0,
+  articles: 0,
+  published_articles: 0,
+  draft_articles: 0,
+  revision_articles: 0,
+  categories: 0,
+  comments: 0,
+  article_views: 0,
+});
+const charts = computed(() => stats.value?.charts || {
+  articles_by_category: { labels: [], datasets: [], items: [] },
+  comments_by_month: { labels: [], datasets: [], items: [] },
+  users_by_role: { labels: [], datasets: [], items: [] },
+  users_by_month: { labels: [], datasets: [], items: [] },
+  active_users_by_month: { labels: [], datasets: [], items: [] },
+  article_views_by_month: { labels: [], datasets: [], items: [] },
+  reader_activity_by_article: { labels: [], datasets: [], items: [] },
+});
+const draftQueue = computed(
+  () => (totals.value.draft_articles || 0) + (totals.value.revision_articles || 0)
+);
 const publishRate = computed(() => {
   if (!totals.value.articles) {
     return 0;
@@ -44,8 +63,22 @@ function formatActivityDate(value) {
 }
 
 onMounted(async () => {
-  await adminStore.fetchDashboardStats();
+  console.log('[admin-dashboard] mounted, fetching stats');
+  try {
+    await adminStore.fetchDashboardStats();
+    console.log('[admin-dashboard] stats fetched', adminStore.dashboardStats);
+  } catch (err) {
+    console.warn('[admin-dashboard] failed to fetch stats:', err);
+  }
 });
+
+watch(
+  () => adminStore.dashboardStats,
+  (value) => {
+    console.log('[admin-dashboard] dashboardStats changed', value);
+  },
+  { deep: true }
+);
 </script>
 
 <template>

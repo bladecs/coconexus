@@ -2,16 +2,22 @@
 
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.addColumn('Comment', 'status', {
-      type: Sequelize.ENUM('pending', 'approved', 'rejected'),
-      allowNull: false,
-      defaultValue: 'pending',
-    });
+    const tableDef = await queryInterface.describeTable('Comment').catch(() => null);
+    if (!tableDef || !Object.prototype.hasOwnProperty.call(tableDef, 'status')) {
+      await queryInterface.addColumn('Comment', 'status', {
+        type: Sequelize.ENUM('pending', 'approved', 'rejected'),
+        allowNull: false,
+        defaultValue: 'pending',
+      });
 
-    await queryInterface.sequelize.query("UPDATE `Comment` SET `status` = 'approved'");
+      await queryInterface.sequelize.query("UPDATE `Comment` SET `status` = 'approved'");
+    }
   },
 
   async down(queryInterface) {
-    await queryInterface.removeColumn('Comment', 'status');
+    const tableDef = await queryInterface.describeTable('Comment').catch(() => null);
+    if (tableDef && Object.prototype.hasOwnProperty.call(tableDef, 'status')) {
+      try { await queryInterface.removeColumn('Comment', 'status'); } catch (e) {}
+    }
   },
 };

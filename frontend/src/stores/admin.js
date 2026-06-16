@@ -71,6 +71,7 @@ export const useAdminStore = defineStore('admin', () => {
     search: '',
     article_id: null,
   });
+  const dashboardStatsLoaded = ref(false);
   const isLoading = ref(false);
   const isSubmitting = ref(false);
   const error = ref(null);
@@ -178,7 +179,14 @@ export const useAdminStore = defineStore('admin', () => {
   async function fetchDashboardStats() {
     return withLoading(async () => {
       const { data } = await api.get('/admin/stats');
+      // debug: log when stats are fetched to help trace timing issues
+      try {
+        console.log('[admin] fetchDashboardStats: received', data?.data);
+      } catch (e) {
+        // ignore
+      }
       dashboardStats.value = data.data;
+      dashboardStatsLoaded.value = true;
       return dashboardStats.value;
     });
   }
@@ -210,6 +218,7 @@ export const useAdminStore = defineStore('admin', () => {
     deleteCategory,
     fetchAdminComments,
     fetchDashboardStats,
+    dashboardStatsLoaded,
     deleteComment,
   };
 });

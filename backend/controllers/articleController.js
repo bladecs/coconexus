@@ -15,6 +15,9 @@ const {
 const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { badRequest, forbidden, notFound } = require('../utils/httpErrors');
+const fs = require('fs');
+const path = require('path');
+const { uploadRoot } = require('../config/storage');
 const {
   isNonEmptyString,
   isValidArticleStatus,
@@ -79,6 +82,101 @@ function normalizeMediaInput(mediaInput) {
       media_type: mediaType,
     };
   });
+}
+
+function isExternalUrl(p) {
+  return typeof p === 'string' && /^(https?:)\/\//i.test(p);
+}
+
+function isFolderRef(p) {
+  return typeof p === 'string' && p.startsWith('folder:');
+}
+
+function inferMediaTypeFromFilename(filename) {
+  const ext = path.extname(filename || '').toLowerCase();
+  if (['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext)) return 'image';
+  if (['.mp4', '.mov', '.webm'].includes(ext)) return 'video';
+  return 'document';
+}
+
+async function processMediaItemsForStorage(mediaItems) {
+  // returns expanded array of { file_path, media_type }
+  const out = [];
+  const articleDir = path.join(uploadRoot, 'articles');
+
+  for (const item of mediaItems) {
+    const fp = item.file_path;
+    const mt = item.media_type;
+
+    if (isExternalUrl(fp)) {
+      // external link: leave as-is
+      out.push({ file_path: fp, media_type: mt });
+      continue;
+    }
+
+    if (isFolderRef(fp)) {
+      // folder:relative/path or folder:C:\absolute\path
+      const folderPathRaw = fp.slice('folder:'.length).trim();
+      if (!folderPathRaw) continue;
+
+      // resolve relative to project root if not absolute
+      const candidate = path.isAbsolute(folderPathRaw)
+        ? folderPathRaw
+        : path.resolve(process.cwd(), folderPathRaw);
+
+      let files;
+      try {
+        files = await fs.promises.readdir(candidate, { withFileTypes: true });
+      } catch (e) {
+        // skip if folder not accessible
+        continue;
+      }
+
+      for (const dirent of files) {
+        if (!dirent.isFile()) continue;
+        const src = path.join(candidate, dirent.name);
+        const ext = path.extname(dirent.name).toLowerCase();
+        const safeBase = path.basename(dirent.name, ext).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0,60) || 'file';
+        const newName = `${Date.now()}-${safeBase}${ext}`;
+        const dest = path.join(articleDir, newName);
+        try {
+          await fs.promises.copyFile(src, dest);
+          out.push({ file_path: `/uploads/articles/${newName}`, media_type: inferMediaTypeFromFilename(dirent.name) });
+        } catch (e) {
+          // ignore individual file copy errors
+        }
+      }
+
+      continue;
+    }
+
+    // treat as existing uploaded path (starting with /uploads/) or other server-relative path
+    if (typeof fp === 'string' && fp.startsWith('/uploads/')) {
+      out.push({ file_path: fp, media_type: mt });
+      continue;
+    }
+
+    // if absolute path on server, try to copy single file
+    if (typeof fp === 'string' && path.isAbsolute(fp)) {
+      const src = fp;
+      const ext = path.extname(src).toLowerCase();
+      const safeBase = path.basename(src, ext).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0,60) || 'file';
+      const newName = `${Date.now()}-${safeBase}${ext}`;
+      const dest = path.join(articleDir, newName);
+      try {
+        await fs.promises.copyFile(src, dest);
+        out.push({ file_path: `/uploads/articles/${newName}`, media_type: inferMediaTypeFromFilename(src) });
+      } catch (e) {
+        // ignore
+      }
+      continue;
+    }
+
+    // fallback: accept as-is
+    out.push({ file_path: fp, media_type: mt });
+  }
+
+  return out;
 }
 
 function normalizeProductCardInput(productCardInput) {
@@ -747,14 +845,17 @@ async function createArticle(req, res, next) {
     );
 
     if (mediaItems.length > 0) {
-      await ArticleMedia.bulkCreate(
-        mediaItems.map((item) => ({
-          article_id: article.id,
-          file_path: item.file_path,
-          media_type: item.media_type,
-        })),
-        { transaction }
-      );
+      const processedMedia = await processMediaItemsForStorage(mediaItems);
+      if (processedMedia.length > 0) {
+        await ArticleMedia.bulkCreate(
+          processedMedia.map((item) => ({
+            article_id: article.id,
+            file_path: item.file_path,
+            media_type: item.media_type,
+          })),
+          { transaction }
+        );
+      }
     }
 
     if (parentArticleId) {
@@ -954,14 +1055,17 @@ async function updateArticle(req, res, next) {
       });
 
       if (mediaItems.length > 0) {
-        await ArticleMedia.bulkCreate(
-          mediaItems.map((item) => ({
-            article_id: article.id,
-            file_path: item.file_path,
-            media_type: item.media_type,
-          })),
-          { transaction }
-        );
+        const processedMedia = await processMediaItemsForStorage(mediaItems);
+        if (processedMedia.length > 0) {
+          await ArticleMedia.bulkCreate(
+            processedMedia.map((item) => ({
+              article_id: article.id,
+              file_path: item.file_path,
+              media_type: item.media_type,
+            })),
+            { transaction }
+          );
+        }
       }
     }
 

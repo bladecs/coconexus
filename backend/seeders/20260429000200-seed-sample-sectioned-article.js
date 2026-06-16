@@ -26,8 +26,10 @@ module.exports = {
       }
     );
 
+    let articleId;
+
     if (existingArticles.length > 0) {
-      return;
+      articleId = existingArticles[0].id;
     }
 
     const [existingCategories] = await queryInterface.sequelize.query(
@@ -63,39 +65,46 @@ module.exports = {
       return;
     }
 
-    await queryInterface.bulkInsert('Article', [
-      {
-        author_id: admins[0].id,
-        parent_article_id: null,
-        title: SAMPLE_TITLE,
-        version: 1,
-        status: 'published',
-        created_at: now,
-        updated_at: now,
-      },
-    ]);
-
-    const [insertedArticles] = await queryInterface.sequelize.query(
-      'SELECT id FROM `Article` WHERE title = :title LIMIT 1',
-      {
-        replacements: { title: SAMPLE_TITLE },
-      }
-    );
-
-    const articleId = insertedArticles[0]?.id;
-
     if (!articleId) {
-      return;
+      await queryInterface.bulkInsert('Article', [
+        {
+          author_id: admins[0].id,
+          parent_article_id: null,
+          category_id: categoryId,
+          title: SAMPLE_TITLE,
+          version: 1,
+          status: 'published',
+          created_at: now,
+          updated_at: now,
+        },
+      ]);
+
+      const [insertedArticles] = await queryInterface.sequelize.query(
+        'SELECT id FROM `Article` WHERE title = :title LIMIT 1',
+        {
+          replacements: { title: SAMPLE_TITLE },
+        }
+      );
+
+      articleId = insertedArticles[0]?.id;
+
+      if (!articleId) {
+        return;
+      }
     }
 
-    // Mapping to junction table as per ERD many-to-many design
-    await queryInterface.bulkInsert('ArticleCategoryTag', [
-      {
-        article_id: articleId,
-        category_tag_id: categoryId,
-        created_at: now,
-      },
-    ]);
+    // Try to map to junction table if it exists; ignore if not present
+    try {
+      await queryInterface.bulkInsert('ArticleCategoryTag', [
+        {
+          article_id: articleId,
+          category_tag_id: categoryId,
+          created_at: now,
+        },
+      ]);
+    } catch (e) {
+      // Table may not exist in some schemas; continue without failing seeder
+    }
 
     const sections = [
       {
@@ -139,56 +148,80 @@ module.exports = {
       },
     ];
 
-    await queryInterface.bulkInsert('ArticleDetail', [
-      {
-        article_id: articleId,
-        body_content: sections.map((section) => section.body_content).join('\n\n'),
-        meta_description:
-          'Cara komunitas mengolah sabut kelapa menjadi cocopeat sebagai media tanam bernilai ekonomi.',
-        sections: JSON.stringify(sections),
-        sources: JSON.stringify(sources),
-        created_at: now,
-        updated_at: now,
-      },
-    ]);
+    // Insert ArticleDetail if missing
+    const [existingDetail] = await queryInterface.sequelize.query(
+      'SELECT id FROM `ArticleDetail` WHERE article_id = :aid LIMIT 1',
+      { replacements: { aid: articleId } }
+    );
 
-    await queryInterface.bulkInsert('ArticleMedia', [
-      {
-        article_id: articleId,
-        file_path: '/uploads/articles/cocopeat-community.jpg',
-        media_type: 'image',
-        created_at: now,
-        updated_at: now,
-      },
-      {
-        article_id: articleId,
-        file_path: '/uploads/articles/video-proses-cocopeat.mp4',
-        media_type: 'video',
-        created_at: now,
-        updated_at: now,
-      },
-    ]);
+    if (existingDetail.length === 0) {
+      await queryInterface.bulkInsert('ArticleDetail', [
+        {
+          article_id: articleId,
+          body_content: sections.map((section) => section.body_content).join('\n\n'),
+          meta_description:
+            'Cara komunitas mengolah sabut kelapa menjadi cocopeat sebagai media tanam bernilai ekonomi.',
+          sections: JSON.stringify(sections),
+          sources: JSON.stringify(sources),
+          created_at: now,
+          updated_at: now,
+        },
+      ]);
+    }
 
-    await queryInterface.bulkInsert('ProductCard', [
-      {
-        article_id: articleId,
-        title: 'Cocopeat Siap Pakai',
-        description: 'Media tanam dari serbuk sabut kelapa untuk pembibitan dan urban farming.',
-        image: '/uploads/articles/cocopeat-community.jpg',
-        linked_article_id: null,
-        created_at: now,
-        updated_at: now,
-      },
-      {
-        article_id: articleId,
-        title: 'Pelatihan Produksi Komunitas',
-        description: 'Aktivitas belajar bersama untuk mengolah limbah sabut menjadi produk bernilai.',
-        image: '/uploads/articles/cocopeat-community.jpg',
-        linked_article_id: null,
-        created_at: now,
-        updated_at: now,
-      },
-    ]);
+    // Insert ArticleMedia items if none exist for this article
+    const [existingMedia] = await queryInterface.sequelize.query(
+      'SELECT id FROM `ArticleMedia` WHERE article_id = :aid LIMIT 1',
+      { replacements: { aid: articleId } }
+    );
+
+    if (existingMedia.length === 0) {
+      await queryInterface.bulkInsert('ArticleMedia', [
+        {
+          article_id: articleId,
+          file_path: '/uploads/articles/cocopeat-community.jpg',
+          media_type: 'image',
+          created_at: now,
+          updated_at: now,
+        },
+        {
+          article_id: articleId,
+          file_path: '/uploads/articles/video-proses-cocopeat.mp4',
+          media_type: 'video',
+          created_at: now,
+          updated_at: now,
+        },
+      ]);
+    }
+
+    // Insert ProductCards if none exist for this article
+    const [existingProducts] = await queryInterface.sequelize.query(
+      'SELECT id FROM `ProductCard` WHERE article_id = :aid LIMIT 1',
+      { replacements: { aid: articleId } }
+    );
+
+    if (existingProducts.length === 0) {
+      await queryInterface.bulkInsert('ProductCard', [
+        {
+          article_id: articleId,
+          title: 'Cocopeat Siap Pakai',
+          description: 'Media tanam dari serbuk sabut kelapa untuk pembibitan dan urban farming.',
+          image: '/uploads/articles/cocopeat-community.jpg',
+          linked_article_id: null,
+          created_at: now,
+          updated_at: now,
+        },
+        {
+          article_id: articleId,
+          title: 'Pelatihan Produksi Komunitas',
+          description: 'Aktivitas belajar bersama untuk mengolah limbah sabut menjadi produk bernilai.',
+          image: '/uploads/articles/cocopeat-community.jpg',
+          linked_article_id: null,
+          created_at: now,
+          updated_at: now,
+        },
+      ]);
+    }
   },
 
   async down(queryInterface) {

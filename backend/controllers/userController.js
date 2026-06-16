@@ -69,10 +69,13 @@ async function updateMyProfile(req, res, next) {
 async function listUsers(req, res, next) {
   try {
     const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+    const role = typeof req.query.role === 'string' ? req.query.role.trim().toLowerCase() : '';
     const page = Math.max(Number(req.query.page || 1), 1);
     const limit = Math.min(Math.max(Number(req.query.limit || 10), 1), 50);
     const offset = (page - 1) * limit;
-    const where = search
+
+    const roleFilter = ['admin', 'pengelola', 'user'].includes(role) ? { role } : {};
+    const searchFilter = search
       ? {
           [Op.or]: [
             { email: { [Op.like]: `%${search}%` } },
@@ -80,6 +83,11 @@ async function listUsers(req, res, next) {
           ],
         }
       : {};
+
+    const where = {
+      ...roleFilter,
+      ...searchFilter,
+    };
 
     const { rows: users, count } = await User.findAndCountAll({
       where,
@@ -106,6 +114,7 @@ async function listUsers(req, res, next) {
           total_items: count,
           total_pages: Math.ceil(count / limit),
           search,
+          role,
         },
       },
     });

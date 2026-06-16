@@ -2,11 +2,13 @@
 import { onMounted, reactive, ref } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { useAdminStore } from '@/stores/admin';
 import backgroundImage from '@/assets/img/background.jpg';
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const adminStore = useAdminStore();
 
 const form = reactive({
   email: '',
@@ -27,6 +29,16 @@ async function handleSubmit() {
 
   try {
     await authStore.login(form);
+    // Preload admin stats so dashboard shows immediately after redirect
+    if (authStore.isAdmin) {
+      console.log('[login] preloading admin stats before redirect');
+      try {
+        await adminStore.fetchDashboardStats();
+        console.log('[login] admin stats preloaded', adminStore.dashboardStats);
+      } catch (err) {
+        console.warn('[login] failed to preload admin stats:', err);
+      }
+    }
     const redirectTarget =
       typeof route.query.redirect === 'string'
         ? route.query.redirect

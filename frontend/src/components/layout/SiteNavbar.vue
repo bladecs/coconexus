@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
 const props = defineProps({
@@ -11,6 +11,7 @@ const props = defineProps({
 });
 
 const authStore = useAuthStore();
+const router = useRouter();
 const isHidden = ref(false);
 let lastScrollY = 0;
 let idleTimer = null;
@@ -126,6 +127,7 @@ function handleScroll() {
 
 function handleLogout() {
   authStore.logout();
+  router.push('/');
 }
 
 onMounted(() => {
@@ -227,13 +229,6 @@ onBeforeUnmount(() => {
       <RouterLink
         v-if="authStore.isPengelola && variant === 'pengelola' && ['Penulis Artikel', 'Editor Konten'].includes(pengelolaJob)"
         to="/pengelola/articles/new"
-        class="site-action"
-      >
-        Artikel Baru
-      </RouterLink>
-      <RouterLink
-        v-if="authStore.isAdmin && variant === 'admin'"
-        to="/admin/articles/new"
         class="site-action"
       >
         Artikel Baru

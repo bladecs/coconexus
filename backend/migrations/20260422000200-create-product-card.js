@@ -2,7 +2,10 @@
 
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('ProductCard', {
+    // create table only if it does not yet exist
+    const tableDef = await queryInterface.describeTable('ProductCard').catch(() => null);
+    if (!tableDef) {
+      await queryInterface.createTable('ProductCard', {
       id: {
         type: Sequelize.INTEGER.UNSIGNED,
         allowNull: false,
@@ -54,19 +57,46 @@ module.exports = {
       },
     });
 
-    await queryInterface.addIndex('ProductCard', ['article_id'], {
-      name: 'product_card_article_id_idx',
-    });
+      try {
+        await queryInterface.addIndex('ProductCard', ['article_id'], {
+          name: 'product_card_article_id_idx',
+        });
+      } catch (e) {
+        // ignore if index exists
+      }
 
-    await queryInterface.addIndex('ProductCard', ['linked_article_id'], {
-      name: 'product_card_linked_article_id_idx',
-      unique: true,
-    });
+      try {
+        await queryInterface.addIndex('ProductCard', ['linked_article_id'], {
+          name: 'product_card_linked_article_id_idx',
+          unique: true,
+        });
+      } catch (e) {
+        // ignore if index exists
+      }
+    } else {
+      // table exists; ensure indexes are present (best effort)
+      try {
+        await queryInterface.addIndex('ProductCard', ['article_id'], { name: 'product_card_article_id_idx' });
+      } catch (e) {}
+      try {
+        await queryInterface.addIndex('ProductCard', ['linked_article_id'], { name: 'product_card_linked_article_id_idx', unique: true });
+      } catch (e) {}
+    }
   },
 
   async down(queryInterface) {
-    await queryInterface.removeIndex('ProductCard', 'product_card_linked_article_id_idx');
-    await queryInterface.removeIndex('ProductCard', 'product_card_article_id_idx');
-    await queryInterface.dropTable('ProductCard');
+    // remove indexes/table if present
+    const tableDef = await queryInterface.describeTable('ProductCard').catch(() => null);
+    if (tableDef) {
+      try {
+        await queryInterface.removeIndex('ProductCard', 'product_card_linked_article_id_idx');
+      } catch (e) {}
+      try {
+        await queryInterface.removeIndex('ProductCard', 'product_card_article_id_idx');
+      } catch (e) {}
+      try {
+        await queryInterface.dropTable('ProductCard');
+      } catch (e) {}
+    }
   },
 };

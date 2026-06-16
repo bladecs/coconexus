@@ -2,19 +2,33 @@
 
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.addColumn('ArticleDetail', 'sections', {
-      type: Sequelize.JSON,
-      allowNull: true,
-    });
+    const tableDef = await queryInterface.describeTable('ArticleDetail').catch(() => null);
+    if (!tableDef || !Object.prototype.hasOwnProperty.call(tableDef, 'sections')) {
+      await queryInterface.addColumn('ArticleDetail', 'sections', {
+        type: Sequelize.JSON,
+        allowNull: true,
+      });
+    }
 
-    await queryInterface.addColumn('ArticleDetail', 'sources', {
-      type: Sequelize.JSON,
-      allowNull: true,
-    });
+    if (!tableDef || !Object.prototype.hasOwnProperty.call(tableDef, 'sources')) {
+      await queryInterface.addColumn('ArticleDetail', 'sources', {
+        type: Sequelize.JSON,
+        allowNull: true,
+      });
+    }
   },
 
   async down(queryInterface) {
-    await queryInterface.removeColumn('ArticleDetail', 'sources');
-    await queryInterface.removeColumn('ArticleDetail', 'sections');
+    const tableDef = await queryInterface.describeTable('ArticleDetail').catch(() => null);
+    if (tableDef && Object.prototype.hasOwnProperty.call(tableDef, 'sources')) {
+      try {
+        await queryInterface.removeColumn('ArticleDetail', 'sources');
+      } catch (e) {}
+    }
+    if (tableDef && Object.prototype.hasOwnProperty.call(tableDef, 'sections')) {
+      try {
+        await queryInterface.removeColumn('ArticleDetail', 'sections');
+      } catch (e) {}
+    }
   },
 };

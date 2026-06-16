@@ -2,7 +2,9 @@
 
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('ArticleView', {
+    const tableDef = await queryInterface.describeTable('ArticleView').catch(() => null);
+    if (!tableDef) {
+      await queryInterface.createTable('ArticleView', {
       id: {
         type: Sequelize.INTEGER.UNSIGNED,
         allowNull: false,
@@ -58,18 +60,35 @@ module.exports = {
       },
     });
 
-    await queryInterface.addIndex('ArticleView', ['article_id', 'created_at'], {
-      name: 'idx_article_view_article_created_at',
-    });
-    await queryInterface.addIndex('ArticleView', ['user_id', 'created_at'], {
-      name: 'idx_article_view_user_created_at',
-    });
-    await queryInterface.addIndex('ArticleView', ['session_id', 'created_at'], {
-      name: 'idx_article_view_session_created_at',
-    });
+      try {
+        await queryInterface.addIndex('ArticleView', ['article_id', 'created_at'], {
+          name: 'idx_article_view_article_created_at',
+        });
+      } catch (e) {}
+      try {
+        await queryInterface.addIndex('ArticleView', ['user_id', 'created_at'], {
+          name: 'idx_article_view_user_created_at',
+        });
+      } catch (e) {}
+      try {
+        await queryInterface.addIndex('ArticleView', ['session_id', 'created_at'], {
+          name: 'idx_article_view_session_created_at',
+        });
+      } catch (e) {}
+    } else {
+      // ensure indexes exist (best-effort)
+      try { await queryInterface.addIndex('ArticleView', ['article_id', 'created_at'], { name: 'idx_article_view_article_created_at' }); } catch (e) {}
+      try { await queryInterface.addIndex('ArticleView', ['user_id', 'created_at'], { name: 'idx_article_view_user_created_at' }); } catch (e) {}
+      try { await queryInterface.addIndex('ArticleView', ['session_id', 'created_at'], { name: 'idx_article_view_session_created_at' }); } catch (e) {}
+    }
   },
 
   async down(queryInterface) {
-    await queryInterface.dropTable('ArticleView');
+    const tableDef = await queryInterface.describeTable('ArticleView').catch(() => null);
+    if (tableDef) {
+      try {
+        await queryInterface.dropTable('ArticleView');
+      } catch (e) {}
+    }
   },
 };

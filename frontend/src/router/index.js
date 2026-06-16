@@ -22,6 +22,7 @@ import PengelolaCommentsPage from '@/views/PengelolaCommentsPage.vue';
 import PengelolaTagsPage from '@/views/PengelolaTagsPage.vue';
 import ArticleDetailPage from '@/views/ArticleDetailPage.vue';
 import { useAuthStore } from '@/stores/auth';
+import { useAdminStore } from '@/stores/admin';
 
 const routes = [
   {
@@ -243,14 +244,23 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const authStore = useAuthStore();
+  const adminStore = useAdminStore();
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     return {
       name: 'login',
       query: { redirect: to.fullPath },
     };
+  }
+
+  if (to.meta.requiresAdmin && authStore.user?.role === 'admin' && !adminStore.dashboardStatsLoaded) {
+    try {
+      await adminStore.fetchDashboardStats();
+    } catch (err) {
+      console.warn('[router] failed to preload admin stats:', err);
+    }
   }
 
   if (to.meta.requiresAdmin && authStore.user?.role !== 'admin') {

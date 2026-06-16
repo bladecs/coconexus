@@ -400,16 +400,30 @@ function removeMediaRow(index) {
 }
 
 async function handleFileSelection(event, index) {
-  const selectedFile = event.target.files?.[0];
+  const fileList = event.target.files;
+  if (!fileList || fileList.length === 0) return;
 
-  if (!selectedFile) {
+  if (fileList.length === 1) {
+    const uploadedMedia = await articleStore.uploadArticleMedia(fileList[0]);
+    form.media[index].file_path = uploadedMedia.file_path;
+    form.media[index].media_type = uploadedMedia.media_type;
     return;
   }
 
-  const uploadedMedia = await articleStore.uploadArticleMedia(selectedFile);
+  // multiple files: upload all and insert rows
+  const uploadedArray = await articleStore.uploadArticleMediaMany(fileList);
+  if (!uploadedArray || uploadedArray.length === 0) return;
 
-  form.media[index].file_path = uploadedMedia.file_path;
-  form.media[index].media_type = uploadedMedia.media_type;
+  // set first to current row, push others after index
+  form.media[index].file_path = uploadedArray[0].file_path;
+  form.media[index].media_type = uploadedArray[0].media_type;
+
+  for (let i = 1; i < uploadedArray.length; i += 1) {
+    form.media.splice(index + i, 0, {
+      file_path: uploadedArray[i].file_path || '',
+      media_type: uploadedArray[i].media_type || 'image',
+    });
+  }
 }
 
 async function handleProductCardImageSelection(event, index) {
@@ -994,12 +1008,13 @@ function submitForm() {
 
           <label class="flex cursor-pointer items-center justify-center rounded-2xl border border-[#ff7c35]/20 bg-[#3b312d] px-4 py-3 text-sm font-semibold text-[#ffb084] transition hover:bg-[#47352c]">
             Upload File
-            <input
-              type="file"
-              class="hidden"
-              accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.pdf"
-              @change="handleFileSelection($event, index)"
-            />
+              <input
+                type="file"
+                class="hidden"
+                accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.pdf"
+                multiple
+                @change="handleFileSelection($event, index)"
+              />
           </label>
 
           <button
