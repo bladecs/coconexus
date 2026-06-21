@@ -42,6 +42,7 @@ function emptyForm() {
     linkedProductCardId: '',
     title: '',
     categoryName: '',
+    tagsText: '',
     metaDescription: '',
     bodyContent: '',
     status: 'draft',
@@ -117,6 +118,7 @@ watch(
       linkedProductCardId: article.linked_product_card?.id || '',
       title: article.title || '',
       categoryName: article.category?.name || '',
+      tagsText: Array.isArray(article.tags) ? article.tags.join(', ') : '',
       metaDescription: article.detail?.meta_description || '',
       bodyContent: article.detail?.body_content || '',
       status: article.status || 'draft',
@@ -476,6 +478,10 @@ function buildPayload() {
       url: item.url || null,
       file_path: item.file_path || null,
     }));
+  const tags = form.tagsText
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean);
 
   return {
     parent_article_id: isDetailArticle.value ? Number(form.parentArticleId) : null,
@@ -487,6 +493,7 @@ function buildPayload() {
     status: form.status,
     sections,
     sources,
+    tags,
     category: {
       name: form.categoryName,
     },
@@ -538,7 +545,7 @@ function validateForm() {
   });
 
   if (invalidSource) {
-    formError.value = 'Setiap sumber harus punya judul dan link atau file PDF sesuai tipenya.';
+    formError.value = 'Setiap sumber harus punya judul dan link jurnal yang valid.';
     return false;
   }
 
@@ -680,8 +687,21 @@ function submitForm() {
           v-model="form.categoryName"
           type="text"
           class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-          placeholder="Masukkan kategori atau tag"
+          placeholder="Masukkan kategori artikel"
         />
+      </div>
+
+      <div>
+        <label class="mb-2 block text-sm font-medium text-stone-300">Tag Artikel</label>
+        <input
+          v-model="form.tagsText"
+          type="text"
+          class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
+          placeholder="Contoh: Cocopeat, Pertanian, UMKM"
+        />
+        <p class="mt-2 text-xs leading-6 text-stone-500">
+          Pisahkan beberapa tag dengan koma. Kategori tetap diisi terpisah di atas.
+        </p>
       </div>
 
       <div>
@@ -906,7 +926,7 @@ function submitForm() {
             Sumber Artikel
           </h3>
           <p class="mt-1 text-sm text-stone-400">
-            Tambahkan link jurnal atau upload PDF agar pembaca bisa mengecek referensi.
+            Tambahkan link jurnal agar pembaca bisa mengecek referensi secara langsung.
           </p>
         </div>
         <button type="button" class="admin-secondary-action" @click="addSourceRow">
@@ -918,7 +938,7 @@ function submitForm() {
         <div
           v-for="(source, index) in form.sources"
           :key="`source-${index}`"
-          class="grid gap-3 rounded-lg border border-white/8 bg-[#303030] p-4 xl:grid-cols-[1fr_140px_1fr_1fr_auto_auto]"
+          class="grid gap-3 rounded-lg border border-white/8 bg-[#303030] p-4 xl:grid-cols-[1fr_1fr_auto]"
         >
           <input
             v-model="source.title"
@@ -926,33 +946,12 @@ function submitForm() {
             class="px-4 py-3"
             placeholder="Judul jurnal / sumber"
           />
-          <select v-model="source.source_type" class="px-4 py-3">
-            <option value="link">Link</option>
-            <option value="pdf">PDF</option>
-          </select>
           <input
             v-model="source.url"
             type="url"
             class="px-4 py-3"
-            placeholder="https://..."
-            :disabled="source.source_type !== 'link'"
+            placeholder="https://contoh-jurnal.com/artikel"
           />
-          <input
-            v-model="source.file_path"
-            type="text"
-            class="px-4 py-3"
-            placeholder="/uploads/articles/jurnal.pdf"
-            :disabled="source.source_type !== 'pdf'"
-          />
-          <label class="admin-secondary-action cursor-pointer">
-            Upload PDF
-            <input
-              type="file"
-              class="hidden"
-              accept=".pdf"
-              @change="handleSourceFileSelection($event, index)"
-            />
-          </label>
           <button
             type="button"
             class="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200"
@@ -971,7 +970,7 @@ function submitForm() {
             Media Artikel
           </h3>
           <p class="mt-1 text-sm text-stone-400">
-            Tambahkan path file media dan jenis medianya.
+            Tambahkan link media dan jenis medianya agar dapat ditampilkan di halaman artikel.
           </p>
         </div>
 

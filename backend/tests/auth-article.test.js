@@ -11,7 +11,7 @@ const request = require('supertest');
 const app = require('../app');
 const {
   sequelize,
-  CategoryTag,
+  Category,
   Article,
   ArticleDetail,
   ArticleMedia,
@@ -400,7 +400,7 @@ test('pengelola cannot publish another author article', async () => {
     full_name: 'Pengelola Lain',
   });
 
-  const category = await CategoryTag.create({
+  const category = await Category.create({
     name: 'Artikel Milik Admin',
     description: 'Kategori pengujian kepemilikan.',
   });
@@ -815,7 +815,7 @@ test('moderator can reject comment and it stays hidden publicly', async () => {
 test('published article list hides draft articles', async () => {
   const { user } = await createAdminUser();
 
-  const category = await CategoryTag.create({
+  const category = await Category.create({
     name: 'Publikasi Artikel',
     description: 'Kategori publikasi',
   });
@@ -859,7 +859,7 @@ test('published article list hides draft articles', async () => {
 test('published article detail records article view', async () => {
   const { user } = await createAdminUser();
 
-  const category = await CategoryTag.create({
+  const category = await Category.create({
     name: 'Statistik Baca',
     description: 'Kategori statistik baca',
   });
@@ -929,7 +929,7 @@ test('admin cannot delete category that is still used by article', async () => {
       password: plainPassword,
     });
 
-  const category = await CategoryTag.create({
+  const category = await Category.create({
     name: 'Kategori Terpakai',
     description: 'Kategori yang masih digunakan artikel.',
   });
@@ -1107,7 +1107,7 @@ test('admin can login and create draft article with auto-created category', asyn
   assert.equal(createResponse.body.data.article.status, 'draft');
   assert.equal(createResponse.body.data.article.category.name, 'Pengolahan Sabut');
 
-  const category = await CategoryTag.findOne({ where: { name: 'Pengolahan Sabut' } });
+  const category = await Category.findOne({ where: { name: 'Pengolahan Sabut' } });
   const article = await Article.findByPk(createResponse.body.data.article.id);
   const detail = await ArticleDetail.findOne({ where: { article_id: article.id } });
   const media = await ArticleMedia.findAll({ where: { article_id: article.id } });
@@ -1231,12 +1231,12 @@ test('dashboard stats returns chart datasets for categories and comment months',
       password: plainPassword,
     });
 
-  const tempurungCategory = await CategoryTag.create({
+  const tempurungCategory = await Category.create({
     name: 'Tempurung',
     description: 'Produk tempurung',
   });
 
-  const sabutCategory = await CategoryTag.create({
+  const sabutCategory = await Category.create({
     name: 'Sabut',
     description: 'Produk sabut',
   });
@@ -1329,7 +1329,7 @@ test('available product cards endpoint returns only unlinked cards from selected
       password: plainPassword,
     });
 
-  const category = await CategoryTag.create({
+  const category = await Category.create({
     name: 'Produk Turunan',
     description: 'Kategori untuk linking',
   });
@@ -1411,7 +1411,7 @@ test('main articles endpoint returns parent articles for linking dropdown', asyn
       password: plainPassword,
     });
 
-  const category = await CategoryTag.create({
+  const category = await Category.create({
     name: 'Kategori Artikel Utama',
     description: 'Kategori utama',
   });
@@ -1449,7 +1449,7 @@ test('admin can create detail article linked to selected product card', async ()
       password: plainPassword,
     });
 
-  const category = await CategoryTag.create({
+  const category = await Category.create({
     name: 'Kategori Linking',
     description: 'Kategori linking',
   });
@@ -1503,7 +1503,7 @@ test('admin can create detail article linked to selected product card', async ()
 test('published article detail returns product cards for main article exploration', async () => {
   const { user } = await createAdminUser();
 
-  const category = await CategoryTag.create({
+  const category = await Category.create({
     name: 'Eksplorasi Produk',
     description: 'Kategori eksplorasi',
   });
@@ -1563,7 +1563,7 @@ test('admin can update unlinked product cards from article editor', async () => 
       password: plainPassword,
     });
 
-  const category = await CategoryTag.create({
+  const category = await Category.create({
     name: 'Kategori Update Card',
     description: 'Kategori update',
   });

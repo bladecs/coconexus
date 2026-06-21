@@ -18,6 +18,7 @@ const commentNotice = ref('');
 
 const articleId = computed(() => Number(route.params.id));
 const article = computed(() => articleStore.currentArticle);
+const articleTags = computed(() => article.value?.tags || []);
 const linkedProductCards = computed(() => article.value?.product_cards || []);
 const isMainArticle = computed(() => article.value?.article_type !== 'detail');
 const articleSections = computed(() => {
@@ -29,12 +30,12 @@ const articleSections = computed(() => {
 
   return article.value?.detail?.body_content
     ? [
-        {
-          title: 'Ringkasan',
-          body_content: article.value.detail.body_content,
-          video_path: null,
-        },
-      ]
+      {
+        title: 'Ringkasan',
+        body_content: article.value.detail.body_content,
+        video_path: null,
+      },
+    ]
     : [];
 });
 const articleSources = computed(() => article.value?.detail?.sources || []);
@@ -47,6 +48,22 @@ const heroImage = computed(() => {
   const media = article.value?.media?.find((item) => item.media_type === 'image');
   return media?.file_path ? resolveAssetUrl(media.file_path) : null;
 });
+
+function isYouTube(url) {
+  if (!url) return false;
+  return url.includes('youtube.com') || url.includes('youtu.be');
+}
+
+function getYouTubeEmbedUrl(url) {
+  let videoId = '';
+  if (url.includes('youtu.be/')) {
+    videoId = url.split('youtu.be/')[1].split('?')[0];
+  } else if (url.includes('youtube.com/watch')) {
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    videoId = urlParams.get('v');
+  }
+  return `https://www.youtube.com/embed/${videoId}`;
+}
 
 async function loadArticle() {
   commentNotice.value = '';
@@ -86,10 +103,8 @@ onMounted(loadArticle);
     <SiteNavbar variant="detail" />
 
     <section v-if="article" class="detail-shell">
-      <article
-        class="detail-hero"
-        :style="heroImage ? { backgroundImage: `linear-gradient(90deg, rgba(31, 31, 31, .92), rgba(31, 31, 31, .56)), url(${heroImage})` } : undefined"
-      >
+      <article class="detail-hero"
+        :style="heroImage ? { backgroundImage: `linear-gradient(90deg, rgba(31, 31, 31, .92), rgba(31, 31, 31, .56)), url(${heroImage})` } : undefined">
         <div class="detail-hero__content">
           <p class="detail-kicker">{{ article.category?.name || 'Tanpa Kategori' }}</p>
           <h1>{{ article.title }}</h1>
@@ -100,6 +115,9 @@ onMounted(loadArticle);
             <span>Versi {{ article.version }}</span>
             <span>{{ article.media?.length || 0 }} lampiran</span>
             <StatusBadge :status="article.status" />
+          </div>
+          <div v-if="articleTags.length" class="tag-row">
+            <span v-for="tag in articleTags" :key="tag">{{ tag }}</span>
           </div>
         </div>
       </article>
@@ -124,21 +142,19 @@ onMounted(loadArticle);
               </div>
               <p>Baca inti materi sebelum masuk ke section lanjutan, sumber, lampiran, dan diskusi pembaca.</p>
             </div>
-            <video
-              v-if="mainSectionVideo"
-              class="main-section-video"
-              :src="resolveAssetUrl(mainSectionVideo)"
-              controls
-            />
+            <template v-if="mainSectionVideo">
+              <iframe v-if="isYouTube(mainSectionVideo)" class="main-section-video"
+                :src="getYouTubeEmbedUrl(mainSectionVideo)" frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen></iframe>
+              <video v-else class="main-section-video" :src="resolveAssetUrl(mainSectionVideo)" controls />
+            </template>
             <div class="article-body" v-html="renderSimpleRichText(articleSections[0]?.body_content || '')"></div>
           </section>
 
           <section v-if="articleSections.length > 1" id="sections" class="section-stack">
-            <article
-              v-for="(section, index) in articleSections.slice(1)"
-              :key="`${section.title}-${index}`"
-              class="content-panel article-section-panel"
-            >
+            <article v-for="(section, index) in articleSections.slice(1)" :key="`${section.title}-${index}`"
+              class="content-panel article-section-panel">
               <div class="panel-heading">
                 <div>
                   <p class="detail-kicker">Section {{ index + 2 }}</p>
@@ -146,12 +162,13 @@ onMounted(loadArticle);
                 </div>
                 <p>Materi lanjutan yang dipisah agar pembaca bisa mengikuti alur artikel dengan lebih jelas.</p>
               </div>
-              <video
-                v-if="section.video_path"
-                class="main-section-video"
-                :src="resolveAssetUrl(section.video_path)"
-                controls
-              />
+              <template v-if="section.video_path">
+                <iframe v-if="isYouTube(section.video_path)" class="main-section-video"
+                  :src="getYouTubeEmbedUrl(section.video_path)" frameborder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowfullscreen></iframe>
+                <video v-else class="main-section-video" :src="resolveAssetUrl(section.video_path)" controls />
+              </template>
               <div class="article-body" v-html="renderSimpleRichText(section.body_content || '')"></div>
             </article>
           </section>
@@ -168,10 +185,8 @@ onMounted(loadArticle);
               <article v-for="productCard in linkedProductCards" :key="productCard.id" class="related-item">
                 <h3>{{ productCard.title }}</h3>
                 <p>{{ productCard.description }}</p>
-                <RouterLink
-                  v-if="productCard.linked_article?.id && productCard.linked_article?.status === 'published'"
-                  :to="`/articles/${productCard.linked_article.id}`"
-                >
+                <RouterLink v-if="productCard.linked_article?.id && productCard.linked_article?.status === 'published'"
+                  :to="`/articles/${productCard.linked_article.id}`">
                   Buka Detail
                 </RouterLink>
                 <span v-else>Segera tersedia</span>
@@ -189,12 +204,13 @@ onMounted(loadArticle);
             </div>
             <div class="media-grid">
               <div v-for="media in article.media" :key="media.id" class="media-item">
-                <img
-                  v-if="media.media_type === 'image'"
-                  :src="resolveAssetUrl(media.file_path)"
-                  :alt="article.title"
-                />
-                <video v-else-if="media.media_type === 'video'" :src="resolveAssetUrl(media.file_path)" controls />
+                <img v-if="media.media_type === 'image'" :src="resolveAssetUrl(media.file_path)" :alt="article.title" />
+                <template v-else-if="media.media_type === 'video'">
+                  <iframe v-if="isYouTube(media.file_path)" :src="getYouTubeEmbedUrl(media.file_path)" frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen></iframe>
+                  <video v-else :src="resolveAssetUrl(media.file_path)" controls />
+                </template>
                 <a v-else :href="resolveAssetUrl(media.file_path)" target="_blank" rel="noreferrer">
                   Buka Dokumen
                 </a>
@@ -208,18 +224,13 @@ onMounted(loadArticle);
                 <p class="detail-kicker">Referensi</p>
                 <h2>Sumber Artikel</h2>
               </div>
-              <p>Link jurnal, file PDF, dan sumber rujukan yang dipakai dalam penyusunan materi.</p>
+              <p>Daftar link jurnal dan rujukan yang dipakai dalam penyusunan materi.</p>
             </div>
             <div class="source-list">
-              <a
-                v-for="source in articleSources"
-                :key="`${source.title}-${source.url || source.file_path}`"
-                :href="source.source_type === 'pdf' ? resolveAssetUrl(source.file_path) : source.url"
-                target="_blank"
-                rel="noreferrer"
-                class="source-item"
-              >
-                <span>{{ source.source_type === 'pdf' ? 'PDF' : 'LINK' }}</span>
+              <a v-for="source in articleSources" :key="`${source.title}-${source.url || source.file_path}`"
+                :href="source.url || resolveAssetUrl(source.file_path)" target="_blank" rel="noreferrer"
+                class="source-item">
+                <span>LINK</span>
                 <strong>{{ source.title }}</strong>
               </a>
             </div>
@@ -233,25 +244,16 @@ onMounted(loadArticle);
               </div>
               <p>Ruang untuk bertanya, menanggapi, atau menambahkan pengalaman dari praktik lapangan.</p>
             </div>
-            <CommentComposer
-              :article-id="article.id"
-              :loading="articleStore.isSubmitting"
+            <CommentComposer :article-id="article.id" :loading="articleStore.isSubmitting"
               :placeholder="authStore.isAuthenticated ? 'Bagikan pendapat Anda tentang artikel ini...' : 'Login terlebih dahulu untuk menulis komentar...'"
-              @submit="handleCommentSubmit"
-            />
+              @submit="handleCommentSubmit" />
             <p v-if="commentNotice" class="comment-note">
               {{ commentNotice }}
             </p>
             <div class="comment-list">
-              <CommentItem
-                v-for="comment in articleStore.comments"
-                :key="comment.id"
-                :comment="comment"
-                :article-id="article.id"
-                :loading="articleStore.isSubmitting"
-                @reply="handleCommentSubmit"
-                @delete="handleDeleteComment"
-              />
+              <CommentItem v-for="comment in articleStore.comments" :key="comment.id" :comment="comment"
+                :article-id="article.id" :loading="articleStore.isSubmitting" @reply="handleCommentSubmit"
+                @delete="handleDeleteComment" />
               <div v-if="!articleStore.comments.length" class="empty-comment">
                 Belum ada komentar. Jadilah yang pertama memulai diskusi.
               </div>
@@ -338,6 +340,24 @@ onMounted(loadArticle);
   margin-top: 28px;
 }
 
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.tag-row span {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  color: #ffd1b8;
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  padding: 8px 12px;
+  text-transform: uppercase;
+}
+
 .detail-meta span,
 .detail-meta :deep(span) {
   border-radius: 999px;
@@ -417,7 +437,7 @@ onMounted(loadArticle);
   margin-bottom: 14px;
 }
 
-.panel-heading > p {
+.panel-heading>p {
   margin: 34px 0 0;
   color: #d0c3ba;
   line-height: 1.7;
@@ -469,7 +489,7 @@ onMounted(loadArticle);
 
 .main-section-video {
   width: 100%;
-  max-height: 540px;
+  min-height: 540px;
   margin-bottom: 26px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
@@ -537,7 +557,8 @@ onMounted(loadArticle);
 }
 
 .media-item img,
-.media-item video {
+.media-item video,
+.media-item iframe {
   width: 100%;
   height: 230px;
   object-fit: cover;
@@ -632,7 +653,7 @@ onMounted(loadArticle);
     grid-template-columns: 1fr;
   }
 
-  .panel-heading > p {
+  .panel-heading>p {
     margin-top: 0;
   }
 

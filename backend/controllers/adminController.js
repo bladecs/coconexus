@@ -1,6 +1,6 @@
 'use strict';
 
-const { Article, ArticleView, CategoryTag, Comment, User, AuditLog, UserProfile, sequelize } = require('../models');
+const { Article, ArticleView, Category, Comment, User, AuditLog, UserProfile, sequelize } = require('../models');
 const { QueryTypes } = require('sequelize');
 
 function buildMonthLabels(monthKeys) {
@@ -38,7 +38,7 @@ async function getDashboardStats(req, res, next) {
       Article.count({ where: { status: 'published' } }),
       Article.count({ where: { status: 'draft' } }),
       Article.count({ where: { status: 'revision' } }),
-      CategoryTag.count(),
+      Category.count(),
       Comment.count(),
       ArticleView.count(),
       User.findAll({
@@ -113,7 +113,7 @@ async function getDashboardStats(req, res, next) {
         order: [['created_at', 'DESC']],
         limit: 8,
       }),
-      CategoryTag.findAll({
+      Category.findAll({
         attributes: [
           'id',
           'name',
@@ -127,7 +127,7 @@ async function getDashboardStats(req, res, next) {
             required: false,
           },
         ],
-        group: ['CategoryTag.id'],
+        group: ['Category.id'],
         order: [[sequelize.literal('article_count'), 'DESC'], ['name', 'ASC']],
         subQuery: false,
       }),
@@ -351,7 +351,7 @@ async function getReports(req, res, next) {
       Article.count({ where: { status: 'published' } }),
       Comment.count(),
       ArticleView.count(),
-      CategoryTag.count(),
+      Category.count(),
     ]);
 
     const report = {

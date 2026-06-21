@@ -1,6 +1,6 @@
 'use strict';
 
-const { CategoryTag, Article } = require('../models');
+const { Category, Article } = require('../models');
 const { Op } = require('sequelize');
 const { badRequest, notFound, conflict } = require('../utils/httpErrors');
 const { writeAuditLog } = require('../utils/auditLogger');
@@ -17,7 +17,7 @@ async function listCategories(req, res, next) {
         }
       : {};
 
-    const categories = await CategoryTag.findAll({
+    const categories = await Category.findAll({
       where,
       include: [
         {
@@ -58,7 +58,7 @@ async function createCategory(req, res, next) {
       throw badRequest('Nama kategori wajib diisi.');
     }
 
-    const existingCategory = await CategoryTag.findOne({
+    const existingCategory = await Category.findOne({
       where: { name },
     });
 
@@ -66,7 +66,7 @@ async function createCategory(req, res, next) {
       throw conflict('Nama kategori sudah digunakan.');
     }
 
-    const category = await CategoryTag.create({
+    const category = await Category.create({
       name,
       description,
     });
@@ -105,13 +105,13 @@ async function updateCategory(req, res, next) {
       throw badRequest('Nama kategori wajib diisi.');
     }
 
-    const category = await CategoryTag.findByPk(categoryId);
+    const category = await Category.findByPk(categoryId);
 
     if (!category) {
       throw notFound('Kategori tidak ditemukan.');
     }
 
-    const duplicateCategory = await CategoryTag.findOne({
+    const duplicateCategory = await Category.findOne({
       where: {
         name,
         id: {
@@ -156,7 +156,7 @@ async function deleteCategory(req, res, next) {
       throw badRequest('Parameter kategori tidak valid.');
     }
 
-    const category = await CategoryTag.findByPk(categoryId, {
+    const category = await Category.findByPk(categoryId, {
       include: [
         {
           model: Article,

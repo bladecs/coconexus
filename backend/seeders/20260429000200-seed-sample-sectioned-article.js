@@ -1,7 +1,7 @@
 'use strict';
 
 const SAMPLE_TITLE = 'Pemanfaatan Sabut Kelapa Menjadi Cocopeat untuk Media Tanam Komunitas';
-const CATEGORY_NAME = 'Pengolahan Kelapa';
+const CATEGORY_NAME = 'Serabut Kelapa';
 
 module.exports = {
   async up(queryInterface) {
@@ -33,7 +33,7 @@ module.exports = {
     }
 
     const [existingCategories] = await queryInterface.sequelize.query(
-      'SELECT id FROM `CategoryTag` WHERE name = :name LIMIT 1',
+      'SELECT id FROM `Category` WHERE name = :name LIMIT 1',
       {
         replacements: { name: CATEGORY_NAME },
       }
@@ -42,7 +42,7 @@ module.exports = {
     let categoryId = existingCategories[0]?.id;
 
     if (!categoryId) {
-      await queryInterface.bulkInsert('CategoryTag', [
+      await queryInterface.bulkInsert('Category', [
         {
           name: CATEGORY_NAME,
           description: 'Materi pengolahan turunan kelapa berbasis komunitas.',
@@ -52,7 +52,7 @@ module.exports = {
       ]);
 
       const [insertedCategories] = await queryInterface.sequelize.query(
-        'SELECT id FROM `CategoryTag` WHERE name = :name LIMIT 1',
+        'SELECT id FROM `Category` WHERE name = :name LIMIT 1',
         {
           replacements: { name: CATEGORY_NAME },
         }
@@ -93,42 +93,29 @@ module.exports = {
       }
     }
 
-    // Try to map to junction table if it exists; ignore if not present
-    try {
-      await queryInterface.bulkInsert('ArticleCategoryTag', [
-        {
-          article_id: articleId,
-          category_tag_id: categoryId,
-          created_at: now,
-        },
-      ]);
-    } catch (e) {
-      // Table may not exist in some schemas; continue without failing seeder
-    }
-
     const sections = [
       {
         title: 'Pengantar',
         body_content:
-          'Sabut kelapa sering dianggap sebagai limbah setelah bagian buah kelapa dimanfaatkan. Padahal, material ini memiliki serat dan daya simpan air yang sangat baik untuk diolah menjadi cocopeat.\n\nCocopeat adalah media tanam berbahan dasar serbuk sabut kelapa. Produk ini banyak digunakan dalam pembibitan, hidroponik, dan urban farming karena ringan, mampu menyerap air, serta relatif ramah lingkungan.\n\nDalam konteks community based learning, pengolahan cocopeat dapat menjadi kegiatan belajar bersama yang menghubungkan pengetahuan lokal, praktik lingkungan, dan peluang usaha kecil.',
+          '### Gambaran Umum\n\n**Fokus Pembahasan**\n\nSabut kelapa sering dianggap sebagai limbah setelah bagian buah kelapa dimanfaatkan. Padahal, material ini memiliki serat dan daya simpan air yang sangat baik untuk diolah menjadi cocopeat.\n\nCocopeat adalah media tanam berbahan dasar serbuk sabut kelapa. Produk ini banyak digunakan dalam pembibitan, hidroponik, dan urban farming karena ringan, mampu menyerap air, serta relatif ramah lingkungan.\n\n**Hal yang Perlu Dicermati**\n\n- Material sabut kelapa mudah diperoleh di sentra kelapa.\n- Cocopeat cocok untuk pembibitan, urban farming, dan kebun komunitas.\n- Pengolahan sederhana sudah cukup untuk menghasilkan media tanam siap pakai.',
         video_path: '/uploads/articles/video-proses-cocopeat.mp4',
       },
       {
         title: 'Alat dan Bahan',
         body_content:
-          'Untuk membuat cocopeat, komunitas dapat memulai dengan alat sederhana.\n\nBahan utama:\n- Sabut kelapa kering\n- Air bersih\n- Wadah perendaman\n\nAlat yang digunakan:\n- Mesin pencacah atau alat pemukul manual\n- Ayakan\n- Karung penyimpanan\n- Sarung tangan dan masker\n\nJika belum tersedia mesin pencacah, proses awal bisa dilakukan secara manual. Namun untuk produksi rutin, mesin akan mempercepat proses dan menghasilkan tekstur yang lebih merata.',
+          '### Alat dan Bahan\n\n**Bahan Utama**\n\n- Sabut kelapa kering\n- Air bersih\n- Wadah perendaman\n\n**Peralatan Kerja**\n\n- Mesin pencacah atau alat pemukul manual\n- Ayakan\n- Karung penyimpanan\n- Sarung tangan dan masker\n\n**Catatan Praktis**\n\nJika belum tersedia mesin pencacah, proses awal bisa dilakukan secara manual. Namun untuk produksi rutin, mesin akan mempercepat proses dan menghasilkan tekstur yang lebih merata.',
         video_path: null,
       },
       {
         title: 'Proses Pembuatan',
         body_content:
-          'Proses pembuatan cocopeat dimulai dengan memisahkan sabut kelapa dari tempurung dan kotoran kasar. Sabut kemudian dikeringkan agar lebih mudah dicacah.\n\nSetelah dicacah, serbuk sabut direndam untuk mengurangi kandungan tanin. Proses perendaman biasanya dilakukan beberapa kali sampai warna air tidak terlalu pekat.\n\nTahapan umum:\n1. Keringkan sabut kelapa.\n2. Cacah sabut menjadi serbuk.\n3. Rendam serbuk dalam air bersih.\n4. Tiriskan dan jemur kembali.\n5. Ayak untuk mendapatkan tekstur halus.\n6. Simpan cocopeat dalam karung bersih.',
+          '### Proses Pembuatan\n\n**Langkah Awal**\n\nProses pembuatan cocopeat dimulai dengan memisahkan sabut kelapa dari tempurung dan kotoran kasar. Sabut kemudian dikeringkan agar lebih mudah dicacah.\n\n**Urutan Kerja**\n\n1. Keringkan sabut kelapa.\n2. Cacah sabut menjadi serbuk.\n3. Rendam serbuk dalam air bersih.\n4. Tiriskan dan jemur kembali.\n5. Ayak untuk mendapatkan tekstur halus.\n6. Simpan cocopeat dalam karung bersih.\n\n**Kenapa Penting**\n\nSetelah dicacah, serbuk sabut direndam untuk mengurangi kandungan tanin. Proses perendaman biasanya dilakukan beberapa kali sampai warna air tidak terlalu pekat.',
         video_path: null,
       },
       {
         title: 'Manfaat untuk Komunitas',
         body_content:
-          'Pengolahan cocopeat memberi beberapa manfaat bagi komunitas. Pertama, kegiatan ini mengurangi limbah sabut kelapa yang sebelumnya tidak termanfaatkan. Kedua, produk cocopeat dapat digunakan untuk kebun komunitas atau dijual sebagai media tanam.\n\nSelain itu, proses produksinya dapat menjadi ruang belajar bagi anggota komunitas. Masyarakat dapat mempelajari pemilahan bahan, teknik produksi, pengemasan, hingga strategi pemasaran sederhana.',
+          '### Manfaat untuk Komunitas\n\n**Peluang Utama**\n\nPengolahan cocopeat memberi beberapa manfaat bagi komunitas. Pertama, kegiatan ini mengurangi limbah sabut kelapa yang sebelumnya tidak termanfaatkan. Kedua, produk cocopeat dapat digunakan untuk kebun komunitas atau dijual sebagai media tanam.\n\n**Dampak Sosial**\n\n- Membuka ruang belajar bagi anggota komunitas.\n- Mendorong kolaborasi antarwarga.\n- Menambah nilai ekonomi dari limbah yang sebelumnya dibuang.\n\nSelain itu, proses produksinya dapat menjadi ruang belajar bagi anggota komunitas. Masyarakat dapat mempelajari pemilahan bahan, teknik produksi, pengemasan, hingga strategi pemasaran sederhana.',
         video_path: null,
       },
     ];
@@ -143,7 +130,7 @@ module.exports = {
       {
         title: 'Organic Growing Media and Water Retention Study',
         source_type: 'link',
-        url: 'https://www.fao.org/4/a1374e/a1374e.pdf',
+        url: 'https://example.com/referensi-cocopeat',
         file_path: null,
       },
     ];
@@ -179,14 +166,14 @@ module.exports = {
       await queryInterface.bulkInsert('ArticleMedia', [
         {
           article_id: articleId,
-          file_path: '/uploads/articles/cocopeat-community.jpg',
+          file_path: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&q=80&w=1200',
           media_type: 'image',
           created_at: now,
           updated_at: now,
         },
         {
           article_id: articleId,
-          file_path: '/uploads/articles/video-proses-cocopeat.mp4',
+          file_path: 'https://assets.mixkit.co/videos/preview/mixkit-agriculture-machinery-processing-crops-42250-large.mp4',
           media_type: 'video',
           created_at: now,
           updated_at: now,

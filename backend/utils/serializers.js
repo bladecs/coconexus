@@ -136,6 +136,7 @@ function sanitizeArticle(articleInstance, options = {}) {
           updated_at: article.category.updated_at,
         }
       : null,
+    tags: Array.isArray(article.tags) ? article.tags.map((tag) => tag.name) : [],
     parent_article: article.parentArticle
       ? {
           id: article.parentArticle.id,

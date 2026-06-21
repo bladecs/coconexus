@@ -52,20 +52,20 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: 'CASCADE',
     });
 
-    // Relasi kategori untuk endpoint artikel.
-    // Model lain memakai alias 'categories' untuk relasi many-to-many.
-    Article.belongsToMany(models.CategoryTag, {
-      through: 'ArticleCategoryTag',
-      foreignKey: 'article_id',
-      otherKey: 'category_tag_id',
-      as: 'categories',
-    });
-
-    // Untuk kompatibilitas query yang mengharapkan alias 'category'.
-    // Ini tidak menggantikan relasi many-to-many, tapi menyediakan relasi langsung via column `category_id`.
-    Article.belongsTo(models.CategoryTag, {
+    // Relasi kategori - satu artikel hanya bisa punya satu kategori
+    Article.belongsTo(models.Category, {
       foreignKey: 'category_id',
       as: 'category',
+      onDelete: 'RESTRICT',
+      onUpdate: 'CASCADE',
+    });
+
+    // Relasi tag - banyak artikel bisa punya banyak tag (many-to-many)
+    Article.belongsToMany(models.Tag, {
+      through: 'ArticleTag',
+      foreignKey: 'article_id',
+      otherKey: 'tag_id',
+      as: 'tags',
     });
 
 

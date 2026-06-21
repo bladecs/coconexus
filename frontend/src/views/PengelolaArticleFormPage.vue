@@ -18,6 +18,7 @@ const form = ref({
   summary: '',
   content: '',
   category_id: '',
+  tags_text: '',
   status: 'draft',
 });
 
@@ -42,6 +43,7 @@ async function fetchArticle(id) {
       summary: article.detail?.meta_description || '',
       content: article.detail?.body_content || '',
       category_id: article.category_id || '',
+      tags_text: Array.isArray(article.tags) ? article.tags.join(', ') : '',
       status: article.status === 'published' ? 'revision' : article.status || 'draft',
     };
   } catch (err) {
@@ -60,6 +62,10 @@ async function submitForm() {
       title: form.value.title,
       body_content: form.value.content,
       meta_description: form.value.summary,
+      tags: form.value.tags_text
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean),
       category: {
         id: Number(form.value.category_id),
       },
@@ -140,6 +146,16 @@ onMounted(async () => {
               {{ cat.name }}
             </option>
           </select>
+        </div>
+
+        <div>
+          <label class="mb-2 block text-sm font-semibold">Tag Artikel</label>
+          <input
+            v-model="form.tags_text"
+            type="text"
+            placeholder="Pisahkan dengan koma, misal: Cocopeat, Pertanian, UMKM"
+            class="w-full rounded bg-stone-800 border border-stone-600 px-3 py-2 text-stone-100 placeholder-stone-400 focus:outline-none focus:border-stone-500"
+          />
         </div>
 
         <div>

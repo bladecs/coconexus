@@ -29,25 +29,25 @@ module.exports = {
           {
             title: 'Ringkasan',
             body_content:
-              `# Ringkasan\n\n**${title}** adalah panduan praktis yang dirancang agar pembaca mudah memahami teori sekaligus praktik. Dalam ringkasan ini kami menjelaskan tujuan utama, hasil yang diharapkan, dan langkah sederhana yang bisa langsung dicoba oleh komunitas atau rumah tangga.`,
+              `Ringkasan\n\n${title} adalah panduan praktis yang dirancang agar pembaca mudah memahami teori sekaligus praktik. Dalam ringkasan ini kami menjelaskan tujuan utama, hasil yang diharapkan, dan langkah sederhana yang bisa langsung dicoba oleh komunitas atau rumah tangga.`,
             video_path: null,
           },
           {
             title: 'Langkah Utama',
             body_content:
-              '## Langkah Utama\n\n1. *Persiapan*: Siapkan bahan dan alat yang diperlukan. Pastikan lokasi aman dan memiliki akses air.\n\n2. *Pelaksanaan*: Ikuti tahapan berikut secara berurutan:\n- Buat area kerja yang bersih\n- Lakukan pemrosesan dasar sesuai panduan\n- Catat parameter penting setiap sesi (waktu, suhu, jumlah bahan)\n\n3. *Pemeliharaan*: Lakukan pengecekan rutin dan dokumentasikan perbaikan yang diperlukan.',
+              'Langkah Utama\n\n1. Persiapan: Siapkan bahan dan alat yang diperlukan. Pastikan lokasi aman dan memiliki akses air.\n\n2. Pelaksanaan: Ikuti tahapan berikut secara berurutan.\n- Buat area kerja yang bersih\n- Lakukan pemrosesan dasar sesuai panduan\n- Catat parameter penting setiap sesi seperti waktu, suhu, dan jumlah bahan\n\n3. Pemeliharaan: Lakukan pengecekan rutin dan dokumentasikan perbaikan yang diperlukan.',
             video_path: null,
           },
           {
             title: 'Tips dan Trik',
             body_content:
-              '## Tips dan Trik\n\n- **Gunakan alat sederhana** yang mudah diperoleh agar biaya rendah.\n- **Catat hasil** setiap minggu untuk melihat tren perbaikan.\n- **Berbagi pengalaman** antar anggota kelompok untuk mempercepat pembelajaran.\n\nDengan kebiasaan ini, proses akan semakin efisien dan hasil lebih stabil.',
+              'Tips dan Trik\n\n- Gunakan alat sederhana yang mudah diperoleh agar biaya rendah.\n- Catat hasil setiap minggu untuk melihat tren perbaikan.\n- Berbagi pengalaman antar anggota kelompok untuk mempercepat pembelajaran.\n\nDengan kebiasaan ini, proses akan semakin efisien dan hasil lebih stabil.',
             video_path: null,
           },
         ];
 
         const sources = [
-          { title: 'Jurnal Praktik Lapangan (PDF contoh)', source_type: 'pdf', url: null, file_path: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' },
+          { title: 'Jurnal Praktik Lapangan', source_type: 'link', url: 'https://example.com/jurnal-praktik-lapangan', file_path: null },
           { title: 'Artikel Referensi Online', source_type: 'link', url: 'https://www.example.org/research', file_path: null },
         ];
 

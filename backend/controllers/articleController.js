@@ -5,7 +5,8 @@ const {
   ArticleDetail,
   ArticleMedia,
   ArticleView,
-  CategoryTag,
+  Category,
+  Tag,
   Comment,
   ProductCard,
   User,
@@ -281,16 +282,12 @@ function normalizeSourceInput(sourceInput) {
         throw badRequest(`sources[${index}].title wajib diisi.`);
       }
 
-      if (!['link', 'pdf'].includes(sourceType)) {
-        throw badRequest(`sources[${index}].source_type hanya boleh link atau pdf.`);
+      if (sourceType !== 'link') {
+        throw badRequest(`sources[${index}].source_type hanya boleh link.`);
       }
 
-      if (sourceType === 'link' && !url) {
+      if (!url) {
         throw badRequest(`sources[${index}].url wajib diisi untuk sumber link.`);
-      }
-
-      if (sourceType === 'pdf' && !filePath) {
-        throw badRequest(`sources[${index}].file_path wajib diisi untuk sumber PDF.`);
       }
 
       return {
@@ -301,6 +298,50 @@ function normalizeSourceInput(sourceInput) {
       };
     })
     .filter((item) => item.title);
+}
+
+function normalizeTagInput(tagInput) {
+  if (tagInput === undefined || tagInput === null) {
+    return [];
+  }
+
+  const rawTags = Array.isArray(tagInput)
+    ? tagInput
+    : typeof tagInput === 'string'
+      ? tagInput.split(',')
+      : [];
+
+  return [...new Set(
+    rawTags
+      .map((item) => {
+        if (typeof item !== 'string') {
+          return '';
+        }
+
+        return item.trim().replace(/\s+/g, ' ');
+      })
+      .filter(Boolean)
+  )];
+}
+
+async function syncArticleTags(article, tagInput, transaction) {
+  const tagNames = normalizeTagInput(tagInput);
+  const tagInstances = [];
+
+  for (const name of tagNames) {
+    const [tag] = await Tag.findOrCreate({
+      where: { name },
+      defaults: {
+        name,
+        description: null,
+      },
+      transaction,
+    });
+
+    tagInstances.push(tag);
+  }
+
+  await article.setTags(tagInstances, { transaction });
 }
 
 function normalizeOptionalPositiveInteger(value) {
@@ -401,7 +442,7 @@ async function findOrCreateCategory(categoryPayload, transaction) {
       : null;
 
   if (categoryId) {
-    const existingCategory = await CategoryTag.findByPk(categoryId, { transaction });
+    const existingCategory = await Category.findByPk(categoryId, { transaction });
 
     if (!existingCategory) {
       throw notFound('Kategori tidak ditemukan.');
@@ -414,7 +455,7 @@ async function findOrCreateCategory(categoryPayload, transaction) {
     throw badRequest('Kategori wajib diisi melalui category.id atau category.name.');
   }
 
-  const existingByName = await CategoryTag.findOne({
+  const existingByName = await Category.findOne({
     where: { name: categoryName },
     transaction,
   });
@@ -423,7 +464,7 @@ async function findOrCreateCategory(categoryPayload, transaction) {
     return existingByName;
   }
 
-  return CategoryTag.create(
+  return Category.create(
     {
       name: categoryName,
       description: categoryDescription,
@@ -448,8 +489,16 @@ async function getArticleByIdOrThrow(articleId, options = {}) {
         ],
       },
       {
-        model: CategoryTag,
+        model: Category,
         as: 'category',
+      },
+      {
+        model: Tag,
+        as: 'tags',
+        through: {
+          attributes: [],
+        },
+        attributes: ['id', 'name', 'description'],
       },
       {
         model: ArticleDetail,
@@ -540,8 +589,16 @@ async function listPublishedArticles(req, res, next) {
           ],
         },
         {
-          model: CategoryTag,
+          model: Category,
           as: 'category',
+        },
+        {
+          model: Tag,
+          as: 'tags',
+          through: {
+            attributes: [],
+          },
+          attributes: ['id', 'name', 'description'],
         },
         {
           model: ArticleDetail,
@@ -605,8 +662,16 @@ async function getPublishedArticleDetail(req, res, next) {
           ],
         },
         {
-          model: CategoryTag,
+          model: Category,
           as: 'category',
+        },
+        {
+          model: Tag,
+          as: 'tags',
+          through: {
+            attributes: [],
+          },
+          attributes: ['id', 'name', 'description'],
         },
         {
           model: ArticleDetail,
@@ -739,8 +804,16 @@ async function listAdminArticles(req, res, next) {
           ],
         },
         {
-          model: CategoryTag,
+          model: Category,
           as: 'category',
+        },
+        {
+          model: Tag,
+          as: 'tags',
+          through: {
+            attributes: [],
+          },
+          attributes: ['id', 'name', 'description'],
         },
         {
           model: ArticleDetail,
@@ -793,6 +866,7 @@ async function createArticle(req, res, next) {
     const productCardItems = normalizeProductCardInput(req.body.product_cards);
     const sectionItems = normalizeSectionInput(req.body.sections, bodyContent);
     const sourceItems = normalizeSourceInput(req.body.sources);
+    const tagItems = normalizeTagInput(req.body.tags);
 
     if (!bodyContent && sectionItems.length > 0) {
       bodyContent = sectionItems.map((section) => section.body_content).join('\n\n');
@@ -843,6 +917,10 @@ async function createArticle(req, res, next) {
       },
       { transaction }
     );
+
+    if (tagItems.length > 0) {
+      await syncArticleTags(article, tagItems, transaction);
+    }
 
     if (mediaItems.length > 0) {
       const processedMedia = await processMediaItemsForStorage(mediaItems);
@@ -937,6 +1015,14 @@ async function updateArticle(req, res, next) {
           model: ProductCard,
           as: 'linkedProductCard',
         },
+        {
+          model: Tag,
+          as: 'tags',
+          through: {
+            attributes: [],
+          },
+          attributes: ['id', 'name', 'description'],
+        },
       ],
       transaction,
       lock: transaction.LOCK.UPDATE,
@@ -1000,6 +1086,11 @@ async function updateArticle(req, res, next) {
     if (req.body.category !== undefined) {
       const category = await findOrCreateCategory(req.body.category, transaction);
       article.category_id = category.id;
+    }
+
+    if (req.body.tags !== undefined) {
+      const tagItems = normalizeTagInput(req.body.tags);
+      await syncArticleTags(article, tagItems, transaction);
     }
 
     article.version += 1;
@@ -1259,8 +1350,16 @@ async function getAdminArticleDetail(req, res, next) {
           ],
         },
         {
-          model: CategoryTag,
+          model: Category,
           as: 'category',
+        },
+        {
+          model: Tag,
+          as: 'tags',
+          through: {
+            attributes: [],
+          },
+          attributes: ['id', 'name', 'description'],
         },
         {
           model: ArticleDetail,
@@ -1403,7 +1502,7 @@ async function listMainArticles(req, res, next) {
       attributes: ['id', 'title', 'status', 'category_id', 'updated_at'],
       include: [
         {
-          model: CategoryTag,
+          model: Category,
           as: 'category',
           attributes: ['id', 'name'],
         },

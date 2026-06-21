@@ -106,7 +106,7 @@ async function createComment(req, res, next) {
 
     const comment = await Comment.create({
       body,
-      status: 'pending',
+      status: 'approved',
       user_id: req.user.id,
       article_id: articleId,
       parent_id: parentId,
@@ -132,8 +132,8 @@ async function createComment(req, res, next) {
     return res.status(201).json({
       success: true,
       message: parentId
-        ? 'Balasan komentar berhasil ditambahkan dan menunggu moderasi.'
-        : 'Komentar berhasil ditambahkan dan menunggu moderasi.',
+        ? 'Balasan komentar berhasil ditambahkan'
+        : 'Komentar berhasil ditambahkan',
       data: {
         comment: sanitizeComment(createdComment),
       },
