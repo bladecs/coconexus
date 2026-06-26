@@ -31,6 +31,38 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.JSON,
         allowNull: true,
       },
+      difficulty_level: {
+        type: DataTypes.ENUM('pemula', 'menengah', 'lanjutan'),
+        allowNull: true,
+      },
+      time_required_minutes: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: true,
+      },
+      materials_list: {
+        type: DataTypes.JSON,
+        allowNull: true,
+      },
+      tools_list: {
+        type: DataTypes.JSON,
+        allowNull: true,
+      },
+      process_parameters: {
+        type: DataTypes.JSON,
+        allowNull: true,
+      },
+      quality_indicators: {
+        type: DataTypes.JSON,
+        allowNull: true,
+      },
+      safety_notes: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      prerequisite_article_ids: {
+        type: DataTypes.JSON,
+        allowNull: true,
+      },
     },
     {
       tableName: 'ArticleDetail',

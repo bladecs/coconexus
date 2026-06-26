@@ -7,8 +7,11 @@ export const useArticleStore = defineStore('articles', () => {
   const adminArticles = ref([]);
   const mainArticles = ref([]);
   const availableProductCards = ref([]);
+  const articleVersions = ref([]);
   const currentArticle = ref(null);
+  const currentForum = ref(null);
   const comments = ref([]);
+  const forumComments = ref([]);
   const publishedMeta = ref({
     page: 1,
     limit: 6,
@@ -90,6 +93,14 @@ export const useArticleStore = defineStore('articles', () => {
     });
   }
 
+  async function fetchActiveForum(articleId) {
+    return withLoading(async () => {
+      const { data } = await api.get(`/articles/${articleId}/discussion-forum`);
+      currentForum.value = data.data.forum || null;
+      return currentForum.value;
+    });
+  }
+
   async function fetchArticleComments(articleId) {
     return withLoading(async () => {
       const { data } = await api.get(`/articles/${articleId}/comments`);
@@ -98,9 +109,17 @@ export const useArticleStore = defineStore('articles', () => {
     });
   }
 
+  async function fetchForumComments(forumId) {
+    return withLoading(async () => {
+      const { data } = await api.get(`/discussion-forums/${forumId}/comments`);
+      forumComments.value = data.data.comments || [];
+      return forumComments.value;
+    });
+  }
+
   async function fetchAdminArticles(params = {}) {
     return withLoading(async () => {
-      const { data } = await api.get('/articles/admin', {
+      const { data } = await api.get('/pengelola/articles', {
         params,
       });
       adminArticles.value = data.data.articles;
@@ -111,16 +130,24 @@ export const useArticleStore = defineStore('articles', () => {
 
   async function fetchAdminArticleDetail(articleId) {
     return withLoading(async () => {
-      const { data } = await api.get(`/articles/admin/${articleId}`);
+      const { data } = await api.get(`/pengelola/articles/${articleId}`);
       currentArticle.value = data.data.article;
       comments.value = data.data.article.comments || [];
       return data.data.article;
     });
   }
 
+  async function fetchArticleVersions(articleId) {
+    return withLoading(async () => {
+      const { data } = await api.get(`/pengelola/articles/${articleId}/versions`);
+      articleVersions.value = data.data.versions || [];
+      return articleVersions.value;
+    });
+  }
+
   async function fetchMainArticles(params = {}) {
     return withLoading(async () => {
-      const { data } = await api.get('/articles/admin/main-articles', { params });
+      const { data } = await api.get('/pengelola/articles/main-articles', { params });
       mainArticles.value = data.data.articles;
       return mainArticles.value;
     });
@@ -133,7 +160,7 @@ export const useArticleStore = defineStore('articles', () => {
     }
 
     return withLoading(async () => {
-      const { data } = await api.get('/articles/admin/product-cards/available', {
+      const { data } = await api.get('/pengelola/articles/product-cards/available', {
         params: {
           article_id: articleId,
         },
@@ -145,7 +172,7 @@ export const useArticleStore = defineStore('articles', () => {
 
   async function createArticle(payload) {
     return withSubmitting(async () => {
-      const { data } = await api.post('/articles/admin', payload);
+      const { data } = await api.post('/pengelola/articles', payload);
       await fetchAdminArticles();
       return data.data.article;
     });
@@ -153,7 +180,7 @@ export const useArticleStore = defineStore('articles', () => {
 
   async function updateArticle(articleId, payload) {
     return withSubmitting(async () => {
-      const { data } = await api.put(`/articles/admin/${articleId}`, payload);
+      const { data } = await api.put(`/pengelola/articles/${articleId}`, payload);
       await fetchAdminArticles();
       currentArticle.value = data.data.article;
       return data.data.article;
@@ -162,7 +189,16 @@ export const useArticleStore = defineStore('articles', () => {
 
   async function updateArticleStatus(articleId, status) {
     return withSubmitting(async () => {
-      const { data } = await api.patch(`/articles/admin/${articleId}/status`, { status });
+      const { data } = await api.patch(`/pengelola/articles/${articleId}/status`, { status });
+      await fetchAdminArticles();
+      currentArticle.value = data.data.article;
+      return data.data.article;
+    });
+  }
+
+  async function publishArticleVersion(articleId, versionNumber) {
+    return withSubmitting(async () => {
+      const { data } = await api.post(`/pengelola/articles/${articleId}/versions/${versionNumber}/publish`);
       await fetchAdminArticles();
       currentArticle.value = data.data.article;
       return data.data.article;
@@ -171,7 +207,7 @@ export const useArticleStore = defineStore('articles', () => {
 
   async function deleteArticle(articleId) {
     return withSubmitting(async () => {
-      await api.delete(`/articles/admin/${articleId}`);
+      await api.delete(`/pengelola/articles/${articleId}`);
       adminArticles.value = adminArticles.value.filter((article) => article.id !== articleId);
 
       if (currentArticle.value?.id === articleId) {
@@ -189,6 +225,37 @@ export const useArticleStore = defineStore('articles', () => {
     });
   }
 
+  async function postForumComment(forumId, payload) {
+    return withSubmitting(async () => {
+      const isFormData = typeof FormData !== 'undefined' && payload instanceof FormData;
+      const bodyPayload = isFormData || !(payload && typeof payload === 'object')
+        ? payload
+        : (() => {
+            const formData = new FormData();
+            formData.append('body', payload.body || '');
+
+            if (payload.parent_id !== undefined && payload.parent_id !== null) {
+              formData.append('parent_id', String(payload.parent_id));
+            }
+
+            if (payload.attachment) {
+              formData.append('attachment', payload.attachment);
+            }
+
+            return formData;
+          })();
+
+      const { data } = await api.post(`/discussion-forums/${forumId}/comments`, bodyPayload, {
+        headers: bodyPayload instanceof FormData
+          ? { 'Content-Type': 'multipart/form-data' }
+          : undefined,
+      });
+
+      await fetchForumComments(forumId);
+      return data;
+    });
+  }
+
   async function deleteComment(commentId, articleId) {
     return withSubmitting(async () => {
       await api.delete(`/comments/${commentId}`);
@@ -198,7 +265,10 @@ export const useArticleStore = defineStore('articles', () => {
 
   function clearCurrentArticle() {
     currentArticle.value = null;
+    currentForum.value = null;
     comments.value = [];
+    forumComments.value = [];
+    articleVersions.value = [];
   }
 
   async function uploadArticleMedia(file) {
@@ -249,8 +319,11 @@ export const useArticleStore = defineStore('articles', () => {
     adminArticles,
     mainArticles,
     availableProductCards,
+    articleVersions,
     currentArticle,
+    currentForum,
     comments,
+    forumComments,
     publishedMeta,
     adminMeta,
     isLoading,
@@ -261,16 +334,21 @@ export const useArticleStore = defineStore('articles', () => {
     draftCount,
     fetchPublishedArticles,
     fetchPublishedArticleDetail,
+    fetchActiveForum,
     fetchArticleComments,
+    fetchForumComments,
     fetchAdminArticles,
     fetchAdminArticleDetail,
+    fetchArticleVersions,
     fetchMainArticles,
     fetchAvailableProductCards,
     createArticle,
     updateArticle,
     updateArticleStatus,
+    publishArticleVersion,
     deleteArticle,
     postComment,
+    postForumComment,
     deleteComment,
     uploadArticleMedia,
     clearCurrentArticle,

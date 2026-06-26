@@ -15,10 +15,11 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['create', 'update', 'publish', 'request-revision', 'delete']);
+const emit = defineEmits(['create', 'update', 'publish', 'request-revision', 'publish-version', 'delete']);
 const articleStore = useArticleStore();
 const formError = ref('');
 const sectionTextareaRefs = ref([]);
+const selectedVersionToPublish = ref('');
 
 const inlineToolbarItems = [
   { label: 'B', title: 'Tebal', format: 'bold' },
@@ -35,19 +36,34 @@ const blockToolbarItems = [
   { label: '-', title: 'List dash', format: 'dashList' },
 ];
 
+const categoryOptions = [
+  'Batok Kelapa',
+  'Serabut Kelapa',
+  'Kulit Kelapa',
+];
+
 function emptyForm() {
   return {
     articleMode: 'main',
     parentArticleId: '',
     linkedProductCardId: '',
+    wawasanArticleId: '',
     title: '',
     categoryName: '',
     tagsText: '',
     metaDescription: '',
     bodyContent: '',
     status: 'draft',
+    difficultyLevel: '',
+    timeRequiredMinutes: '',
+    materialsList: [],
+    toolsList: [],
+    processParameters: {},
+    qualityIndicators: {},
+    safetyNotes: '',
     sections: [
       {
+        section_type: 'info',
         title: 'Ringkasan',
         body_content: '',
         video_path: '',
@@ -79,8 +95,43 @@ function emptyForm() {
 
 const form = reactive(emptyForm());
 
+const TECHNICAL_TYPES = ['prosedur', 'panduan', 'referensi', 'studi_kasus', 'troubleshooting'];
+
+const articleTypeOptions = [
+  { value: 'main', label: 'Artikel Utama (Wawasan)', group: 'Wawasan' },
+  { value: 'detail', label: 'Artikel Detail (Wawasan)', group: 'Wawasan' },
+  { value: 'prosedur', label: 'Prosedur (SOP Langkah-langkah)', group: 'Teknis' },
+  { value: 'panduan', label: 'Panduan Teknis', group: 'Teknis' },
+  { value: 'referensi', label: 'Referensi Data / Spesifikasi', group: 'Teknis' },
+  { value: 'studi_kasus', label: 'Studi Kasus', group: 'Teknis' },
+  { value: 'troubleshooting', label: 'Troubleshooting', group: 'Teknis' },
+];
+
 const isEditing = computed(() => Boolean(props.selectedArticle?.id));
 const isDetailArticle = computed(() => form.articleMode === 'detail');
+const isTechnicalArticle = computed(() => TECHNICAL_TYPES.includes(form.articleMode));
+const articleFamily = computed(() => {
+  if (['main', 'detail'].includes(form.articleMode)) return 'wawasan';
+  if (TECHNICAL_TYPES.includes(form.articleMode)) return 'teknis';
+  return 'wawasan';
+});
+
+const wawasanTypeOptions = [
+  { value: 'main',   label: 'Artikel Utama',   icon: 'article',     desc: 'Konten pengetahuan utama dengan product cards dan artikel detail turunan' },
+  { value: 'detail', label: 'Artikel Detail',  icon: 'description', desc: 'Artikel penjelasan mendalam yang terhubung ke artikel utama via product card' },
+];
+
+const technicalTypeOptions = [
+  { value: 'prosedur',       label: 'Prosedur',       icon: 'list_alt',     desc: 'SOP langkah-langkah pelaksanaan teknis' },
+  { value: 'panduan',        label: 'Panduan',         icon: 'menu_book',    desc: 'Panduan teknis pengoperasian alat/bahan' },
+  { value: 'referensi',      label: 'Referensi',       icon: 'data_table',   desc: 'Data, spesifikasi, atau tabel parameter teknis' },
+  { value: 'studi_kasus',    label: 'Studi Kasus',     icon: 'science',      desc: 'Dokumentasi kasus nyata di lapangan' },
+  { value: 'troubleshooting',label: 'Troubleshooting', icon: 'build',        desc: 'Panduan penyelesaian masalah teknis' },
+];
+
+function selectFamily(family) {
+  form.articleMode = family === 'wawasan' ? 'main' : 'prosedur';
+}
 const currentLinkedProductCard = computed(() => props.selectedArticle?.linked_product_card || null);
 const productCardOptions = computed(() => {
   const options = [...articleStore.availableProductCards];
@@ -102,6 +153,17 @@ async function refreshMainArticleOptions() {
   });
 }
 
+async function refreshVersionHistory() {
+  selectedVersionToPublish.value = '';
+
+  if (!props.selectedArticle?.id) {
+    articleStore.articleVersions = [];
+    return;
+  }
+
+  await articleStore.fetchArticleVersions(props.selectedArticle.id);
+}
+
 watch(
   () => props.selectedArticle,
   (article) => {
@@ -109,28 +171,39 @@ watch(
 
     if (!article) {
       Object.assign(form, emptyForm());
+      selectedVersionToPublish.value = '';
       return;
     }
 
     Object.assign(form, {
-      articleMode: article.parent_article_id ? 'detail' : 'main',
+      articleMode: article.article_type || (article.parent_article_id ? 'detail' : 'main'),
       parentArticleId: article.parent_article_id || '',
       linkedProductCardId: article.linked_product_card?.id || '',
+      wawasanArticleId: article.wawasan_article_id || '',
       title: article.title || '',
       categoryName: article.category?.name || '',
       tagsText: Array.isArray(article.tags) ? article.tags.join(', ') : '',
       metaDescription: article.detail?.meta_description || '',
       bodyContent: article.detail?.body_content || '',
       status: article.status || 'draft',
+      difficultyLevel: article.detail?.difficulty_level || '',
+      timeRequiredMinutes: article.detail?.time_required_minutes || '',
+      materialsList: Array.isArray(article.detail?.materials_list) ? article.detail.materials_list : [],
+      toolsList: Array.isArray(article.detail?.tools_list) ? article.detail.tools_list : [],
+      processParameters: article.detail?.process_parameters || {},
+      qualityIndicators: article.detail?.quality_indicators || {},
+      safetyNotes: article.detail?.safety_notes || '',
       sections:
         article.detail?.sections?.length > 0
           ? article.detail.sections.map((item) => ({
+              section_type: item.section_type || 'info',
               title: item.title || '',
               body_content: item.body_content || '',
               video_path: item.video_path || '',
             }))
           : [
               {
+                section_type: 'info',
                 title: 'Ringkasan',
                 body_content: article.detail?.body_content || '',
                 video_path: '',
@@ -186,11 +259,20 @@ watch(
 );
 
 watch(
+  () => props.selectedArticle?.id,
+  async () => {
+    await refreshVersionHistory();
+  },
+  { immediate: true }
+);
+
+watch(
   () => form.articleMode,
   async (mode) => {
     if (mode === 'main') {
       form.parentArticleId = '';
       form.linkedProductCardId = '';
+      form.wawasanArticleId = '';
       articleStore.availableProductCards = [];
       return;
     }
@@ -254,6 +336,7 @@ function addProductCardRow() {
 
 function addSectionRow() {
   form.sections.push({
+    section_type: 'info',
     title: '',
     body_content: '',
     video_path: '',
@@ -262,6 +345,7 @@ function addSectionRow() {
 
 function removeSectionRow(index) {
   if (form.sections.length === 1) {
+    form.sections[0].section_type = 'info';
     form.sections[0].title = 'Ringkasan';
     form.sections[0].body_content = '';
     form.sections[0].video_path = '';
@@ -280,19 +364,9 @@ function setSectionTextareaRef(element, index) {
 
 function wrapInlineText(text, format) {
   const fallbackText = text || 'teks';
-
-  if (format === 'bold') {
-    return `**${fallbackText}**`;
-  }
-
-  if (format === 'italic') {
-    return `*${fallbackText}*`;
-  }
-
-  if (format === 'underline') {
-    return `++${fallbackText}++`;
-  }
-
+  if (format === 'bold') return `**${fallbackText}**`;
+  if (format === 'italic') return `*${fallbackText}*`;
+  if (format === 'underline') return `++${fallbackText}++`;
   return fallbackText;
 }
 
@@ -307,31 +381,12 @@ function formatBlockText(text, format) {
   return lines
     .map((line, lineIndex) => {
       const cleanLine = stripExistingBlockMarker(line);
-
-      if (format === 'heading1') {
-        return `# ${cleanLine}`;
-      }
-
-      if (format === 'heading2') {
-        return `## ${cleanLine}`;
-      }
-
-      if (format === 'heading3') {
-        return `### ${cleanLine}`;
-      }
-
-      if (format === 'bulletList') {
-        return `* ${cleanLine}`;
-      }
-
-      if (format === 'numberList') {
-        return `${lineIndex + 1}. ${cleanLine}`;
-      }
-
-      if (format === 'dashList') {
-        return `- ${cleanLine}`;
-      }
-
+      if (format === 'heading1') return `# ${cleanLine}`;
+      if (format === 'heading2') return `## ${cleanLine}`;
+      if (format === 'heading3') return `### ${cleanLine}`;
+      if (format === 'bulletList') return `* ${cleanLine}`;
+      if (format === 'numberList') return `${lineIndex + 1}. ${cleanLine}`;
+      if (format === 'dashList') return `- ${cleanLine}`;
       return cleanLine;
     })
     .join('\n');
@@ -341,9 +396,7 @@ async function applySectionFormat(index, format) {
   const textarea = sectionTextareaRefs.value[index];
   const section = form.sections[index];
 
-  if (!textarea || !section) {
-    return;
-  }
+  if (!textarea || !section) return;
 
   const selectionStart = textarea.selectionStart;
   const selectionEnd = textarea.selectionEnd;
@@ -376,7 +429,6 @@ function removeSourceRow(index) {
     form.sources[0].file_path = '';
     return;
   }
-
   form.sources.splice(index, 1);
 }
 
@@ -387,7 +439,6 @@ function removeProductCardRow(index) {
     form.productCards[0].image = '';
     return;
   }
-
   form.productCards.splice(index, 1);
 }
 
@@ -397,7 +448,6 @@ function removeMediaRow(index) {
     form.media[0].media_type = 'image';
     return;
   }
-
   form.media.splice(index, 1);
 }
 
@@ -412,11 +462,9 @@ async function handleFileSelection(event, index) {
     return;
   }
 
-  // multiple files: upload all and insert rows
   const uploadedArray = await articleStore.uploadArticleMediaMany(fileList);
   if (!uploadedArray || uploadedArray.length === 0) return;
 
-  // set first to current row, push others after index
   form.media[index].file_path = uploadedArray[0].file_path;
   form.media[index].media_type = uploadedArray[0].media_type;
 
@@ -430,10 +478,7 @@ async function handleFileSelection(event, index) {
 
 async function handleProductCardImageSelection(event, index) {
   const selectedFile = event.target.files?.[0];
-
-  if (!selectedFile) {
-    return;
-  }
+  if (!selectedFile) return;
 
   const uploadedMedia = await articleStore.uploadArticleMedia(selectedFile);
   form.productCards[index].image = uploadedMedia.file_path;
@@ -441,10 +486,7 @@ async function handleProductCardImageSelection(event, index) {
 
 async function handleSectionVideoSelection(event, index) {
   const selectedFile = event.target.files?.[0];
-
-  if (!selectedFile) {
-    return;
-  }
+  if (!selectedFile) return;
 
   const uploadedMedia = await articleStore.uploadArticleMedia(selectedFile);
   form.sections[index].video_path = uploadedMedia.file_path;
@@ -452,10 +494,7 @@ async function handleSectionVideoSelection(event, index) {
 
 async function handleSourceFileSelection(event, index) {
   const selectedFile = event.target.files?.[0];
-
-  if (!selectedFile) {
-    return;
-  }
+  if (!selectedFile) return;
 
   const uploadedMedia = await articleStore.uploadArticleMedia(selectedFile);
   form.sources[index].file_path = uploadedMedia.file_path;
@@ -466,6 +505,7 @@ function buildPayload() {
   const sections = form.sections
     .filter((item) => item.title.trim() || item.body_content.trim() || item.video_path.trim())
     .map((item) => ({
+      section_type: item.section_type || 'info',
       title: item.title,
       body_content: item.body_content,
       video_path: item.video_path || null,
@@ -483,8 +523,22 @@ function buildPayload() {
     .map((tag) => tag.trim())
     .filter(Boolean);
 
+  const technicalPayload = isTechnicalArticle.value
+    ? {
+        difficulty_level: form.difficultyLevel || null,
+        time_required_minutes: form.timeRequiredMinutes ? Number(form.timeRequiredMinutes) : null,
+        materials_list: form.materialsList.length > 0 ? form.materialsList : null,
+        tools_list: form.toolsList.length > 0 ? form.toolsList : null,
+        process_parameters: Object.keys(form.processParameters).length > 0 ? form.processParameters : null,
+        quality_indicators: Object.keys(form.qualityIndicators).length > 0 ? form.qualityIndicators : null,
+        safety_notes: form.safetyNotes || null,
+      }
+    : {};
+
   return {
+    article_type: form.articleMode,
     parent_article_id: isDetailArticle.value ? Number(form.parentArticleId) : null,
+    wawasan_article_id: isTechnicalArticle.value && form.wawasanArticleId ? Number(form.wawasanArticleId) : null,
     linked_product_card_id:
       isDetailArticle.value && form.linkedProductCardId ? Number(form.linkedProductCardId) : null,
     title: form.title,
@@ -507,6 +561,7 @@ function buildPayload() {
             image: item.image || null,
           })),
     media: form.media.filter((item) => item.file_path.trim()),
+    ...technicalPayload,
   };
 }
 
@@ -517,14 +572,12 @@ function validateForm() {
     formError.value = 'Judul artikel wajib diisi.';
     return false;
   }
-
   if (!form.categoryName.trim()) {
     formError.value = 'Kategori artikel wajib diisi.';
     return false;
   }
 
   const completeSections = form.sections.filter((item) => item.title.trim() || item.body_content.trim());
-
   if (!completeSections.length || completeSections.some((item) => !item.title.trim() || !item.body_content.trim())) {
     formError.value = 'Minimal satu section wajib diisi lengkap dengan judul dan isi.';
     return false;
@@ -532,15 +585,8 @@ function validateForm() {
 
   const invalidSource = form.sources.find((item) => {
     const hasValue = item.title.trim() || item.url.trim() || item.file_path.trim();
-
-    if (!hasValue) {
-      return false;
-    }
-
-    if (!item.title.trim()) {
-      return true;
-    }
-
+    if (!hasValue) return false;
+    if (!item.title.trim()) return true;
     return item.source_type === 'link' ? !item.url.trim() : !item.file_path.trim();
   });
 
@@ -554,12 +600,10 @@ function validateForm() {
       formError.value = 'Pilih artikel utama terlebih dahulu untuk artikel detail.';
       return false;
     }
-
     if (!form.linkedProductCardId) {
       formError.value = 'Pilih product card yang akan dihubungkan ke artikel detail.';
       return false;
     }
-
     return true;
   }
 
@@ -578,9 +622,7 @@ function validateForm() {
 }
 
 function submitForm() {
-  if (!validateForm()) {
-    return;
-  }
+  if (!validateForm()) return;
 
   if (isEditing.value) {
     emit('update', {
@@ -589,232 +631,353 @@ function submitForm() {
     });
     return;
   }
-
   emit('create', buildPayload());
+}
+
+function publishSelectedVersion() {
+  if (!props.selectedArticle?.id || !selectedVersionToPublish.value) {
+    return;
+  }
+
+  emit('publish-version', {
+    id: props.selectedArticle.id,
+    version: Number(selectedVersionToPublish.value),
+  });
 }
 </script>
 
 <template>
-  <section class="premium-panel p-6">
-    <div class="flex flex-col gap-4 border-b border-white/8 pb-5 md:flex-row md:items-start md:justify-between">
-      <div>
-        <p class="text-sm font-semibold uppercase tracking-[0.24em] text-[#ffb084]">
-          Editor Artikel
-        </p>
-        <h2 class="mt-2 text-2xl font-bold text-stone-50">
-          {{ isEditing ? 'Edit Konten Artikel' : 'Buat Draft Artikel Baru' }}
-        </h2>
-        <p class="mt-2 max-w-2xl text-sm leading-7 text-stone-400">
-          Isi kategori, body, dan media sesuai alur diagram. Publish artikel dilakukan lewat tombol validasi terpisah.
-        </p>
-      </div>
+  <div class="flex flex-col gap-6 p-4 w-full lg:p-6">
 
-      <StatusBadge v-if="selectedArticle" :status="selectedArticle.status" />
+    <!-- Error -->
+    <div v-if="formError" class="rounded-xl border border-error/30 bg-error-container/20 px-5 py-4 text-sm font-medium text-error">
+      {{ formError }}
     </div>
 
-    <div class="mt-6 grid gap-5 md:grid-cols-2">
-      <div>
-        <label class="mb-2 block text-sm font-medium text-stone-300">Tipe Artikel</label>
-        <select
-          v-model="form.articleMode"
-          class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
+    <!-- ── PILIH JENIS ARTIKEL ── -->
+    <div class="editor-panel">
+      <div class="editor-panel-header">
+        <div>
+          <p class="editor-label">LANGKAH 1 — JENIS KONTEN</p>
+          <h3 class="editor-panel-title">Pilih Jenis Artikel</h3>
+        </div>
+        <span v-if="isEditing" class="editor-badge">
+          <span class="material-symbols-outlined text-base">edit</span>
+          Mode Edit
+        </span>
+      </div>
+
+      <!-- Family cards -->
+      <div class="grid gap-4 md:grid-cols-2 mt-5">
+        <button
+          type="button"
+          class="type-family-card"
+          :class="articleFamily === 'wawasan' ? 'type-family-card--wawasan-active' : 'type-family-card--idle'"
+          @click="selectFamily('wawasan')"
         >
-          <option value="main">Artikel Utama</option>
-          <option value="detail">Artikel Detail</option>
-        </select>
+          <div class="type-family-icon" :class="articleFamily === 'wawasan' ? 'type-icon--wawasan' : ''">
+            <span class="material-symbols-outlined">library_books</span>
+          </div>
+          <div class="flex-1 text-left min-w-0">
+            <strong class="block text-[15px] font-black">Artikel Wawasan</strong>
+            <p class="text-sm mt-1.5 leading-relaxed text-on-surface-variant">Konten edukatif: penjelasan umum, data, dan informasi seputar pengolahan limbah kelapa.</p>
+            <div class="mt-3 flex gap-2 flex-wrap">
+              <span class="type-tag">Artikel Utama</span>
+              <span class="type-tag">Artikel Detail</span>
+            </div>
+          </div>
+          <span v-if="articleFamily === 'wawasan'" class="type-check-icon text-primary">
+            <span class="material-symbols-outlined">check_circle</span>
+          </span>
+        </button>
+
+        <button
+          type="button"
+          class="type-family-card"
+          :class="articleFamily === 'teknis' ? 'type-family-card--teknis-active' : 'type-family-card--idle'"
+          @click="selectFamily('teknis')"
+        >
+          <div class="type-family-icon" :class="articleFamily === 'teknis' ? 'type-icon--teknis' : ''">
+            <span class="material-symbols-outlined">engineering</span>
+          </div>
+          <div class="flex-1 text-left min-w-0">
+            <strong class="block text-[15px] font-black">Artikel Teknis</strong>
+            <p class="text-sm mt-1.5 leading-relaxed text-on-surface-variant">Panduan operasional: prosedur, panduan teknis, referensi data, studi kasus, dan troubleshooting.</p>
+            <div class="mt-3 flex gap-2 flex-wrap">
+              <span class="type-tag">Prosedur</span>
+              <span class="type-tag">Panduan</span>
+              <span class="type-tag">Referensi</span>
+              <span class="type-tag type-tag--more">+2</span>
+            </div>
+          </div>
+          <span v-if="articleFamily === 'teknis'" class="type-check-icon text-secondary">
+            <span class="material-symbols-outlined">check_circle</span>
+          </span>
+        </button>
       </div>
 
-      <div class="md:col-span-2">
-        <label class="mb-2 block text-sm font-medium text-stone-300">Judul Artikel</label>
-        <input
-          v-model="form.title"
-          type="text"
-          class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-          placeholder="Contoh: Inovasi Pengolahan Sabut Kelapa Berbasis Komunitas"
-        />
+      <!-- Sub-type: Wawasan -->
+      <Transition name="subtype-fade">
+        <div v-if="articleFamily === 'wawasan'" class="sub-type-section">
+          <p class="editor-label mb-3">SUB-JENIS WAWASAN</p>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <button
+              v-for="opt in wawasanTypeOptions"
+              :key="opt.value"
+              type="button"
+              class="subtype-card"
+              :class="{ 'subtype-card--active subtype-card--wawasan': form.articleMode === opt.value }"
+              @click="form.articleMode = opt.value"
+            >
+              <span class="material-symbols-outlined text-[22px] flex-shrink-0 mt-0.5">{{ opt.icon }}</span>
+              <div class="text-left">
+                <strong class="block font-bold text-sm">{{ opt.label }}</strong>
+                <span class="text-xs text-on-surface-variant mt-0.5 block leading-relaxed">{{ opt.desc }}</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </Transition>
+
+      <!-- Sub-type: Teknis -->
+      <Transition name="subtype-fade">
+        <div v-if="articleFamily === 'teknis'" class="sub-type-section">
+          <p class="editor-label mb-3">SUB-JENIS TEKNIS</p>
+          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <button
+              v-for="opt in technicalTypeOptions"
+              :key="opt.value"
+              type="button"
+              class="subtype-card"
+              :class="{ 'subtype-card--active subtype-card--teknis': form.articleMode === opt.value }"
+              @click="form.articleMode = opt.value"
+            >
+              <span class="material-symbols-outlined text-[22px] flex-shrink-0 mt-0.5">{{ opt.icon }}</span>
+              <div class="text-left">
+                <strong class="block font-bold text-sm">{{ opt.label }}</strong>
+                <span class="text-xs text-on-surface-variant mt-0.5 block leading-relaxed">{{ opt.desc }}</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </Transition>
+    </div>
+
+    <!-- ── INFORMASI UMUM ── -->
+    <div class="editor-panel space-y-6">
+      <div class="editor-panel-header">
+        <div>
+          <p class="editor-label">LANGKAH 2 — IDENTITAS ARTIKEL</p>
+          <h3 class="editor-panel-title">Informasi Umum</h3>
+        </div>
       </div>
 
+      <div class="grid gap-5 md:grid-cols-2">
+        <div>
+          <label class="editor-field-label">Nama Kategori</label>
+          <select v-model="form.categoryName" class="form-input">
+            <option value="" disabled>Pilih Kategori</option>
+            <option v-for="(cat, index) in categoryOptions" :key="index" :value="cat">{{ cat }}</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="editor-field-label">Status Draft</label>
+          <select v-model="form.status" class="form-input">
+            <option value="draft">Draft (Simpan sementara)</option>
+            <option value="revision">Revision (Butuh perbaikan)</option>
+          </select>
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="editor-field-label">Judul Artikel</label>
+          <input v-model="form.title" type="text" class="form-input" placeholder="Contoh: Inovasi Pengolahan Sabut Kelapa" />
+        </div>
+
+        <div>
+          <label class="editor-field-label">Tag Artikel</label>
+          <input v-model="form.tagsText" type="text" class="form-input" placeholder="Contoh: Cocopeat, Pertanian" />
+          <p class="mt-1.5 text-xs text-on-surface-variant">Pisahkan dengan koma.</p>
+        </div>
+
+        <div>
+          <label class="editor-field-label">Meta Description</label>
+          <textarea v-model="form.metaDescription" rows="2" class="form-input" placeholder="Ringkasan singkat untuk SEO dan preview card..."></textarea>
+        </div>
+      </div>
+
+      <!-- Koneksi: Detail → Utama -->
       <template v-if="isDetailArticle">
-        <div>
-          <label class="mb-2 block text-sm font-medium text-stone-300">Hubungkan ke Artikel Utama</label>
-          <select
-            v-model="form.parentArticleId"
-            class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-          >
-            <option value="">Pilih artikel utama</option>
-            <option
-              v-for="article in articleStore.mainArticles"
-              :key="article.id"
-              :value="article.id"
-            >
-              {{ article.title }}{{ article.category?.name ? ` - ${article.category.name}` : '' }}
-            </option>
-          </select>
-        </div>
-
-        <div>
-          <label class="mb-2 block text-sm font-medium text-stone-300">Hubungkan ke Card Produk</label>
-          <select
-            v-model="form.linkedProductCardId"
-            :disabled="!form.parentArticleId"
-            class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition disabled:cursor-not-allowed disabled:opacity-50 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-          >
-            <option value="">Pilih product card</option>
-            <option
-              v-for="productCard in productCardOptions"
-              :key="productCard.id"
-              :value="productCard.id"
-            >
-              {{ productCard.title }}
-            </option>
-          </select>
-        </div>
-
-        <div class="md:col-span-2 rounded-3xl border border-[#ff7c35]/15 bg-[#3b312d] p-5">
-          <p class="text-sm font-semibold uppercase tracking-[0.22em] text-[#ffb084]">
-            Mode Linking
-          </p>
-          <p class="mt-2 text-sm leading-7 text-stone-300">
-            Artikel detail akan menjadi konten lanjutan dari artikel utama yang dipilih, lalu dikunci ke satu
-            product card yang masih tersedia.
-          </p>
+        <div class="rounded-xl border border-primary/20 bg-primary/5 p-5 space-y-4">
+          <p class="editor-label text-primary">KONEKSI ARTIKEL DETAIL</p>
+          <div class="grid gap-5 md:grid-cols-2">
+            <div>
+              <label class="editor-field-label">Link ke Artikel Utama</label>
+              <select v-model="form.parentArticleId" class="form-input">
+                <option value="">Pilih artikel utama</option>
+                <option v-for="article in articleStore.mainArticles" :key="article.id" :value="article.id">
+                  {{ article.title }}{{ article.category?.name ? ` — ${article.category.name}` : '' }}
+                </option>
+              </select>
+            </div>
+            <div>
+              <label class="editor-field-label">Link ke Card Produk</label>
+              <select v-model="form.linkedProductCardId" :disabled="!form.parentArticleId" class="form-input">
+                <option value="">Pilih product card</option>
+                <option v-for="productCard in productCardOptions" :key="productCard.id" :value="productCard.id">
+                  {{ productCard.title }}
+                </option>
+              </select>
+            </div>
+          </div>
         </div>
       </template>
 
-      <div>
-        <label class="mb-2 block text-sm font-medium text-stone-300">Nama Kategori</label>
-        <input
-          v-model="form.categoryName"
-          type="text"
-          class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-          placeholder="Masukkan kategori artikel"
-        />
+      <!-- Koneksi: Teknis → Wawasan -->
+      <template v-if="isTechnicalArticle">
+        <div class="rounded-xl border border-secondary/20 bg-secondary/5 p-5">
+          <p class="editor-label text-secondary mb-3">KONEKSI KE ARTIKEL WAWASAN (OPSIONAL)</p>
+          <select v-model="form.wawasanArticleId" class="form-input">
+            <option value="">Tidak dihubungkan ke wawasan</option>
+            <option v-for="article in articleStore.mainArticles" :key="article.id" :value="article.id">
+              {{ article.title }}{{ article.category?.name ? ` — ${article.category.name}` : '' }}
+            </option>
+          </select>
+          <p class="mt-2 text-xs text-on-surface-variant">Hubungkan artikel teknis ini ke artikel wawasan yang relevan agar pengguna awam bisa menemukan keduanya.</p>
+        </div>
+      </template>
+    </div>
+
+    <!-- ── SPESIFIKASI TEKNIS ── -->
+    <div v-if="isTechnicalArticle" class="editor-panel space-y-6" style="--editor-accent: rgb(var(--color-secondary))">
+      <div class="editor-panel-header">
+        <div>
+          <p class="editor-label" style="color: rgb(var(--color-secondary))">LANGKAH 3 — METADATA TEKNIS</p>
+          <h3 class="editor-panel-title">Spesifikasi Teknis</h3>
+          <p class="text-sm text-on-surface-variant mt-1">Metadata khusus yang membedakan artikel teknis dari artikel wawasan.</p>
+        </div>
+      </div>
+
+      <div class="grid gap-5 md:grid-cols-2">
+        <div>
+          <label class="editor-field-label">Tingkat Kesulitan</label>
+          <select v-model="form.difficultyLevel" class="form-input">
+            <option value="">Tidak ditentukan</option>
+            <option value="pemula">Pemula</option>
+            <option value="menengah">Menengah</option>
+            <option value="lanjutan">Lanjutan</option>
+          </select>
+        </div>
+        <div>
+          <label class="editor-field-label">Estimasi Waktu (menit)</label>
+          <input v-model="form.timeRequiredMinutes" type="number" min="0" class="form-input" placeholder="Contoh: 120" />
+          <p class="mt-1.5 text-xs text-on-surface-variant">Contoh: 120 = 2 jam.</p>
+        </div>
       </div>
 
       <div>
-        <label class="mb-2 block text-sm font-medium text-stone-300">Tag Artikel</label>
-        <input
-          v-model="form.tagsText"
-          type="text"
-          class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-          placeholder="Contoh: Cocopeat, Pertanian, UMKM"
-        />
-        <p class="mt-2 text-xs leading-6 text-stone-500">
-          Pisahkan beberapa tag dengan koma. Kategori tetap diisi terpisah di atas.
-        </p>
+        <label class="editor-field-label">Catatan Keselamatan / K3</label>
+        <textarea v-model="form.safetyNotes" rows="3" class="form-input" placeholder="Contoh: Gunakan APD (masker, sarung tangan) saat menangani H₃PO₄. Pastikan ventilasi cukup..."></textarea>
       </div>
 
-      <div>
-        <label class="mb-2 block text-sm font-medium text-stone-300">Status Draft Kerja</label>
-        <select
-          v-model="form.status"
-          class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-        >
-          <option value="draft">Draft</option>
-          <option value="revision">Revision</option>
-        </select>
-      </div>
-
-      <div class="md:col-span-2">
-        <label class="mb-2 block text-sm font-medium text-stone-300">Meta Description</label>
-        <textarea
-          v-model="form.metaDescription"
-          rows="3"
-          class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-          placeholder="Ringkasan singkat artikel untuk preview daftar artikel."
-        />
-      </div>
-
-      <div class="md:col-span-2">
-        <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <label class="mb-2 block text-sm font-medium text-stone-300">Section Artikel</label>
-            <p class="text-sm leading-7 text-stone-400">
-              Pecah artikel menjadi beberapa section agar pembaca melihat konten secara bertahap.
-            </p>
-          </div>
-          <button
-            type="button"
-            class="admin-secondary-action"
-            @click="addSectionRow"
-          >
-            Tambah Section
+      <div class="editor-sub-panel">
+        <div class="flex items-center justify-between mb-4">
+          <label class="editor-field-label mb-0">Daftar Bahan</label>
+          <button type="button" class="btn-add" @click="form.materialsList.push({ name: '', quantity: '', unit: '', note: '' })">
+            <span class="material-symbols-outlined text-[16px]">add</span> Tambah Bahan
           </button>
         </div>
+        <p v-if="form.materialsList.length === 0" class="text-sm text-on-surface-variant italic">Belum ada bahan.</p>
+        <div v-for="(mat, idx) in form.materialsList" :key="`mat-${idx}`" class="grid gap-3 md:grid-cols-[2fr_1fr_1fr_2fr_auto] items-end mb-3">
+          <input v-model="mat.name" type="text" class="form-input text-sm" placeholder="Nama bahan" />
+          <input v-model="mat.quantity" type="text" class="form-input text-sm" placeholder="Jumlah" />
+          <input v-model="mat.unit" type="text" class="form-input text-sm" placeholder="Satuan (kg, L)" />
+          <input v-model="mat.note" type="text" class="form-input text-sm" placeholder="Catatan" />
+          <button type="button" class="btn-remove" @click="form.materialsList.splice(idx, 1)">
+            <span class="material-symbols-outlined text-[16px]">close</span>
+          </button>
+        </div>
+      </div>
 
-        <div class="mt-5 space-y-5">
-          <div
-            v-for="(section, index) in form.sections"
-            :key="`section-${index}`"
-            class="rounded-lg border border-white/10 bg-[#303030] p-5"
-          >
-            <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-              <div class="space-y-4">
-                <input
-                  v-model="section.title"
-                  type="text"
-                  class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-                  :placeholder="index === 0 ? 'Judul section utama' : 'Judul section'"
-                />
-                <textarea
-                  :ref="(element) => setSectionTextareaRef(element, index)"
-                  v-model="section.body_content"
-                  rows="10"
-                  class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-                  placeholder="Tulis isi section, blok teks, lalu pilih style dari toolbar."
-                />
-                <div class="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-[#252525] p-2">
-                  <button
-                    v-for="item in inlineToolbarItems"
-                    :key="item.format"
-                    type="button"
-                    class="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-[#363636] text-sm font-black text-stone-100 transition hover:border-[#ff7c35]/50 hover:bg-[#3f332d]"
-                    :class="{ italic: item.format === 'italic', underline: item.format === 'underline' }"
-                    :title="item.title"
-                    @click="applySectionFormat(index, item.format)"
-                  >
-                    {{ item.label }}
-                  </button>
+      <div class="editor-sub-panel">
+        <div class="flex items-center justify-between mb-4">
+          <label class="editor-field-label mb-0">Daftar Alat</label>
+          <button type="button" class="btn-add" @click="form.toolsList.push({ name: '', spec: '', purpose: '' })">
+            <span class="material-symbols-outlined text-[16px]">add</span> Tambah Alat
+          </button>
+        </div>
+        <p v-if="form.toolsList.length === 0" class="text-sm text-on-surface-variant italic">Belum ada alat.</p>
+        <div v-for="(tool, idx) in form.toolsList" :key="`tool-${idx}`" class="grid gap-3 md:grid-cols-[2fr_2fr_2fr_auto] items-end mb-3">
+          <input v-model="tool.name" type="text" class="form-input text-sm" placeholder="Nama alat" />
+          <input v-model="tool.spec" type="text" class="form-input text-sm" placeholder="Spesifikasi" />
+          <input v-model="tool.purpose" type="text" class="form-input text-sm" placeholder="Fungsi / kegunaan" />
+          <button type="button" class="btn-remove" @click="form.toolsList.splice(idx, 1)">
+            <span class="material-symbols-outlined text-[16px]">close</span>
+          </button>
+        </div>
+      </div>
+    </div>
 
-                  <span class="h-8 w-px bg-white/10" />
+    <!-- ── KONTEN ARTIKEL ── -->
+    <div class="editor-panel">
+      <div class="editor-panel-header mb-6">
+        <div>
+          <p class="editor-label">LANGKAH {{ isTechnicalArticle ? 4 : 3 }} — ISI ARTIKEL</p>
+          <h3 class="editor-panel-title">Konten Artikel</h3>
+          <p class="text-sm text-on-surface-variant mt-1">Pecah artikel menjadi sub-bab agar mudah dibaca.</p>
+        </div>
+        <button type="button" class="btn-add" @click="addSectionRow">
+          <span class="material-symbols-outlined text-[16px]">add</span> Tambah Section
+        </button>
+      </div>
 
-                  <button
-                    v-for="item in blockToolbarItems"
-                    :key="item.format"
-                    type="button"
-                    class="min-h-9 rounded-lg border border-white/10 bg-[#363636] px-3 text-sm font-bold text-stone-100 transition hover:border-[#ff7c35]/50 hover:bg-[#3f332d]"
-                    :title="item.title"
-                    @click="applySectionFormat(index, item.format)"
-                  >
-                    {{ item.label }}
-                  </button>
+      <div class="space-y-6">
+        <div v-for="(section, index) in form.sections" :key="`section-${index}`" class="editor-sub-panel">
+          <div class="grid gap-6 xl:grid-cols-[1fr_360px]">
+            <div class="space-y-4">
+              <div class="grid gap-3" :class="isTechnicalArticle ? 'md:grid-cols-[auto_1fr]' : ''">
+                <div v-if="isTechnicalArticle">
+                  <label class="editor-field-label">Tipe Section</label>
+                  <select v-model="section.section_type" class="form-input text-sm">
+                    <option value="info">Info (Teks bebas)</option>
+                    <option value="procedure">Prosedur (Langkah bernomor)</option>
+                    <option value="tools">Alat & Bahan</option>
+                    <option value="data_table">Tabel Data</option>
+                    <option value="warning">Peringatan / Catatan</option>
+                    <option value="formula">Rumus / Formula</option>
+                    <option value="troubleshooting">Troubleshooting</option>
+                  </select>
                 </div>
-                <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
-                  <input
-                    v-model="section.video_path"
-                    type="text"
-                    class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-                    placeholder="/uploads/articles/video-section.mp4"
-                  />
-                  <label class="admin-secondary-action cursor-pointer">
-                    Upload Video
-                    <input
-                      type="file"
-                      class="hidden"
-                      accept=".mp4"
-                      @change="handleSectionVideoSelection($event, index)"
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    class="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200"
-                    @click="removeSectionRow(index)"
-                  >
-                    Hapus
-                  </button>
+                <div>
+                  <label class="editor-field-label">Judul Section</label>
+                  <input v-model="section.title" type="text" class="form-input" :placeholder="index === 0 ? 'Judul section utama (ex: Pendahuluan)' : 'Judul sub-bab'" />
                 </div>
               </div>
 
+              <div class="flex flex-wrap items-center gap-1.5 rounded-lg border border-outline-variant/40 bg-surface-container p-2">
+                <button v-for="item in inlineToolbarItems" :key="item.format" type="button" class="toolbar-btn" :class="{ italic: item.format === 'italic', underline: item.format === 'underline' }" :title="item.title" @click="applySectionFormat(index, item.format)">
+                  {{ item.label }}
+                </button>
+                <span class="h-5 w-px bg-outline-variant/40 mx-1" />
+                <button v-for="item in blockToolbarItems" :key="item.format" type="button" class="toolbar-btn px-3 text-xs" :title="item.title" @click="applySectionFormat(index, item.format)">
+                  {{ item.label }}
+                </button>
+              </div>
+
+              <textarea :ref="(el) => setSectionTextareaRef(el, index)" v-model="section.body_content" rows="8" class="form-input font-mono text-sm leading-relaxed" placeholder="Tulis isi paragraf di sini..."></textarea>
+
+              <div class="flex flex-col sm:flex-row gap-3">
+                <input v-model="section.video_path" type="text" class="form-input flex-1" placeholder="URL Video (Opsional)" />
+                <label class="btn-secondary cursor-pointer whitespace-nowrap text-xs text-center flex items-center justify-center gap-1.5">
+                  <span class="material-symbols-outlined text-[15px]">upload</span> Upload MP4
+                  <input type="file" class="hidden" accept=".mp4" @change="handleSectionVideoSelection($event, index)" />
+                </label>
+                <button type="button" class="btn-danger text-xs whitespace-nowrap" @click="removeSectionRow(index)">Hapus</button>
+              </div>
+            </div>
+
+            <div class="rounded-xl bg-surface-container border border-outline-variant/20 p-4 overflow-y-auto max-h-[400px]">
+              <p class="editor-label mb-3 border-b border-outline-variant/20 pb-2">Live Preview</p>
               <RichTextPreview :content="section.body_content" />
             </div>
           </div>
@@ -822,250 +985,551 @@ function submitForm() {
       </div>
     </div>
 
-    <p
-      v-if="formError"
-      class="mt-6 rounded-3xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm font-medium text-red-200"
-    >
-      {{ formError }}
-    </p>
-
-    <div v-if="!isDetailArticle" class="mt-8 rounded-3xl bg-[#383838] p-5">
-      <div class="flex items-center justify-between gap-4">
+    <!-- ── PRODUCT CARDS ── -->
+    <div v-if="!isDetailArticle" class="editor-panel">
+      <div class="editor-panel-header mb-6">
         <div>
-          <h3 class="text-sm font-semibold uppercase tracking-[0.22em] text-stone-300">
-            Product Cards Turunan
-          </h3>
-          <p class="mt-1 text-sm text-stone-400">
-            Tambahkan daftar produk turunan yang akan tampil sebagai card pada artikel utama.
-          </p>
+          <p class="editor-label">PRODUK TURUNAN</p>
+          <h3 class="editor-panel-title">Product Cards</h3>
+          <p class="text-sm text-on-surface-variant mt-1">Daftar produk yang dipromosikan di artikel ini.</p>
         </div>
-
-        <button
-          type="button"
-          class="rounded-full border border-white/12 bg-[#303030] px-4 py-2 text-sm font-semibold text-stone-200 transition hover:bg-[#3a3a3a]"
-          @click="addProductCardRow"
-        >
-          Tambah Card
+        <button type="button" class="btn-add" @click="addProductCardRow">
+          <span class="material-symbols-outlined text-[16px]">add</span> Tambah Card
         </button>
       </div>
-
-      <div class="mt-5 space-y-4">
-        <div
-          v-for="(item, index) in form.productCards"
-          :key="`product-card-${index}`"
-          class="rounded-3xl border border-white/8 bg-[#303030] p-5"
-        >
-          <div class="grid gap-4 md:grid-cols-2">
+      <div class="space-y-4">
+        <div v-for="(item, index) in form.productCards" :key="`product-card-${index}`" class="grid gap-4 md:grid-cols-[1fr_1fr_auto] items-start editor-sub-panel">
+          <div class="space-y-4">
             <div>
-              <label class="mb-2 block text-sm font-medium text-stone-300">Judul Produk</label>
-              <input
-                v-model="item.title"
-                type="text"
-                class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-                placeholder="Contoh: Arang Tempurung"
-              />
+              <label class="editor-field-label">Nama Produk</label>
+              <input v-model="item.title" type="text" class="form-input" placeholder="Arang Tempurung" />
             </div>
-
             <div>
-              <label class="mb-2 block text-sm font-medium text-stone-300">Gambar Produk</label>
-              <div class="flex flex-col gap-3 md:flex-row">
-                <input
-                  v-model="item.image"
-                  type="text"
-                  class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-                  placeholder="/uploads/articles/product-card.jpg"
-                />
-
-                <label class="flex cursor-pointer items-center justify-center rounded-2xl border border-[#ff7c35]/20 bg-[#3b312d] px-4 py-3 text-sm font-semibold text-[#ffb084] transition hover:bg-[#47352c]">
-                  Upload
-                  <input
-                    type="file"
-                    class="hidden"
-                    accept=".jpg,.jpeg,.png,.webp,.gif"
-                    @change="handleProductCardImageSelection($event, index)"
-                  />
+              <label class="editor-field-label">Gambar Produk</label>
+              <div class="flex gap-2">
+                <input v-model="item.image" type="text" class="form-input flex-1" placeholder="/url-gambar.jpg" />
+                <label class="btn-secondary cursor-pointer text-xs flex items-center justify-center gap-1">
+                  <span class="material-symbols-outlined text-[15px]">upload</span>
+                  <input type="file" class="hidden" accept="image/*" @change="handleProductCardImageSelection($event, index)" />
                 </label>
               </div>
             </div>
-
-            <div class="md:col-span-2">
-              <label class="mb-2 block text-sm font-medium text-stone-300">Deskripsi Singkat</label>
-              <textarea
-                v-model="item.description"
-                rows="3"
-                class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-                placeholder="Jelaskan singkat produk turunan ini."
-              />
-            </div>
           </div>
-
-          <div class="mt-4 flex justify-end">
-            <button
-              type="button"
-              class="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200 transition hover:bg-red-500/15"
-              @click="removeProductCardRow(index)"
-            >
-              Hapus Card
-            </button>
+          <div class="h-full flex flex-col">
+            <label class="editor-field-label">Deskripsi Singkat</label>
+            <textarea v-model="item.description" rows="4" class="form-input flex-1" placeholder="Jelaskan produk ini..."></textarea>
+          </div>
+          <div class="flex md:flex-col h-full justify-end">
+            <button type="button" class="btn-danger text-xs" @click="removeProductCardRow(index)">Hapus</button>
           </div>
         </div>
       </div>
     </div>
 
-    <div
-      v-else
-      class="mt-8 rounded-3xl border border-dashed border-white/15 bg-[#383838] p-5 text-sm leading-7 text-stone-400"
-    >
-      Dynamic product cards hanya dibuat pada artikel utama. Untuk artikel detail, gunakan panel linking di atas.
-    </div>
-
-    <div class="mt-8 rounded-lg bg-[#383838] p-5">
-      <div class="flex items-center justify-between gap-4">
+    <!-- ── SUMBER REFERENSI ── -->
+    <div class="editor-panel">
+      <div class="editor-panel-header mb-6">
         <div>
-          <h3 class="text-sm font-semibold uppercase tracking-[0.22em] text-stone-300">
-            Sumber Artikel
-          </h3>
-          <p class="mt-1 text-sm text-stone-400">
-            Tambahkan link jurnal agar pembaca bisa mengecek referensi secara langsung.
-          </p>
+          <p class="editor-label">REFERENSI</p>
+          <h3 class="editor-panel-title">Sumber Referensi</h3>
+          <p class="text-sm text-on-surface-variant mt-1">Daftar jurnal atau artikel terkait.</p>
         </div>
-        <button type="button" class="admin-secondary-action" @click="addSourceRow">
-          Tambah Sumber
+        <button type="button" class="btn-add" @click="addSourceRow">
+          <span class="material-symbols-outlined text-[16px]">add</span> Tambah Sumber
         </button>
       </div>
-
-      <div class="mt-5 space-y-4">
-        <div
-          v-for="(source, index) in form.sources"
-          :key="`source-${index}`"
-          class="grid gap-3 rounded-lg border border-white/8 bg-[#303030] p-4 xl:grid-cols-[1fr_1fr_auto]"
-        >
-          <input
-            v-model="source.title"
-            type="text"
-            class="px-4 py-3"
-            placeholder="Judul jurnal / sumber"
-          />
-          <input
-            v-model="source.url"
-            type="url"
-            class="px-4 py-3"
-            placeholder="https://contoh-jurnal.com/artikel"
-          />
-          <button
-            type="button"
-            class="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200"
-            @click="removeSourceRow(index)"
-          >
-            Hapus
-          </button>
+      <div class="space-y-3">
+        <div v-for="(source, index) in form.sources" :key="`source-${index}`" class="flex flex-col md:flex-row gap-3">
+          <input v-model="source.title" type="text" class="form-input md:w-1/3" placeholder="Judul Referensi" />
+          <input v-model="source.url" type="url" class="form-input flex-1" placeholder="https://link-jurnal.com" />
+          <button type="button" class="btn-danger text-xs px-5" @click="removeSourceRow(index)">Hapus</button>
         </div>
       </div>
     </div>
 
-    <div class="mt-8 rounded-3xl bg-[#383838] p-5">
-      <div class="flex items-center justify-between gap-4">
+    <!-- ── MEDIA GALERI ── -->
+    <div class="editor-panel">
+      <div class="editor-panel-header mb-6">
         <div>
-          <h3 class="text-sm font-semibold uppercase tracking-[0.22em] text-stone-300">
-            Media Artikel
-          </h3>
-          <p class="mt-1 text-sm text-stone-400">
-            Tambahkan link media dan jenis medianya agar dapat ditampilkan di halaman artikel.
-          </p>
+          <p class="editor-label">MEDIA</p>
+          <h3 class="editor-panel-title">Media Galeri</h3>
+          <p class="text-sm text-on-surface-variant mt-1">Gambar atau lampiran global untuk artikel.</p>
         </div>
-
-        <button
-          type="button"
-          class="rounded-full border border-white/12 bg-[#303030] px-4 py-2 text-sm font-semibold text-stone-200 transition hover:bg-[#3a3a3a]"
-          @click="addMediaRow"
-        >
-          Tambah Media
+        <button type="button" class="btn-add" @click="addMediaRow">
+          <span class="material-symbols-outlined text-[16px]">add</span> Tambah Media
         </button>
       </div>
-
-      <div class="mt-5 space-y-4">
-        <div
-          v-for="(item, index) in form.media"
-          :key="`${index}-${item.file_path}`"
-          class="grid gap-3 rounded-2xl border border-white/8 bg-[#303030] p-4 md:grid-cols-[1fr_180px_180px_auto]"
-        >
-          <input
-            v-model="item.file_path"
-            type="text"
-            class="rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-            placeholder="/uploads/articles/gambar-utama.jpg"
-          />
-
-          <select
-            v-model="item.media_type"
-            class="rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-stone-100 outline-none transition focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
-          >
-            <option value="image">image</option>
-            <option value="video">video</option>
-            <option value="document">document</option>
+      <div class="space-y-3">
+        <div v-for="(item, index) in form.media" :key="`${index}-${item.file_path}`" class="flex flex-col sm:flex-row gap-3 items-center">
+          <input v-model="item.file_path" type="text" class="form-input flex-1" placeholder="URL File / Upload..." />
+          <select v-model="item.media_type" class="form-input w-full sm:w-36">
+            <option value="image">Image</option>
+            <option value="video">Video</option>
+            <option value="document">Dokumen</option>
           </select>
-
-          <label class="flex cursor-pointer items-center justify-center rounded-2xl border border-[#ff7c35]/20 bg-[#3b312d] px-4 py-3 text-sm font-semibold text-[#ffb084] transition hover:bg-[#47352c]">
-            Upload File
-              <input
-                type="file"
-                class="hidden"
-                accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.pdf"
-                multiple
-                @change="handleFileSelection($event, index)"
-              />
-          </label>
-
-          <button
-            type="button"
-            class="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200 transition hover:bg-red-500/15"
-            @click="removeMediaRow(index)"
-          >
-            Hapus
-          </button>
+          <div class="flex w-full sm:w-auto gap-2">
+            <label class="btn-secondary flex-1 sm:flex-none cursor-pointer text-xs flex items-center justify-center gap-1">
+              <span class="material-symbols-outlined text-[15px]">upload</span> Upload
+              <input type="file" class="hidden" multiple @change="handleFileSelection($event, index)" />
+            </label>
+            <button type="button" class="btn-danger flex-1 sm:flex-none text-xs" @click="removeMediaRow(index)">Hapus</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="mt-8 flex flex-wrap gap-3">
-      <button
-        type="button"
-        :disabled="loading"
-        class="rounded-full bg-[#ff7c35] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#e86f2f] disabled:cursor-not-allowed disabled:opacity-60"
-        @click="submitForm"
-      >
-        {{ loading ? 'Memproses...' : isEditing ? 'Simpan Perubahan' : 'Simpan Draft' }}
+    <!-- ── ACTION BUTTONS ── -->
+    <div class="flex flex-wrap items-center gap-3 px-2 py-6 border-t border-outline-variant/30">
+      <button type="button" :disabled="loading" class="btn-primary" @click="submitForm">
+        {{ loading ? 'Menyimpan...' : isEditing ? 'Simpan Perubahan' : 'Simpan Draft Baru' }}
       </button>
 
-      <button
-        v-if="selectedArticle && selectedArticle.status !== 'published'"
-        type="button"
-        :disabled="loading"
-        class="rounded-full bg-[#c26939] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#b15f34] disabled:cursor-not-allowed disabled:opacity-60"
-        @click="$emit('publish', selectedArticle.id)"
-      >
+      <button v-if="selectedArticle && selectedArticle.status !== 'published'" type="button" :disabled="loading" class="btn-publish" @click="$emit('publish', selectedArticle.id)">
+        <span class="material-symbols-outlined text-[16px]">publish</span>
         Publish Artikel
       </button>
 
-      <button
-        v-if="selectedArticle && selectedArticle.status !== 'revision'"
-        type="button"
-        :disabled="loading"
-        class="rounded-full border border-[#ff7c35]/20 bg-[#ff7c35]/15 px-5 py-3 text-sm font-semibold text-[#ffd1b8] transition hover:bg-[#ff7c35]/25 disabled:cursor-not-allowed disabled:opacity-60"
-        @click="$emit('request-revision', selectedArticle.id)"
-      >
-        Minta Revisi
+      <button v-if="selectedArticle && selectedArticle.status !== 'revision'" type="button" :disabled="loading" class="btn-revision" @click="$emit('request-revision', selectedArticle.id)">
+        <span class="material-symbols-outlined text-[16px]">rate_review</span>
+        Tandai Revisi
       </button>
 
-      <button
-        v-if="selectedArticle"
-        type="button"
-        :disabled="loading"
-        class="rounded-full border border-red-500/20 bg-red-500/10 px-5 py-3 text-sm font-semibold text-red-200 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-60"
-        @click="$emit('delete', selectedArticle.id)"
-      >
+      <div v-if="selectedArticle && articleStore.articleVersions.length > 0" class="flex min-w-[280px] flex-1 items-center gap-3 rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-3">
+        <div class="min-w-0 flex-1">
+          <p class="editor-label mb-2">Publish Versi Spesifik</p>
+          <select v-model="selectedVersionToPublish" class="form-input">
+            <option value="" disabled>Pilih versi artikel</option>
+            <option v-for="version in articleStore.articleVersions" :key="version.id" :value="version.version_number">
+              Versi {{ version.version_number }} • {{ version.action }}
+            </option>
+          </select>
+        </div>
+        <button type="button" :disabled="loading || !selectedVersionToPublish" class="btn-primary" @click="publishSelectedVersion">
+          Publish
+        </button>
+      </div>
+
+      <div class="flex-1" />
+
+      <button v-if="selectedArticle" type="button" :disabled="loading" class="btn-delete" @click="$emit('delete', selectedArticle.id)">
+        <span class="material-symbols-outlined text-[16px]">delete</span>
         Hapus Artikel
       </button>
     </div>
-  </section>
+
+  </div>
 </template>
+
+<style scoped>
+/* ── Base panel ── */
+.editor-panel {
+  border: 1px solid var(--inner-border);
+  border-radius: 16px;
+  background: rgb(var(--color-surface-container-low));
+  padding: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .editor-panel { padding: 2rem; }
+}
+
+.editor-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--inner-border);
+  margin-bottom: 1.5rem;
+}
+
+.editor-panel-title {
+  margin-top: 0.3rem;
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: var(--inner-text);
+}
+
+.editor-label {
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--inner-accent);
+}
+
+.editor-field-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--inner-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.editor-sub-panel {
+  border: 1px solid var(--inner-border);
+  border-radius: 12px;
+  background: rgb(var(--color-surface-container));
+  padding: 1.25rem;
+}
+
+.editor-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--inner-border);
+  border-radius: 999px;
+  background: rgb(var(--color-surface-container));
+  color: var(--inner-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.35rem 0.75rem;
+  white-space: nowrap;
+}
+
+/* ── Type family cards ── */
+.type-family-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  border-radius: 14px;
+  border: 2px solid var(--inner-border);
+  background: rgb(var(--color-surface-container-low));
+  padding: 1.25rem;
+  text-align: left;
+  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.type-family-card--idle:hover {
+  border-color: rgb(var(--color-outline-variant));
+  background: rgb(var(--color-surface-container));
+  transform: translateY(-1px);
+}
+
+.type-family-card--wawasan-active {
+  border-color: rgb(var(--color-primary) / 0.5);
+  background: rgb(var(--color-primary) / 0.05);
+  box-shadow: 0 4px 16px rgb(var(--color-primary) / 0.1);
+}
+
+.type-family-card--teknis-active {
+  border-color: rgb(var(--color-secondary) / 0.5);
+  background: rgb(var(--color-secondary) / 0.05);
+  box-shadow: 0 4px 16px rgb(var(--color-secondary) / 0.1);
+}
+
+.type-family-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  border: 1px solid var(--inner-border);
+  background: rgb(var(--color-surface-container));
+  color: var(--inner-muted);
+  transition: background 180ms, color 180ms;
+}
+
+.type-family-icon .material-symbols-outlined {
+  font-size: 24px;
+}
+
+.type-icon--wawasan {
+  border-color: rgb(var(--color-primary) / 0.25);
+  background: rgb(var(--color-primary) / 0.08);
+  color: rgb(var(--color-primary));
+}
+
+.type-icon--teknis {
+  border-color: rgb(var(--color-secondary) / 0.25);
+  background: rgb(var(--color-secondary) / 0.08);
+  color: rgb(var(--color-secondary));
+}
+
+.type-tag {
+  display: inline-block;
+  border: 1px solid var(--inner-border);
+  border-radius: 999px;
+  background: rgb(var(--color-surface-container));
+  color: var(--inner-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+}
+
+.type-tag--more {
+  background: rgb(var(--color-secondary) / 0.1);
+  border-color: rgb(var(--color-secondary) / 0.2);
+  color: var(--inner-accent);
+}
+
+.type-check-icon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.type-check-icon .material-symbols-outlined {
+  font-size: 22px;
+  font-variation-settings: 'FILL' 1;
+}
+
+/* ── Sub-type section ── */
+.sub-type-section {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--inner-border);
+  margin-top: 0.25rem;
+}
+
+.subtype-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border-radius: 12px;
+  border: 1.5px solid var(--inner-border);
+  background: rgb(var(--color-surface-container-low));
+  padding: 1rem;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+  color: var(--inner-text);
+}
+
+.subtype-card:hover {
+  border-color: rgb(var(--color-outline-variant));
+  background: rgb(var(--color-surface-container));
+  transform: translateY(-1px);
+}
+
+.subtype-card--active {
+  border-color: transparent;
+  background: rgb(var(--color-surface-container));
+}
+
+.subtype-card--wawasan.subtype-card--active {
+  border-color: rgb(var(--color-primary) / 0.4);
+  background: rgb(var(--color-primary) / 0.06);
+}
+
+.subtype-card--teknis.subtype-card--active {
+  border-color: rgb(var(--color-secondary) / 0.4);
+  background: rgb(var(--color-secondary) / 0.06);
+}
+
+.subtype-card--wawasan.subtype-card--active .material-symbols-outlined {
+  color: rgb(var(--color-primary));
+}
+
+.subtype-card--teknis.subtype-card--active .material-symbols-outlined {
+  color: rgb(var(--color-secondary));
+}
+
+/* ── Form inputs ── */
+.form-input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--inner-border);
+  background: rgb(var(--color-surface-container-lowest));
+  padding: 0.7rem 1rem;
+  font-size: 0.88rem;
+  color: var(--inner-text);
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.form-input::placeholder { color: var(--inner-faint); }
+
+.form-input:focus {
+  border-color: var(--inner-accent);
+  box-shadow: 0 0 0 3px rgb(var(--color-secondary) / 0.1);
+}
+
+/* ── Buttons ── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-primary));
+  background: rgb(var(--color-primary));
+  color: rgb(var(--color-on-primary));
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  transition: opacity 150ms ease, transform 150ms ease;
+  white-space: nowrap;
+}
+
+.btn-primary:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-publish {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-primary-container));
+  background: rgb(var(--color-primary-container));
+  color: rgb(var(--color-on-primary-container));
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  transition: opacity 150ms, transform 150ms;
+  white-space: nowrap;
+}
+.btn-publish:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+.btn-publish:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-revision {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-secondary) / 0.3);
+  background: rgb(var(--color-secondary) / 0.08);
+  color: var(--inner-accent);
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  transition: background 150ms, transform 150ms;
+  white-space: nowrap;
+}
+.btn-revision:hover:not(:disabled) { background: rgb(var(--color-secondary) / 0.14); transform: translateY(-1px); }
+.btn-revision:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-error) / 0.25);
+  background: rgb(var(--color-error-container) / 0.15);
+  color: rgb(var(--color-error));
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  transition: background 150ms, transform 150ms;
+  white-space: nowrap;
+}
+.btn-delete:hover:not(:disabled) { background: rgb(var(--color-error-container) / 0.3); transform: translateY(-1px); }
+.btn-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--inner-border);
+  background: rgb(var(--color-surface-container));
+  color: var(--inner-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  transition: background 150ms, border-color 150ms;
+  white-space: nowrap;
+}
+.btn-secondary:hover { background: rgb(var(--color-surface-container-high)); border-color: rgb(var(--color-outline-variant)); }
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-error) / 0.25);
+  background: rgb(var(--color-error-container) / 0.12);
+  color: rgb(var(--color-error));
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  transition: background 150ms;
+}
+.btn-danger:hover { background: rgb(var(--color-error-container) / 0.25); }
+
+.btn-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-secondary) / 0.3);
+  background: rgb(var(--color-secondary) / 0.07);
+  color: var(--inner-accent);
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  transition: background 150ms;
+  white-space: nowrap;
+}
+.btn-add:hover { background: rgb(var(--color-secondary) / 0.14); }
+
+.btn-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-error) / 0.2);
+  background: transparent;
+  color: rgb(var(--color-error));
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 150ms;
+}
+.btn-remove:hover { background: rgb(var(--color-error-container) / 0.2); }
+
+/* ── Toolbar ── */
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--inner-muted);
+  font-weight: 800;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.toolbar-btn:hover {
+  background: rgb(var(--color-surface-container-high));
+  color: var(--inner-text);
+}
+
+/* ── Select custom arrow ── */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23708778' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 1rem center;
+  background-repeat: no-repeat;
+  background-size: 1.2em 1.2em;
+  padding-right: 2.5rem !important;
+}
+
+/* ── Transition ── */
+.subtype-fade-enter-active,
+.subtype-fade-leave-active {
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+.subtype-fade-enter-from,
+.subtype-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+</style>

@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import { useAdminStore } from '@/stores/admin';
@@ -52,8 +52,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="inner-page admin-workspace px-5 pb-12 pt-32 text-stone-100 sm:px-8 lg:px-10">
-    <SiteNavbar variant="admin" />
+  <SiteNavbar variant="admin" />
+  <main class="inner-page admin-workspace px-5 pb-12 pt-32 text-on-surface sm:px-8 lg:px-10">
 
     <section class="mx-auto max-w-[1500px]">
       <header class="admin-ops-header">
@@ -63,7 +63,7 @@ onMounted(async () => {
         </div>
       </header>
 
-      <p v-if="feedback" class="mt-6 rounded-lg border border-[#ff7c35]/20 bg-[#ff7c35]/10 px-5 py-4 text-sm font-medium text-[#ffd1b8]">
+      <p v-if="feedback" class="admin-feedback-alert mt-6">
         {{ feedback }}
       </p>
 
@@ -89,7 +89,7 @@ onMounted(async () => {
               placeholder="Cari isi komentar..."
               @keyup.enter="submitSearch"
             />
-            <button type="button" class="admin-primary-action w-full" @click="submitSearch">
+            <button type="button" class="admin-primary-action w-full transition-all duration-150" @click="submitSearch">
               Cari Komentar
             </button>
           </div>
@@ -110,7 +110,7 @@ onMounted(async () => {
               <small>{{ comment.created_at ? new Date(comment.created_at).toLocaleString('id-ID') : 'Tanpa waktu' }}</small>
               <button
                 type="button"
-                class="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200"
+                class="admin-delete-btn"
                 @click="handleCommentDelete(comment.id)"
               >
                 Hapus
@@ -118,7 +118,7 @@ onMounted(async () => {
             </div>
           </article>
 
-          <div v-if="!adminStore.comments.length && !adminStore.isLoading" class="admin-empty-state">
+          <div v-if="!adminStore.comments.length && !adminStore.isLoading" class="admin-empty-state text-outline border-outline-variant/40">
             Tidak ada komentar yang cocok dengan filter.
           </div>
         </section>
@@ -127,18 +127,18 @@ onMounted(async () => {
       <div v-if="adminStore.commentMeta.total_pages > 1" class="mt-8 flex flex-wrap items-center justify-between gap-3">
         <button
           type="button"
-          class="admin-secondary-action disabled:opacity-40"
+          class="admin-secondary-action transition-all duration-150 disabled:opacity-40"
           :disabled="adminStore.commentMeta.page <= 1"
           @click="goToPage(adminStore.commentMeta.page - 1)"
         >
           Sebelumnya
         </button>
-        <span class="text-sm font-medium text-stone-300">
+        <span class="text-sm font-medium text-on-surface-variant">
           Halaman {{ adminStore.commentMeta.page }} dari {{ adminStore.commentMeta.total_pages }}
         </span>
         <button
           type="button"
-          class="admin-secondary-action disabled:opacity-40"
+          class="admin-secondary-action transition-all duration-150 disabled:opacity-40"
           :disabled="adminStore.commentMeta.page >= adminStore.commentMeta.total_pages"
           @click="goToPage(adminStore.commentMeta.page + 1)"
         >

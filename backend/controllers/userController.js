@@ -2,7 +2,7 @@
 
 const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
-const { User, UserProfile, sequelize } = require('../models');
+const { User, UserProfile, ModeratorAssignment, sequelize } = require('../models');
 const { badRequest, notFound, conflict, forbidden } = require('../utils/httpErrors');
 const { sanitizeUser } = require('../utils/serializers');
 const {
@@ -10,8 +10,9 @@ const {
   normalizeEmail,
   isNonEmptyString,
   isStrongPassword,
-  isValidPengelolaJob,
-  normalizeJobTitle,
+  isValidModeratorType,
+  normalizeModeratorType,
+  ROLES,
 } = require('../utils/validators');
 const { writeAuditLog } = require('../utils/auditLogger');
 
@@ -74,7 +75,7 @@ async function listUsers(req, res, next) {
     const limit = Math.min(Math.max(Number(req.query.limit || 10), 1), 50);
     const offset = (page - 1) * limit;
 
-    const roleFilter = ['admin', 'pengelola', 'user'].includes(role) ? { role } : {};
+    const roleFilter = ROLES.includes(role) ? { role } : {};
     const searchFilter = search
       ? {
           [Op.or]: [
@@ -95,6 +96,10 @@ async function listUsers(req, res, next) {
         {
           model: UserProfile,
           as: 'profile',
+        },
+        {
+          model: ModeratorAssignment,
+          as: 'moderatorAssignment',
         },
       ],
       order: [['created_at', 'DESC']],
@@ -137,6 +142,10 @@ async function getUserById(req, res, next) {
           model: UserProfile,
           as: 'profile',
         },
+        {
+          model: ModeratorAssignment,
+          as: 'moderatorAssignment',
+        },
       ],
     });
 
@@ -167,6 +176,7 @@ async function createUser(req, res, next) {
     const jobTitle = typeof req.body.job_title === 'string' ? req.body.job_title.trim() : null;
     const department = typeof req.body.department === 'string' ? req.body.department.trim() : null;
     const division = typeof req.body.division === 'string' ? req.body.division.trim() : null;
+    const moderatorType = normalizeModeratorType(req.body.moderator_type);
 
     if (!isValidEmail(email)) {
       throw badRequest('Email tidak valid.');
@@ -176,12 +186,12 @@ async function createUser(req, res, next) {
       throw badRequest('Password minimal 8 karakter dan harus mengandung huruf serta angka.');
     }
 
-    if (!['admin', 'pengelola', 'user'].includes(role)) {
-      throw badRequest('Role hanya boleh admin, pengelola, atau user.');
+    if (!ROLES.includes(role)) {
+      throw badRequest('Role hanya boleh admin, pengelola, moderator, atau user.');
     }
 
-    if (role === 'pengelola' && !isValidPengelolaJob(jobTitle)) {
-      throw badRequest('Jabatan pengelola wajib dipilih dan harus valid.');
+    if (role === 'moderator' && !isValidModeratorType(moderatorType)) {
+      throw badRequest('Moderator wajib memiliki tipe tugas: content, publication, forum, atau tag.');
     }
 
     const existing = await User.findOne({ where: { email }, transaction });
@@ -204,17 +214,31 @@ async function createUser(req, res, next) {
       {
         user_id: user.id,
         full_name: fullName || email.split('@')[0],
-        job_title: role === 'pengelola' ? jobTitle : null,
-        department: role === 'pengelola' ? department : null,
-        division: role === 'pengelola' ? division : null,
+        job_title: jobTitle,
+        department,
+        division,
       },
       { transaction }
     );
 
+    if (role === 'moderator') {
+      await ModeratorAssignment.create(
+        {
+          user_id: user.id,
+          moderator_type: moderatorType,
+          assigned_by: req.user.id,
+        },
+        { transaction }
+      );
+    }
+
     await transaction.commit();
 
     const created = await User.findByPk(user.id, {
-      include: [{ model: UserProfile, as: 'profile' }],
+      include: [
+        { model: UserProfile, as: 'profile' },
+        { model: ModeratorAssignment, as: 'moderatorAssignment' },
+      ],
     });
 
     return res.status(201).json({
@@ -243,6 +267,10 @@ async function adminUpdateUser(req, res, next) {
         {
           model: UserProfile,
           as: 'profile',
+        },
+        {
+          model: ModeratorAssignment,
+          as: 'moderatorAssignment',
         },
       ],
       transaction,
@@ -275,8 +303,12 @@ async function adminUpdateUser(req, res, next) {
     if (req.body.role !== undefined) {
       const role = typeof req.body.role === 'string' ? req.body.role.trim().toLowerCase() : '';
 
-      if (!['admin', 'pengelola', 'user'].includes(role)) {
-        throw badRequest('Role hanya boleh admin, pengelola, atau user.');
+      if (!ROLES.includes(role)) {
+        throw badRequest('Role hanya boleh admin, pengelola, moderator, atau user.');
+      }
+
+      if (req.user.id === user.id && req.user.role === 'admin' && role !== 'admin') {
+        throw forbidden('Admin tidak dapat mengubah role akunnya sendiri.');
       }
 
       user.role = role;
@@ -293,12 +325,17 @@ async function adminUpdateUser(req, res, next) {
     await user.save({ transaction });
 
     const profilePayload = req.body.profile || {};
+    const requestedModeratorType =
+      profilePayload.moderator_type !== undefined
+        ? profilePayload.moderator_type
+        : req.body.moderator_type;
     const shouldUpdateProfile =
       req.body.full_name !== undefined ||
       req.body.bio !== undefined ||
       req.body.avatar_url !== undefined ||
       req.body.job_title !== undefined ||
       req.body.department !== undefined ||
+      req.body.moderator_type !== undefined ||
       req.body.division !== undefined ||
       Object.keys(profilePayload).length > 0;
 
@@ -320,8 +357,6 @@ async function adminUpdateUser(req, res, next) {
       const division =
         profilePayload.division !== undefined ? profilePayload.division : req.body.division;
 
-      const nextRole = user.role;
-
       if (fullName !== undefined) {
         const normalizedFullName = typeof fullName === 'string' ? fullName.trim() : '';
 
@@ -337,13 +372,7 @@ async function adminUpdateUser(req, res, next) {
       }
 
       if (jobTitle !== undefined) {
-        const normalizedJobTitle = isNonEmptyString(jobTitle) ? normalizeJobTitle(jobTitle) : '';
-
-        if (normalizedJobTitle && !isValidPengelolaJob(normalizedJobTitle)) {
-          throw badRequest('Jabatan pengelola tidak valid.');
-        }
-
-        user.profile.job_title = normalizedJobTitle || null;
+        user.profile.job_title = isNonEmptyString(jobTitle) ? jobTitle.trim() : null;
       }
 
       if (department !== undefined) {
@@ -358,17 +387,36 @@ async function adminUpdateUser(req, res, next) {
         user.profile.avatar_url = isNonEmptyString(avatarUrl) ? avatarUrl.trim() : null;
       }
 
-      if (nextRole === 'pengelola' && !isValidPengelolaJob(user.profile.job_title)) {
-        throw badRequest('Pengelola wajib memiliki jabatan yang valid.');
-      }
-
-      if (nextRole !== 'pengelola') {
-        user.profile.job_title = null;
-        user.profile.department = null;
-        user.profile.division = null;
-      }
-
       await user.profile.save({ transaction });
+    }
+
+    const nextModeratorType = normalizeModeratorType(
+      requestedModeratorType !== undefined
+        ? requestedModeratorType
+        : user.moderatorAssignment?.moderator_type
+    );
+
+    if (user.role === 'moderator') {
+      if (!isValidModeratorType(nextModeratorType)) {
+        throw badRequest('Moderator wajib memiliki tipe tugas yang valid.');
+      }
+
+      if (user.moderatorAssignment) {
+        user.moderatorAssignment.moderator_type = nextModeratorType;
+        user.moderatorAssignment.assigned_by = req.user.id;
+        await user.moderatorAssignment.save({ transaction });
+      } else {
+        await ModeratorAssignment.create(
+          {
+            user_id: user.id,
+            moderator_type: nextModeratorType,
+            assigned_by: req.user.id,
+          },
+          { transaction }
+        );
+      }
+    } else if (user.moderatorAssignment) {
+      await user.moderatorAssignment.destroy({ transaction });
     }
 
     await transaction.commit();
@@ -378,6 +426,10 @@ async function adminUpdateUser(req, res, next) {
         {
           model: UserProfile,
           as: 'profile',
+        },
+        {
+          model: ModeratorAssignment,
+          as: 'moderatorAssignment',
         },
       ],
     });

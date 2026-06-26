@@ -30,57 +30,91 @@ function submitReply(payload) {
 function deleteComment() {
   emit('delete', props.comment.id);
 }
+
+function formatDate(dateStr) {
+  return new Date(dateStr).toLocaleDateString('id-ID', {
+    day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+}
 </script>
 
 <template>
-  <div class="premium-panel space-y-4 p-5">
-    <div class="flex items-start justify-between gap-4">
-      <div>
-        <p class="text-sm font-semibold text-stone-100">
-          {{ comment.user?.profile?.full_name || comment.user?.email || 'Pengguna' }}
-        </p>
-        <p class="mt-1 text-xs uppercase tracking-[0.18em] text-stone-500">
-          {{ new Date(comment.created_at).toLocaleString('id-ID') }}
-        </p>
+  <div class="rounded-2xl border border-outline-variant/40 bg-surface-container-lowest p-5 space-y-3">
+
+    <!-- Header: avatar + name + date + reply button -->
+    <div class="flex items-start justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <!-- Avatar -->
+        <div class="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0 text-primary font-bold text-sm">
+          {{ (comment.user?.profile?.full_name || comment.user?.email || 'U')[0].toUpperCase() }}
+        </div>
+        <div>
+          <p class="text-sm font-semibold text-on-surface leading-tight">
+            {{ comment.user?.profile?.full_name || comment.user?.email || 'Pengguna' }}
+          </p>
+          <p class="text-xs text-on-surface-variant mt-0.5">
+            {{ formatDate(comment.created_at) }}
+          </p>
+        </div>
       </div>
 
       <button
         v-if="authStore.isAuthenticated"
         type="button"
-        class="rounded-full border border-white/12 bg-[#383838] px-3 py-1.5 text-xs font-semibold text-stone-200 transition hover:bg-[#434343]"
+        class="flex-shrink-0 rounded-lg border border-outline-variant px-3 py-1 text-xs font-semibold text-on-surface-variant transition hover:bg-surface-container hover:text-on-surface"
         @click="showReplyForm = !showReplyForm"
       >
-        {{ showReplyForm ? 'Tutup Balasan' : 'Balas' }}
+        {{ showReplyForm ? 'Tutup' : 'Balas' }}
       </button>
     </div>
 
-    <p class="text-sm leading-7 text-stone-300">
+    <!-- Comment body -->
+    <p class="text-sm leading-relaxed text-on-surface pl-12">
       {{ comment.body }}
     </p>
 
-    <div class="flex flex-wrap items-center gap-3">
+    <!-- Attachment -->
+    <a
+      v-if="comment.attachment?.path"
+      :href="comment.attachment.path"
+      target="_blank"
+      rel="noreferrer"
+      class="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10 ml-12"
+    >
+      <span class="material-symbols-outlined" style="font-size:14px">attach_file</span>
+      Lampiran: {{ comment.attachment.name || 'Dokumen' }}
+    </a>
+
+    <!-- Delete -->
+    <div v-if="authStore.isAdmin || authStore.user?.id === comment.user_id" class="pl-12">
       <button
-        v-if="authStore.isAdmin || authStore.user?.id === comment.user_id"
         type="button"
-        class="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-500/15"
+        class="inline-flex items-center gap-1 rounded-lg border border-error/20 bg-error/5 px-3 py-1 text-xs font-semibold text-error transition hover:bg-error/10"
         @click="deleteComment"
       >
+        <span class="material-symbols-outlined" style="font-size:13px">delete</span>
         Hapus
       </button>
     </div>
 
-    <CommentComposer
-      v-if="showReplyForm"
-      :article-id="articleId"
-      :parent-id="comment.id"
-      :loading="loading"
-      placeholder="Tulis balasan untuk komentar ini..."
-      submit-label="Kirim Balasan"
-      @submit="submitReply"
-      @cancel="showReplyForm = false"
-    />
+    <!-- Reply form -->
+    <div v-if="showReplyForm" class="pl-12 pt-2">
+      <CommentComposer
+        :article-id="articleId"
+        :parent-id="comment.id"
+        :loading="loading"
+        placeholder="Tulis balasan untuk komentar ini..."
+        submit-label="Kirim Balasan"
+        @submit="submitReply"
+        @cancel="showReplyForm = false"
+      />
+    </div>
 
-    <div v-if="comment.replies?.length" class="space-y-4 border-l border-[#ff7c35]/25 pl-4 md:pl-6">
+    <!-- Nested replies -->
+    <div
+      v-if="comment.replies?.length"
+      class="pl-12 space-y-3 border-l-2 border-outline-variant/30 ml-4"
+    >
       <CommentItem
         v-for="reply in comment.replies"
         :key="reply.id"
@@ -91,5 +125,6 @@ function deleteComment() {
         @delete="$emit('delete', $event)"
       />
     </div>
+
   </div>
 </template>

@@ -9,6 +9,7 @@ const {
   Tag,
   Comment,
   ProductCard,
+  ArticleVersion,
   User,
   UserProfile,
   sequelize,
@@ -27,6 +28,7 @@ const {
 } = require('../utils/validators');
 const { sanitizeArticle } = require('../utils/serializers');
 const { writeAuditLog } = require('../utils/auditLogger');
+const { hasModeratorScope } = require('../utils/accessControl');
 
 function hashIp(value) {
   if (!value) {
@@ -240,6 +242,8 @@ function normalizeSectionInput(sectionInput, fallbackBodyContent = '') {
       const title = typeof item.title === 'string' ? item.title.trim() : '';
       const bodyContent = typeof item.body_content === 'string' ? item.body_content.trim() : '';
       const videoPath = typeof item.video_path === 'string' ? item.video_path.trim() : '';
+      const validSectionTypes = ['info', 'procedure', 'tools', 'data_table', 'warning', 'formula', 'troubleshooting'];
+      const sectionType = validSectionTypes.includes(item.section_type) ? item.section_type : 'info';
 
       if (!title) {
         throw badRequest(`sections[${index}].title wajib diisi.`);
@@ -253,6 +257,7 @@ function normalizeSectionInput(sectionInput, fallbackBodyContent = '') {
         title,
         body_content: bodyContent,
         video_path: videoPath || null,
+        section_type: sectionType,
       };
     })
     .filter((item) => item.title || item.body_content || item.video_path);
@@ -322,6 +327,27 @@ function normalizeTagInput(tagInput) {
       })
       .filter(Boolean)
   )];
+}
+
+function normalizeTechnicalFields(body) {
+  const validDifficulty = ['pemula', 'menengah', 'lanjutan'];
+  return {
+    difficulty_level: validDifficulty.includes(body.difficulty_level) ? body.difficulty_level : undefined,
+    time_required_minutes:
+      body.time_required_minutes !== undefined
+        ? (Number.isInteger(Number(body.time_required_minutes)) ? Math.max(0, Number(body.time_required_minutes)) : null)
+        : undefined,
+    materials_list: Array.isArray(body.materials_list) ? body.materials_list : (body.materials_list === null ? null : undefined),
+    tools_list: Array.isArray(body.tools_list) ? body.tools_list : (body.tools_list === null ? null : undefined),
+    process_parameters: body.process_parameters !== undefined ? body.process_parameters : undefined,
+    quality_indicators: body.quality_indicators !== undefined ? body.quality_indicators : undefined,
+    safety_notes:
+      body.safety_notes !== undefined
+        ? (typeof body.safety_notes === 'string' ? body.safety_notes.trim() || null : null)
+        : undefined,
+    prerequisite_article_ids:
+      Array.isArray(body.prerequisite_article_ids) ? body.prerequisite_article_ids : (body.prerequisite_article_ids === null ? null : undefined),
+  };
 }
 
 async function syncArticleTags(article, tagInput, transaction) {
@@ -433,6 +459,173 @@ async function syncProductCardLink({
   );
 }
 
+function buildArticleVersionSnapshot(articleInstance) {
+  const article = articleInstance.toJSON ? articleInstance.toJSON() : articleInstance;
+
+  return {
+    title: article.title,
+    category_id: article.category_id,
+    parent_article_id: article.parent_article_id,
+    status: article.status,
+    version: article.version,
+    detail: article.detail
+      ? {
+          body_content: article.detail.body_content,
+          meta_description: article.detail.meta_description,
+          sections: Array.isArray(article.detail.sections) ? article.detail.sections : [],
+          sources: Array.isArray(article.detail.sources) ? article.detail.sources : [],
+        }
+      : null,
+    tags: Array.isArray(article.tags) ? article.tags.map((tag) => tag.name) : [],
+    media: Array.isArray(article.media)
+      ? article.media.map((media) => ({
+          file_path: media.file_path,
+          media_type: media.media_type,
+        }))
+      : [],
+    product_cards: Array.isArray(article.productCards)
+      ? article.productCards
+          .filter((productCard) => !productCard.linked_article_id)
+          .map((productCard) => ({
+            title: productCard.title,
+            description: productCard.description,
+            image: productCard.image,
+          }))
+      : [],
+    linked_product_card_id: article.linkedProductCard?.id || null,
+  };
+}
+
+async function recordArticleVersionSnapshot({
+  articleSnapshot,
+  articleId,
+  versionNumber,
+  sourceVersionNumber = null,
+  action,
+  actorId = null,
+  transaction,
+}) {
+  return ArticleVersion.create(
+    {
+      article_id: articleId,
+      version_number: versionNumber,
+      source_version_number: sourceVersionNumber,
+      action,
+      snapshot: articleSnapshot,
+      actor_id: actorId,
+    },
+    { transaction }
+  );
+}
+
+async function applyArticleVersionSnapshot({
+  article,
+  snapshot,
+  actorId,
+  transaction,
+}) {
+  article.title = snapshot.title;
+  article.category_id = snapshot.category_id;
+  article.parent_article_id = snapshot.parent_article_id;
+  article.status = 'published';
+  article.version += 1;
+
+  await article.save({ transaction });
+
+  if (!article.detail) {
+    article.detail = await ArticleDetail.create(
+      {
+        article_id: article.id,
+        body_content: snapshot.detail?.body_content || '',
+        meta_description: snapshot.detail?.meta_description || null,
+        sections: snapshot.detail?.sections || [],
+        sources: snapshot.detail?.sources || [],
+      },
+      { transaction }
+    );
+  } else if (snapshot.detail) {
+    article.detail.body_content = snapshot.detail.body_content || '';
+    article.detail.meta_description = snapshot.detail.meta_description || null;
+    article.detail.sections = snapshot.detail.sections || [];
+    article.detail.sources = snapshot.detail.sources || [];
+    await article.detail.save({ transaction });
+  }
+
+  await syncArticleTags(article, snapshot.tags || [], transaction);
+
+  await ArticleMedia.destroy({
+    where: { article_id: article.id },
+    transaction,
+  });
+
+  if (Array.isArray(snapshot.media) && snapshot.media.length > 0) {
+    await ArticleMedia.bulkCreate(
+      snapshot.media.map((item) => ({
+        article_id: article.id,
+        file_path: item.file_path,
+        media_type: item.media_type,
+      })),
+      { transaction }
+    );
+  }
+
+  await ProductCard.destroy({
+    where: {
+      article_id: article.id,
+      linked_article_id: null,
+    },
+    transaction,
+  });
+
+  if (Array.isArray(snapshot.product_cards) && snapshot.product_cards.length > 0) {
+    await ProductCard.bulkCreate(
+      snapshot.product_cards.map((item) => ({
+        article_id: article.id,
+        title: item.title,
+        description: item.description,
+        image: item.image,
+      })),
+      { transaction }
+    );
+  }
+
+  await syncProductCardLink({
+    articleId: article.id,
+    currentLinkedProductCardId: article.linkedProductCard?.id || null,
+    nextLinkedProductCardId: snapshot.linked_product_card_id || null,
+    parentArticleId: article.parent_article_id,
+    transaction,
+  });
+
+  await recordArticleVersionSnapshot({
+    articleSnapshot: snapshot,
+    articleId: article.id,
+    versionNumber: article.version,
+    sourceVersionNumber: snapshot.version,
+    action: 'publish_version',
+    actorId,
+    transaction,
+  });
+
+  return article;
+}
+
+async function getArticleVersionByNumberOrThrow(articleId, versionNumber, transaction) {
+  const articleVersion = await ArticleVersion.findOne({
+    where: {
+      article_id: articleId,
+      version_number: versionNumber,
+    },
+    transaction,
+  });
+
+  if (!articleVersion) {
+    throw notFound('Versi artikel tidak ditemukan.');
+  }
+
+  return articleVersion;
+}
+
 async function findOrCreateCategory(categoryPayload, transaction) {
   const categoryId = categoryPayload && categoryPayload.id ? Number(categoryPayload.id) : null;
   const categoryName = normalizeCategoryName(categoryPayload && categoryPayload.name);
@@ -514,6 +707,18 @@ async function getArticleByIdOrThrow(articleId, options = {}) {
         attributes: ['id', 'title', 'category_id', 'status'],
       },
       {
+        model: Article,
+        as: 'wawasanArticle',
+        attributes: ['id', 'title', 'article_type', 'status'],
+      },
+      {
+        model: Article,
+        as: 'technicalArticles',
+        attributes: ['id', 'title', 'article_type', 'status'],
+        where: { status: 'published' },
+        required: false,
+      },
+      {
         model: ProductCard,
         as: 'productCards',
         separate: true,
@@ -548,16 +753,120 @@ async function getArticleByIdOrThrow(articleId, options = {}) {
   return article;
 }
 
+// async function listPublishedArticles(req, res, next) {
+//   try {
+//     const page = Math.max(Number(req.query.page || 1), 1);
+//     const limit = Math.min(Math.max(Number(req.query.limit || 6), 1), 50);
+//     const offset = (page - 1) * limit;
+//     const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+//     const category = typeof req.query.category === 'string' ? req.query.category.trim() : '';
+//     const tag = typeof req.query.tag === 'string' ? req.query.tag.trim() : '';
+//     const where = {
+//       status: 'published',
+//     };
+
+//     if (search) {
+//       where[Op.or] = [
+//         { title: { [Op.like]: `%${search}%` } },
+//         { '$detail.body_content$': { [Op.like]: `%${search}%` } },
+//         { '$detail.meta_description$': { [Op.like]: `%${search}%` } },
+//       ];
+//     }
+
+//     if (category) {
+//       where['$category.name$'] = {
+//         [Op.like]: `%${category}%`,
+//       };
+//     }
+
+//     const { rows: articles, count } = await Article.findAndCountAll({
+//     where,
+//       include: [
+//         {
+//           model: User,
+//           as: 'author',
+//           attributes: ['id', 'email', 'role'],
+//           include: [
+//             {
+//               model: UserProfile,
+//               as: 'profile',
+//               attributes: ['user_id', 'full_name', 'bio', 'avatar_url'],
+//             },
+//           ],
+//         },
+//         {
+//           model: Category,
+//           as: 'category',
+//           duplicating: false
+//         },
+//         {
+//           model: Tag,
+//           as: 'tags',
+//           through: {
+//             attributes: [],
+//           },
+//           attributes: ['id', 'name', 'description'],
+//           where: tag ? { name: tag } : undefined, 
+//           required: !!tag 
+//         },
+//         {
+//           model: ArticleDetail,
+//           as: 'detail',
+//           duplicating: false 
+//         },
+//         {
+//           model: ArticleMedia,
+//           as: 'media',
+//         },
+//       ],
+//       order: [['created_at', 'DESC']],
+//       limit,
+//       offset,
+//       distinct: true,
+//     });
+
+//     return res.status(200).json({
+//       success: true,
+//       message: 'Daftar artikel published berhasil diambil.',
+//       data: {
+//         articles: articles.map((article) => sanitizeArticle(article, { includeComments: false })),
+//         meta: {
+//           page,
+//           limit,
+//           total_items: count,
+//           total_pages: Math.ceil(count / limit),
+//           search,
+//           category,
+//         },
+//       },
+//     });
+//   } catch (error) {
+//     return next(error);
+//   }
+// }
+
 async function listPublishedArticles(req, res, next) {
   try {
     const page = Math.max(Number(req.query.page || 1), 1);
     const limit = Math.min(Math.max(Number(req.query.limit || 6), 1), 50);
     const offset = (page - 1) * limit;
+
     const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
     const category = typeof req.query.category === 'string' ? req.query.category.trim() : '';
+    const tag = typeof req.query.tag === 'string' ? req.query.tag.trim() : '';
+    const validArticleTypes = ['main', 'detail', 'prosedur', 'panduan', 'referensi', 'studi_kasus', 'troubleshooting'];
+    const articleTypeFilter = validArticleTypes.includes(req.query.article_type) ? req.query.article_type : '';
+    const validDifficulty = ['pemula', 'menengah', 'lanjutan'];
+    const difficultyFilter = validDifficulty.includes(req.query.difficulty_level) ? req.query.difficulty_level : '';
+
+    // 1. Where utama hanya fokus pada tabel Article dan Search konten
     const where = {
       status: 'published',
     };
+
+    if (articleTypeFilter) {
+      where.article_type = articleTypeFilter;
+    }
 
     if (search) {
       where[Op.or] = [
@@ -567,11 +876,7 @@ async function listPublishedArticles(req, res, next) {
       ];
     }
 
-    if (category) {
-      where['$category.name$'] = {
-        [Op.like]: `%${category}%`,
-      };
-    }
+    // CATATAN: Logika filter "where['$category.name$']" sudah dihapus dari sini!
 
     const { rows: articles, count } = await Article.findAndCountAll({
       where,
@@ -591,28 +896,36 @@ async function listPublishedArticles(req, res, next) {
         {
           model: Category,
           as: 'category',
+          // 2. Filter Kategori dipindah ke sini
+          where: category ? { name: { [Op.like]: `%${category}%` } } : undefined,
+          required: !!category, // Memaksa database melakukan INNER JOIN ke dalam subquery
         },
         {
           model: Tag,
           as: 'tags',
-          through: {
-            attributes: [],
-          },
+          through: { attributes: [] },
           attributes: ['id', 'name', 'description'],
+          // 3. Filter Tag dipindah ke sini
+          where: tag ? { name: tag } : undefined,
+          required: !!tag,
         },
         {
           model: ArticleDetail,
           as: 'detail',
+          required: !!(search || difficultyFilter),
+          duplicating: false,
+          where: difficultyFilter ? { difficulty_level: difficultyFilter } : undefined,
         },
         {
           model: ArticleMedia,
           as: 'media',
+          duplicating: false,
         },
       ],
       order: [['created_at', 'DESC']],
       limit,
       offset,
-      distinct: true,
+      distinct: true, // Memastikan jumlah count() akurat meski ada tags & media
     });
 
     return res.status(200).json({
@@ -627,6 +940,9 @@ async function listPublishedArticles(req, res, next) {
           total_pages: Math.ceil(count / limit),
           search,
           category,
+          tag,
+          article_type: articleTypeFilter,
+          difficulty_level: difficultyFilter,
         },
       },
     });
@@ -685,6 +1001,18 @@ async function getPublishedArticleDetail(req, res, next) {
           model: Article,
           as: 'parentArticle',
           attributes: ['id', 'title', 'category_id', 'status'],
+        },
+        {
+          model: Article,
+          as: 'wawasanArticle',
+          attributes: ['id', 'title', 'article_type', 'status'],
+        },
+        {
+          model: Article,
+          as: 'technicalArticles',
+          attributes: ['id', 'title', 'article_type', 'status'],
+          where: { status: 'published' },
+          required: false,
         },
         {
           model: ProductCard,
@@ -754,22 +1082,126 @@ async function getPublishedArticleDetail(req, res, next) {
   }
 }
 
+// async function listAdminArticles(req, res, next) {
+//   try {
+//     const page = Math.max(Number(req.query.page || 1), 1);
+//     const limit = Math.min(Math.max(Number(req.query.limit || 10), 1), 50);
+//     const offset = (page - 1) * limit;
+//     const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+//     const status = typeof req.query.status === 'string' ? req.query.status.trim().toLowerCase() : '';
+//     const category = typeof req.query.category === 'string' ? req.query.category.trim() : '';
+//     const authorOnly = req.query.author_only === 'true' || req.query.author_only === '1';
+//     const where = {};
+
+//     // If author_only, filter by current user
+//     if (authorOnly) {
+//       where.author_id = req.user.id;
+//     }
+
+//     if (search) {
+//       where[Op.or] = [
+//         { title: { [Op.like]: `%${search}%` } },
+//         { '$detail.body_content$': { [Op.like]: `%${search}%` } },
+//         { '$author.profile.full_name$': { [Op.like]: `%${search}%` } },
+//       ];
+//     }
+
+//     if (status && ['draft', 'revision', 'published'].includes(status)) {
+//       where.status = status;
+//     }
+
+//     if (category) {
+//       where['$category.name$'] = {
+//         [Op.like]: `%${category}%`,
+//       };
+//     }
+
+//     const { rows: articles, count } = await Article.findAndCountAll({
+//       where,
+//       include: [
+//         {
+//           model: User,
+//           as: 'author',
+//           attributes: ['id', 'email', 'role'],
+//           include: [
+//             {
+//               model: UserProfile,
+//               as: 'profile',
+//               attributes: ['user_id', 'full_name', 'bio', 'avatar_url'],
+//             },
+//           ],
+//         },
+//         {
+//           model: Category,
+//           as: 'category',
+//         },
+//         {
+//           model: Tag,
+//           as: 'tags',
+//           through: {
+//             attributes: [],
+//           },
+//           attributes: ['id', 'name', 'description'],
+//         },
+//         {
+//           model: ArticleDetail,
+//           as: 'detail',
+//         },
+//         {
+//           model: ArticleMedia,
+//           as: 'media',
+//         },
+//       ],
+//       order: [['updated_at', 'DESC']],
+//       limit,
+//       offset,
+//       distinct: true,
+//     });
+
+//     return res.status(200).json({
+//       success: true,
+//       message: 'Daftar artikel admin berhasil diambil.',
+//       data: {
+//         articles: articles.map((article) => sanitizeArticle(article, { includeComments: false })),
+//         meta: {
+//           page,
+//           limit,
+//           total_items: count,
+//           total_pages: Math.ceil(count / limit),
+//           search,
+//           status,
+//           category,
+//         },
+//       },
+//     });
+//   } catch (error) {
+//     return next(error);
+//   }
+// }
+
 async function listAdminArticles(req, res, next) {
   try {
     const page = Math.max(Number(req.query.page || 1), 1);
-    const limit = Math.min(Math.max(Number(req.query.limit || 10), 1), 50);
+    const limit = Math.min(Math.max(Number(req.query.limit || 6), 1), 50);
     const offset = (page - 1) * limit;
+
     const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
     const status = typeof req.query.status === 'string' ? req.query.status.trim().toLowerCase() : '';
     const category = typeof req.query.category === 'string' ? req.query.category.trim() : '';
+    const tag = typeof req.query.tag === 'string' ? req.query.tag.trim() : ''; // Opsional jika ingin support filter tag di admin
     const authorOnly = req.query.author_only === 'true' || req.query.author_only === '1';
+
     const where = {};
 
-    // If author_only, filter by current user
     if (authorOnly) {
       where.author_id = req.user.id;
     }
 
+    if (status && ['draft', 'revision', 'published'].includes(status)) {
+      where.status = status;
+    }
+
+    // Klausa search utama tetap sama
     if (search) {
       where[Op.or] = [
         { title: { [Op.like]: `%${search}%` } },
@@ -778,15 +1210,7 @@ async function listAdminArticles(req, res, next) {
       ];
     }
 
-    if (status && ['draft', 'revision', 'published'].includes(status)) {
-      where.status = status;
-    }
-
-    if (category) {
-      where['$category.name$'] = {
-        [Op.like]: `%${category}%`,
-      };
-    }
+    // CATATAN: Filter 'where['$category.name$']' sengaja dihapus dari sini karena dipindahkan ke bawah
 
     const { rows: articles, count } = await Article.findAndCountAll({
       where,
@@ -795,33 +1219,44 @@ async function listAdminArticles(req, res, next) {
           model: User,
           as: 'author',
           attributes: ['id', 'email', 'role'],
+          required: !!search, // <--- PENTING: Memaksa JOIN User masuk subquery saat search aktif
+          duplicating: false,
           include: [
             {
               model: UserProfile,
               as: 'profile',
               attributes: ['user_id', 'full_name', 'bio', 'avatar_url'],
+              required: !!search, // <--- PENTING: Memaksa JOIN Profile masuk subquery saat search aktif
+              duplicating: false,
             },
           ],
         },
         {
           model: Category,
           as: 'category',
+          // Memindahkan filter kategori langsung ke dalam modelnya
+          where: category ? { name: { [Op.like]: `%${category}%` } } : undefined,
+          required: !!category, // <--- PENTING: Memaksa JOIN Kategori jika ada filter kategori
+          duplicating: false,
         },
         {
           model: Tag,
           as: 'tags',
-          through: {
-            attributes: [],
-          },
+          through: { attributes: [] },
           attributes: ['id', 'name', 'description'],
+          where: tag ? { name: tag } : undefined,
+          required: !!tag,
         },
         {
           model: ArticleDetail,
           as: 'detail',
+          required: !!search, // <--- PENTING: Memaksa JOIN Detail masuk subquery saat search aktif
+          duplicating: false,
         },
         {
           model: ArticleMedia,
           as: 'media',
+          duplicating: false,
         },
       ],
       order: [['updated_at', 'DESC']],
@@ -843,6 +1278,7 @@ async function listAdminArticles(req, res, next) {
           search,
           status,
           category,
+          tag,
         },
       },
     });
@@ -862,11 +1298,17 @@ async function createArticle(req, res, next) {
     const status = req.body.status === undefined ? 'draft' : normalizeStatus(req.body.status);
     const parentArticleId = normalizeOptionalPositiveInteger(req.body.parent_article_id);
     const linkedProductCardId = normalizeOptionalPositiveInteger(req.body.linked_product_card_id);
+    const wawasanArticleId = normalizeOptionalPositiveInteger(req.body.wawasan_article_id);
+    const validArticleTypes = ['main', 'detail', 'prosedur', 'panduan', 'referensi', 'studi_kasus', 'troubleshooting'];
+    const articleType = validArticleTypes.includes(req.body.article_type)
+      ? req.body.article_type
+      : parentArticleId ? 'detail' : 'main';
     const mediaItems = normalizeMediaInput(req.body.media);
     const productCardItems = normalizeProductCardInput(req.body.product_cards);
     const sectionItems = normalizeSectionInput(req.body.sections, bodyContent);
     const sourceItems = normalizeSourceInput(req.body.sources);
     const tagItems = normalizeTagInput(req.body.tags);
+    const technicalFields = normalizeTechnicalFields(req.body);
 
     if (!bodyContent && sectionItems.length > 0) {
       bodyContent = sectionItems.map((section) => section.body_content).join('\n\n');
@@ -900,6 +1342,8 @@ async function createArticle(req, res, next) {
         author_id: req.user.id,
         category_id: category.id,
         parent_article_id: parentArticleId,
+        article_type: articleType,
+        wawasan_article_id: wawasanArticleId,
         title,
         version: 1,
         status,
@@ -914,6 +1358,7 @@ async function createArticle(req, res, next) {
         meta_description: metaDescription,
         sections: sectionItems,
         sources: sourceItems,
+        ...technicalFields,
       },
       { transaction }
     );
@@ -958,11 +1403,23 @@ async function createArticle(req, res, next) {
       );
     }
 
+    const createdArticle = await getArticleByIdOrThrow(article.id, { transaction });
+
+    await recordArticleVersionSnapshot({
+      articleSnapshot: buildArticleVersionSnapshot(createdArticle),
+      articleId: article.id,
+      versionNumber: createdArticle.version,
+      sourceVersionNumber: createdArticle.version,
+      action: 'create',
+      actorId: req.user.id,
+      transaction,
+    });
+
     await transaction.commit();
 
     await writeAuditLog({
       actorId: req.user.id,
-      action: 'admin.create_article',
+      action: 'pengelola.create_article',
       entityType: 'article',
       entityId: article.id,
       metadata: {
@@ -971,8 +1428,6 @@ async function createArticle(req, res, next) {
         category_id: category.id,
       },
     });
-
-    const createdArticle = await getArticleByIdOrThrow(article.id);
 
     return res.status(201).json({
       success: true,
@@ -1032,7 +1487,7 @@ async function updateArticle(req, res, next) {
       throw notFound('Artikel tidak ditemukan.');
     }
 
-    if (article.status === 'published' && req.user.role !== 'admin') {
+    if (article.status === 'published') {
       throw badRequest('Artikel published tidak dapat diubah. Ubah status ke revision terlebih dahulu.');
     }
 
@@ -1061,6 +1516,15 @@ async function updateArticle(req, res, next) {
 
     if (req.body.parent_article_id !== undefined) {
       article.parent_article_id = parentArticleId;
+    }
+
+    const validArticleTypes = ['main', 'detail', 'prosedur', 'panduan', 'referensi', 'studi_kasus', 'troubleshooting'];
+    if (req.body.article_type !== undefined && validArticleTypes.includes(req.body.article_type)) {
+      article.article_type = req.body.article_type;
+    }
+
+    if (req.body.wawasan_article_id !== undefined) {
+      article.wawasan_article_id = normalizeOptionalPositiveInteger(req.body.wawasan_article_id);
     }
 
     if (req.body.title !== undefined) {
@@ -1134,6 +1598,15 @@ async function updateArticle(req, res, next) {
         article.detail.sources = normalizeSourceInput(req.body.sources);
       }
 
+      const technicalFieldKeys = [
+        'difficulty_level', 'time_required_minutes', 'materials_list', 'tools_list',
+        'process_parameters', 'quality_indicators', 'safety_notes', 'prerequisite_article_ids',
+      ];
+      const hasTechnicalUpdate = technicalFieldKeys.some((key) => req.body[key] !== undefined);
+      if (hasTechnicalUpdate) {
+        Object.assign(article.detail, normalizeTechnicalFields(req.body));
+      }
+
       await article.detail.save({ transaction });
     }
 
@@ -1194,11 +1667,23 @@ async function updateArticle(req, res, next) {
       });
     }
 
+    const updatedArticle = await getArticleByIdOrThrow(article.id, { transaction });
+
+    await recordArticleVersionSnapshot({
+      articleSnapshot: buildArticleVersionSnapshot(updatedArticle),
+      articleId: article.id,
+      versionNumber: updatedArticle.version,
+      sourceVersionNumber: updatedArticle.version,
+      action: 'update',
+      actorId: req.user.id,
+      transaction,
+    });
+
     await transaction.commit();
 
     await writeAuditLog({
       actorId: req.user.id,
-      action: 'admin.update_article',
+      action: 'pengelola.update_article',
       entityType: 'article',
       entityId: article.id,
       metadata: {
@@ -1207,8 +1692,6 @@ async function updateArticle(req, res, next) {
         version: article.version,
       },
     });
-
-    const updatedArticle = await getArticleByIdOrThrow(article.id);
 
     return res.status(200).json({
       success: true,
@@ -1224,6 +1707,8 @@ async function updateArticle(req, res, next) {
 }
 
 async function updateArticleStatus(req, res, next) {
+  const transaction = await sequelize.transaction();
+
   try {
     const articleId = Number(req.params.id);
     const status = normalizeStatus(req.body.status);
@@ -1236,33 +1721,86 @@ async function updateArticleStatus(req, res, next) {
       throw badRequest('Status validasi hanya boleh revision atau published.');
     }
 
-    const article = await Article.findByPk(articleId);
+    const article = await Article.findByPk(articleId, {
+      include: [
+        {
+          model: ArticleDetail,
+          as: 'detail',
+        },
+        {
+          model: ArticleMedia,
+          as: 'media',
+        },
+        {
+          model: ProductCard,
+          as: 'productCards',
+        },
+        {
+          model: ProductCard,
+          as: 'linkedProductCard',
+        },
+        {
+          model: Tag,
+          as: 'tags',
+          through: {
+            attributes: [],
+          },
+          attributes: ['id', 'name', 'description'],
+        },
+      ],
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
 
     if (!article) {
       throw notFound('Artikel tidak ditemukan.');
     }
 
-    const jobTitle = req.user.profile?.job_title || '';
-
-    if (status === 'revision' && req.user.role !== 'admin' && !['Editor Konten', 'Validator Artikel'].includes(jobTitle)) {
-      throw forbidden('Jabatan Anda tidak memiliki akses untuk mengubah artikel ke revision.');
+    if (
+      status === 'revision' &&
+      req.user.role !== 'pengelola' &&
+      !hasModeratorScope(req.user, 'content', 'publication')
+    ) {
+      throw forbidden('Akun Anda tidak memiliki akses untuk mengubah artikel ke revision.');
     }
 
-    if (status === 'published' && req.user.role !== 'admin' && jobTitle !== 'Publisher Artikel') {
-      throw forbidden('Jabatan Anda tidak memiliki akses untuk mempublish artikel.');
+    if (
+      status === 'published' &&
+      req.user.role !== 'pengelola' &&
+      !hasModeratorScope(req.user, 'publication')
+    ) {
+      throw forbidden('Akun Anda tidak memiliki akses untuk mempublish artikel.');
     }
 
-    if (!['draft', 'revision'].includes(article.status)) {
-      throw badRequest('Hanya artikel draft atau revision yang dapat divalidasi.');
+    if (article.status === 'published' && status !== 'revision') {
+      throw badRequest('Artikel published hanya dapat dikembalikan ke revision.');
+    }
+
+    if (!['draft', 'revision', 'published'].includes(article.status)) {
+      throw badRequest('Status artikel tidak valid untuk divalidasi.');
     }
 
     article.status = status;
     article.version += 1;
-    await article.save();
+    await article.save({ transaction });
+
+    const updatedArticle = await getArticleByIdOrThrow(article.id, { transaction });
+
+    await recordArticleVersionSnapshot({
+      articleSnapshot: buildArticleVersionSnapshot(updatedArticle),
+      articleId: article.id,
+      versionNumber: updatedArticle.version,
+      sourceVersionNumber: updatedArticle.version,
+      action: 'status_change',
+      actorId: req.user.id,
+      transaction,
+    });
+
+    await transaction.commit();
 
     await writeAuditLog({
       actorId: req.user.id,
-      action: 'admin.update_article_status',
+      action: status === 'published' ? 'publication.publish_article' : 'content.return_article_to_revision',
       entityType: 'article',
       entityId: article.id,
       metadata: {
@@ -1270,8 +1808,6 @@ async function updateArticleStatus(req, res, next) {
         version: article.version,
       },
     });
-
-    const updatedArticle = await getArticleByIdOrThrow(article.id);
 
     return res.status(200).json({
       success: true,
@@ -1284,6 +1820,163 @@ async function updateArticleStatus(req, res, next) {
       },
     });
   } catch (error) {
+    await transaction.rollback();
+    return next(error);
+  }
+}
+
+async function listArticleVersions(req, res, next) {
+  try {
+    const articleId = Number(req.params.id);
+
+    if (!Number.isInteger(articleId) || articleId <= 0) {
+      throw badRequest('Parameter article id tidak valid.');
+    }
+
+    const article = await Article.findByPk(articleId);
+    if (!article) {
+      throw notFound('Artikel tidak ditemukan.');
+    }
+
+    const versions = await ArticleVersion.findAll({
+      where: { article_id: articleId },
+      include: [
+        {
+          model: User,
+          as: 'actor',
+          attributes: ['id', 'email', 'role'],
+          include: [
+            {
+              model: UserProfile,
+              as: 'profile',
+              attributes: ['user_id', 'full_name', 'job_title'],
+            },
+          ],
+        },
+      ],
+      order: [
+        ['version_number', 'DESC'],
+        ['created_at', 'DESC'],
+      ],
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Riwayat versi artikel berhasil diambil.',
+      data: {
+        versions: versions.map((version) => ({
+          id: version.id,
+          article_id: version.article_id,
+          version_number: version.version_number,
+          source_version_number: version.source_version_number,
+          action: version.action,
+          snapshot: version.snapshot,
+          actor: version.actor
+            ? {
+                id: version.actor.id,
+                email: version.actor.email,
+                role: version.actor.role,
+                profile: version.actor.profile
+                  ? {
+                      user_id: version.actor.profile.user_id,
+                      full_name: version.actor.profile.full_name,
+                      job_title: version.actor.profile.job_title,
+                    }
+                  : null,
+              }
+            : null,
+          created_at: version.created_at,
+        })),
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function publishArticleVersion(req, res, next) {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const articleId = Number(req.params.id);
+    const versionNumber = Number(req.params.version);
+
+    if (!Number.isInteger(articleId) || articleId <= 0) {
+      throw badRequest('Parameter article id tidak valid.');
+    }
+
+    if (!Number.isInteger(versionNumber) || versionNumber <= 0) {
+      throw badRequest('Parameter version tidak valid.');
+    }
+
+    const article = await Article.findByPk(articleId, {
+      include: [
+        {
+          model: ArticleDetail,
+          as: 'detail',
+        },
+        {
+          model: ArticleMedia,
+          as: 'media',
+        },
+        {
+          model: ProductCard,
+          as: 'productCards',
+        },
+        {
+          model: ProductCard,
+          as: 'linkedProductCard',
+        },
+        {
+          model: Tag,
+          as: 'tags',
+          through: {
+            attributes: [],
+          },
+          attributes: ['id', 'name', 'description'],
+        },
+      ],
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!article) {
+      throw notFound('Artikel tidak ditemukan.');
+    }
+
+    const articleVersion = await getArticleVersionByNumberOrThrow(articleId, versionNumber, transaction);
+
+    await applyArticleVersionSnapshot({
+      article,
+      snapshot: articleVersion.snapshot,
+      actorId: req.user.id,
+      transaction,
+    });
+
+    await transaction.commit();
+
+    await writeAuditLog({
+      actorId: req.user.id,
+      action: 'publication.publish_article',
+      entityType: 'article',
+      entityId: article.id,
+      metadata: {
+        published_from_version: versionNumber,
+        version: article.version,
+      },
+    });
+
+    const updatedArticle = await getArticleByIdOrThrow(article.id);
+
+    return res.status(200).json({
+      success: true,
+      message: `Versi ${versionNumber} berhasil dipublish.`,
+      data: {
+        article: sanitizeArticle(updatedArticle, { includeComments: false }),
+      },
+    });
+  } catch (error) {
+    await transaction.rollback();
     return next(error);
   }
 }
@@ -1302,7 +1995,7 @@ async function deleteArticle(req, res, next) {
       throw notFound('Artikel tidak ditemukan.');
     }
 
-    if (req.user.role !== 'admin' && article.author_id !== req.user.id) {
+    if (req.user.role !== 'pengelola' && article.author_id !== req.user.id) {
       throw forbidden('Anda hanya dapat menghapus artikel milik Anda sendiri.');
     }
 
@@ -1310,7 +2003,7 @@ async function deleteArticle(req, res, next) {
 
     await writeAuditLog({
       actorId: req.user.id,
-      action: 'admin.delete_article',
+      action: 'pengelola.delete_article',
       entityType: 'article',
       entityId: articleId,
       metadata: {
@@ -1543,5 +2236,7 @@ module.exports = {
   createArticle,
   updateArticle,
   updateArticleStatus,
+  listArticleVersions,
+  publishArticleVersion,
   deleteArticle,
 };

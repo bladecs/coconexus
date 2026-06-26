@@ -1,7 +1,10 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { useTheme } from '@/composables/useTheme';
+import { useChatWidget } from '@/composables/useChatWidget';
+import { useSidebar } from '@/composables/useSidebar';
 
 const props = defineProps({
   variant: {
@@ -12,423 +15,442 @@ const props = defineProps({
 
 const authStore = useAuthStore();
 const router = useRouter();
-const isHidden = ref(false);
-let lastScrollY = 0;
-let idleTimer = null;
-const pengelolaJob = computed(() => authStore.user?.profile?.job_title || '');
+const mobileOpen = ref(false);
+const { isDark, toggleTheme } = useTheme();
+const { isOpen: chatOpen, open: openChat } = useChatWidget();
+const { isCollapsed, toggle: toggleSidebar } = useSidebar();
+const moderatorType = computed(() => authStore.user?.moderator_assignment?.moderator_type || '');
 
-function getDefaultPengelolaRoute(jobTitle) {
-  if (jobTitle === 'Moderator Komentar') {
-    return '/pengelola/comments';
-  }
-
-  if (jobTitle === 'Pengelola Tag/Kategori') {
-    return '/pengelola/tags';
-  }
-
+function getDefaultPengelolaRoute() {
   return '/pengelola/articles';
 }
 
-function getPengelolaNavLinks(jobTitle) {
-  if (jobTitle === 'Moderator Komentar') {
-    return [{ to: '/pengelola/comments', label: 'Komentar' }];
-  }
+function getDefaultModeratorRoute(type) {
+  if (type === 'forum') return '/moderator/forum/comments';
+  if (type === 'content') return '/moderator/content/articles';
+  if (type === 'publication') return '/moderator/publication/articles';
+  if (type === 'tag') return '/moderator/tag/categories';
+  return '/';
+}
 
-  if (jobTitle === 'Pengelola Tag/Kategori') {
-    return [{ to: '/pengelola/tags', label: 'Kategori' }];
+function getModeratorNavLinks(type) {
+  if (type === 'forum') {
+    return [
+      { to: '/moderator/forum/comments', label: 'Komentar', icon: 'chat_bubble' },
+      { to: '/moderator/forum/discussions', label: 'Forum', icon: 'forum' },
+    ];
   }
-
-  return [{ to: '/pengelola/articles', label: 'Artikel' }];
+  if (type === 'content') {
+    return [
+      { to: '/moderator/content/articles', label: 'Review Konten', icon: 'rate_review' },
+    ];
+  }
+  if (type === 'publication') {
+    return [
+      { to: '/moderator/publication/articles', label: 'Publikasi', icon: 'publish' },
+    ];
+  }
+  if (type === 'tag') {
+    return [
+      { to: '/moderator/tag/categories', label: 'Kategori & Tag', icon: 'category' },
+    ];
+  }
+  return [];
 }
 
 const navLinks = computed(() => {
   if (props.variant === 'admin') {
     return [
-      { to: '/admin', label: 'Dashboard' },
-      { to: '/admin/articles', label: 'Artikel' },
-      { to: '/admin/users', label: 'User' },
-      { to: '/admin/categories', label: 'Kategori' },
-      { to: '/admin/comments', label: 'Komentar' },
-      { to: '/admin/roles', label: 'Role' },
-      { to: '/admin/job-division', label: 'Job/Div' },
-      { to: '/admin/activity', label: 'Activity' },
-      { to: '/admin/system', label: 'Sistem' },
-      { to: '/admin/report', label: 'Report' },
-      { to: '/admin/profile', label: 'Profil' },
+      { to: '/admin',              label: 'Dashboard', icon: 'dashboard' },
+      { to: '/admin/users',        label: 'Pengguna',  icon: 'group' },
+      { to: '/admin/roles',        label: 'Role',      icon: 'manage_accounts' },
+      { to: '/admin/job-division', label: 'Job/Divisi',icon: 'work' },
+      { to: '/admin/activity',     label: 'Aktivitas', icon: 'timeline' },
+      { to: '/admin/chatbot',      label: 'Chatbot',   icon: 'smart_toy' },
+      { to: '/admin/system',       label: 'Sistem',    icon: 'settings' },
+      { to: '/admin/report',       label: 'Laporan',   icon: 'bar_chart' },
+      { to: '/admin/profile',      label: 'Profil',    icon: 'person' },
     ];
   }
-
   if (props.variant === 'pengelola') {
-    return getPengelolaNavLinks(pengelolaJob.value);
+    return [
+      { to: '/pengelola/articles', label: 'Artikel',  icon: 'inventory_2' },
+      { to: '/pengelola/tags',     label: 'Kategori', icon: 'category' },
+    ];
   }
-
+  if (props.variant === 'moderator') {
+    return getModeratorNavLinks(moderatorType.value);
+  }
   return [
-    { to: '/', label: 'Beranda' },
-    { href: '/#articles', label: 'Artikel' },
-    { href: '/#categories', label: 'Kategori' },
-    { href: '/#needs', label: 'Analisis' },
+    { to: '/',            label: 'Beranda',   icon: 'home',       exact: true },
+    { to: '/articles',    label: 'Artikel',   icon: 'inventory_2' },
+    { to: '/glosarium',   label: 'Glosarium', icon: 'menu_book' },
+    { to: '/forum',       label: 'Forum',     icon: 'forum' },
   ];
 });
 
-// Split visible and overflow links for admin navbar
-const visibleLinks = computed(() => {
-  if (props.variant !== 'admin') return navLinks.value;
-  return navLinks.value.slice(0, 4);
+const brandTitle = computed(() => {
+  if (props.variant === 'admin')     return 'COCONEXUS Admin';
+  if (props.variant === 'pengelola') return 'COCONEXUS Pengelola';
+  if (props.variant === 'moderator') return 'COCONEXUS Moderator';
+  return 'COCONEXUS';
 });
 
-const overflowLinks = computed(() => {
-  if (props.variant !== 'admin') return [];
-  return navLinks.value.slice(4);
+const brandSubtitle = computed(() => {
+  if (props.variant === 'admin')     return 'System Control Center';
+  if (props.variant === 'pengelola') return 'Article Manager';
+  if (props.variant === 'moderator') {
+    const subtitleMap = {
+      content: 'Content Review',
+      publication: 'Publication',
+      forum: 'Forum Moderation',
+      tag: 'Tag & Category',
+    };
+    return subtitleMap[moderatorType.value] || 'Moderation';
+  }
+  return 'Knowledge Platform';
 });
-
-const dropdownOpen = ref(false);
-const dropdownRef = ref(null);
-
-function toggleDropdown(e) {
-  e.stopPropagation();
-  dropdownOpen.value = !dropdownOpen.value;
-}
-
-function handleDocumentClick(e) {
-  if (!dropdownRef.value) return;
-  if (!dropdownRef.value.contains(e.target)) {
-    dropdownOpen.value = false;
-  }
-}
-
-function revealNavbar() {
-  isHidden.value = false;
-}
-
-function hideNavbar() {
-  isHidden.value = true;
-}
-
-function armIdleReveal() {
-  window.clearTimeout(idleTimer);
-  idleTimer = window.setTimeout(revealNavbar, 420);
-}
-
-function handleScroll() {
-  const currentY = window.scrollY;
-  const delta = currentY - lastScrollY;
-
-  if (currentY <= 24) {
-    revealNavbar();
-  } else if (delta > 14) {
-    hideNavbar();
-  } else if (delta < -14) {
-    revealNavbar();
-  }
-
-  lastScrollY = currentY;
-  armIdleReveal();
-}
 
 function handleLogout() {
   authStore.logout();
   router.push('/');
+  mobileOpen.value = false;
 }
 
-onMounted(() => {
-  lastScrollY = window.scrollY;
-  window.addEventListener('scroll', handleScroll, { passive: true });
-  armIdleReveal();
-  document.addEventListener('click', handleDocumentClick);
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener('scroll', handleScroll);
-  window.clearTimeout(idleTimer);
-  document.removeEventListener('click', handleDocumentClick);
-});
+function closeMobile() {
+  mobileOpen.value = false;
+}
 </script>
 
 <template>
-  <header
-    class="site-navbar"
-    :class="[`site-navbar--${variant}`, { 'is-hidden': isHidden }]"
-    @mouseenter="revealNavbar"
-    @focusin="revealNavbar"
-    @touchstart.passive="revealNavbar"
+  <!-- ── Mobile Top Bar ── -->
+  <header class="md:hidden w-full bg-white dark:bg-[#111f33] shadow-sm fixed top-0 z-50 flex justify-between items-center px-4 h-14 border-b border-outline-variant/30 dark:border-white/10">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-[#003527] flex items-center justify-center text-white font-bold text-sm">CX</div>
+      <span class="font-semibold text-primary text-sm leading-tight">{{ brandTitle }}</span>
+    </div>
+    <button class="text-primary p-1 rounded-lg hover:bg-primary-container/10 transition-colors" @click="mobileOpen = !mobileOpen">
+      <span class="material-symbols-outlined">{{ mobileOpen ? 'close' : 'menu' }}</span>
+    </button>
+  </header>
+
+  <!-- ── Mobile Backdrop ── -->
+  <Transition name="fade">
+    <div
+      v-if="mobileOpen"
+      class="md:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+      @click="closeMobile"
+    />
+  </Transition>
+
+  <!-- ── Side Navigation ── -->
+  <nav
+    class="flex flex-col h-screen fixed left-0 top-0 bg-white dark:bg-[#111f33] py-6 z-40 border-r border-gray-200 dark:border-white/10 transition-[width,transform] duration-300 ease-in-out overflow-hidden"
+    :class="[
+      mobileOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full md:translate-x-0',
+      isCollapsed ? 'w-16' : 'w-64',
+    ]"
   >
-    <RouterLink to="/" class="site-brand" aria-label="COCONEXUS Home">
-      <span class="site-brand__mark">CX</span>
-      <span>
-        <strong>{{
-          variant === 'admin'
-            ? 'COCONEXUS Admin'
-            : variant === 'pengelola'
-              ? 'COCONEXUS Pengelola'
-              : 'COCONEXUS'
-        }}</strong>
-        <small>{{
-          variant === 'admin'
-            ? 'Control Center'
-            : variant === 'pengelola'
-              ? 'Article Manager'
-              : 'Community Article Hub'
-        }}</small>
-      </span>
-    </RouterLink>
+    <!-- Brand Header + Toggle -->
+    <div class="flex items-center mb-8" :class="isCollapsed ? 'justify-center px-3' : 'px-4 gap-3'">
+      <div class="w-10 h-10 rounded-lg bg-[#003527] flex items-center justify-center text-white font-bold flex-shrink-0">CX</div>
+      <div v-if="!isCollapsed" class="flex-1 min-w-0">
+        <h1 class="font-semibold text-sm text-primary leading-tight truncate">{{ brandTitle }}</h1>
+        <p class="text-xs text-on-surface-variant mt-0.5">{{ brandSubtitle }}</p>
+      </div>
+      <button
+        v-if="!isCollapsed"
+        type="button"
+        class="hidden md:flex items-center justify-center w-7 h-7 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors flex-shrink-0"
+        title="Perkecil sidebar"
+        @click="toggleSidebar"
+      >
+        <span class="material-symbols-outlined" style="font-size:18px">chevron_left</span>
+      </button>
+    </div>
 
-    <nav class="site-navlinks" aria-label="Navigasi utama">
-      <template v-if="props.variant === 'admin'">
-        <template v-for="link in visibleLinks" :key="link.label">
-          <RouterLink v-if="link.to" :to="link.to">{{ link.label }}</RouterLink>
-          <a v-else :href="link.href">{{ link.label }}</a>
-        </template>
+    <!-- Expand button (collapsed state) -->
+    <button
+      v-if="isCollapsed"
+      type="button"
+      class="hidden md:flex mx-auto mb-4 items-center justify-center w-8 h-8 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors"
+      title="Perluas sidebar"
+      @click="toggleSidebar"
+    >
+      <span class="material-symbols-outlined" style="font-size:18px">chevron_right</span>
+    </button>
 
-        <div class="nav-overflow" ref="dropdownRef">
-          <button class="ellipsis-btn" aria-label="Lainnya" @click="toggleDropdown">
-            •••
-          </button>
-          <div v-if="dropdownOpen" class="nav-dropdown">
-            <template v-for="link in overflowLinks" :key="link.label">
-              <RouterLink v-if="link.to" :to="link.to" class="nav-dropdown-item">
-                {{ link.label }}
-              </RouterLink>
-              <a v-else :href="link.href" class="nav-dropdown-item">
-                {{ link.label }}
-              </a>
-            </template>
-          </div>
-        </div>
-      </template>
+    <!-- Navigation Links -->
+    <ul class="flex-1 flex flex-col gap-0.5 overflow-y-auto" :class="isCollapsed ? 'px-2' : 'px-3'">
+      <li v-for="link in navLinks" :key="link.label">
+        <RouterLink
+          v-if="link.to"
+          :to="link.to"
+          class="nav-link"
+          :class="isCollapsed && 'nav-link--icon-only'"
+          :exact="link.exact"
+          active-class="nav-link--active"
+          :exact-active-class="link.exact ? 'nav-link--active' : ''"
+          :title="isCollapsed ? link.label : ''"
+          @click="closeMobile"
+        >
+          <span class="material-symbols-outlined nav-link__icon">{{ link.icon }}</span>
+          <span v-if="!isCollapsed">{{ link.label }}</span>
+        </RouterLink>
+        <a
+          v-else
+          :href="link.href"
+          class="nav-link"
+          :class="isCollapsed && 'nav-link--icon-only'"
+          :title="isCollapsed ? link.label : ''"
+          @click="closeMobile"
+        >
+          <span class="material-symbols-outlined nav-link__icon">{{ link.icon }}</span>
+          <span v-if="!isCollapsed">{{ link.label }}</span>
+        </a>
+      </li>
+    </ul>
 
-      <template v-else>
-        <template v-for="link in navLinks" :key="link.label">
-          <RouterLink v-if="link.to" :to="link.to">{{ link.label }}</RouterLink>
-          <a v-else :href="link.href">{{ link.label }}</a>
-        </template>
-      </template>
-    </nav>
+    <!-- Chatbot Button (home variant only) -->
+    <div v-if="variant === 'home'" class="mt-2 mb-1" :class="isCollapsed ? 'px-2' : 'px-3'">
+      <button
+        type="button"
+        class="nav-link w-full text-left"
+        :class="[chatOpen ? 'nav-link--active' : '', isCollapsed && 'nav-link--icon-only']"
+        :title="isCollapsed ? 'Tanya AI' : ''"
+        @click="openChat(); closeMobile();"
+      >
+        <span class="material-symbols-outlined nav-link__icon">smart_toy</span>
+        <span v-if="!isCollapsed">Tanya AI</span>
+      </button>
+    </div>
 
-    <div class="site-actions">
+    <!-- Role / Auth Links -->
+    <div class="mt-2 flex flex-col gap-0.5 border-t border-outline-variant/30 pt-3" :class="isCollapsed ? 'px-2' : 'px-3'">
       <RouterLink
         v-if="authStore.isPengelola && variant !== 'pengelola'"
-        :to="getDefaultPengelolaRoute(pengelolaJob)"
-        class="site-action site-action--ghost"
+        :to="getDefaultPengelolaRoute()"
+        class="nav-link"
+        :class="isCollapsed && 'nav-link--icon-only'"
+        :title="isCollapsed ? 'Mode Pengelola' : ''"
+        @click="closeMobile"
       >
-        Pengelola
+        <span class="material-symbols-outlined nav-link__icon">edit_note</span>
+        <span v-if="!isCollapsed">Mode Pengelola</span>
+      </RouterLink>
+      <RouterLink
+        v-if="authStore.isModerator && variant !== 'moderator'"
+        :to="getDefaultModeratorRoute(moderatorType)"
+        class="nav-link"
+        :class="isCollapsed && 'nav-link--icon-only'"
+        :title="isCollapsed ? 'Mode Moderator' : ''"
+        @click="closeMobile"
+      >
+        <span class="material-symbols-outlined nav-link__icon">shield</span>
+        <span v-if="!isCollapsed">Mode Moderator</span>
       </RouterLink>
       <RouterLink
         v-if="authStore.isAdmin && variant !== 'admin'"
         to="/admin"
-        class="site-action site-action--ghost"
+        class="nav-link"
+        :class="isCollapsed && 'nav-link--icon-only'"
+        :title="isCollapsed ? 'Mode Admin' : ''"
+        @click="closeMobile"
       >
-        Admin
+        <span class="material-symbols-outlined nav-link__icon">admin_panel_settings</span>
+        <span v-if="!isCollapsed">Mode Admin</span>
       </RouterLink>
       <RouterLink
-        v-if="(authStore.isAdmin || authStore.isPengelola) && variant !== 'home'"
+        v-if="(authStore.isAdmin || authStore.isPengelola || authStore.isModerator) && variant !== 'home'"
         to="/"
-        class="site-action site-action--ghost"
+        class="nav-link"
+        :class="isCollapsed && 'nav-link--icon-only'"
+        :title="isCollapsed ? 'Beranda' : ''"
+        @click="closeMobile"
       >
-        Beranda
+        <span class="material-symbols-outlined nav-link__icon">home</span>
+        <span v-if="!isCollapsed">Beranda</span>
       </RouterLink>
       <RouterLink
-        v-if="authStore.isPengelola && variant === 'pengelola' && ['Penulis Artikel', 'Editor Konten'].includes(pengelolaJob)"
-        to="/pengelola/articles/new"
-        class="site-action"
+        v-if="!authStore.isAuthenticated"
+        to="/login"
+        class="nav-link"
+        :class="isCollapsed && 'nav-link--icon-only'"
+        :title="isCollapsed ? 'Login' : ''"
+        @click="closeMobile"
       >
-        Artikel Baru
+        <span class="material-symbols-outlined nav-link__icon">login</span>
+        <span v-if="!isCollapsed">Login</span>
       </RouterLink>
       <button
         v-if="authStore.isAuthenticated"
         type="button"
-        class="site-action site-action--ghost"
+        class="nav-link w-full text-left"
+        :class="isCollapsed && 'nav-link--icon-only'"
+        :title="isCollapsed ? 'Logout' : ''"
         @click="handleLogout"
       >
-        Logout
+        <span class="material-symbols-outlined nav-link__icon">logout</span>
+        <span v-if="!isCollapsed">Logout</span>
       </button>
-      <RouterLink v-if="!authStore.isAuthenticated" to="/login" class="site-action site-action--ghost">
-        Login
+    </div>
+
+    <!-- Theme Toggle -->
+    <div class="pt-2" :class="isCollapsed ? 'px-2' : 'px-3'">
+      <button
+        type="button"
+        class="nav-link w-full text-left"
+        :class="isCollapsed && 'nav-link--icon-only'"
+        :title="isCollapsed ? (isDark ? 'Tema Terang' : 'Tema Gelap') : ''"
+        @click="toggleTheme"
+      >
+        <span class="material-symbols-outlined nav-link__icon">{{ isDark ? 'light_mode' : 'dark_mode' }}</span>
+        <span v-if="!isCollapsed">{{ isDark ? 'Tema Terang' : 'Tema Gelap' }}</span>
+      </button>
+    </div>
+
+    <!-- CTA Button (hidden when collapsed) -->
+    <div v-if="!isCollapsed" class="px-4 mt-3">
+      <RouterLink
+        v-if="authStore.isPengelola && variant === 'pengelola'"
+        to="/pengelola/articles/new"
+        class="cta-btn"
+        @click="closeMobile"
+      >
+        <span class="material-symbols-outlined text-[18px]">add</span>
+        Artikel Baru
       </RouterLink>
-      <RouterLink v-if="!authStore.isAuthenticated" to="/register" class="site-action">
-        Daftar
+      <RouterLink
+        v-else-if="!authStore.isAuthenticated"
+        to="/register"
+        class="cta-btn"
+        @click="closeMobile"
+      >
+        <span class="material-symbols-outlined text-[18px]">person_add</span>
+        Daftar Sekarang
       </RouterLink>
     </div>
-  </header>
+  </nav>
 </template>
 
 <style scoped>
-.site-navbar {
-  position: fixed;
-  top: 18px;
-  left: 50%;
-  z-index: 50;
-  display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto minmax(220px, 1fr);
-  align-items: center;
-  width: min(1440px, calc(100% - 48px));
-  min-height: 76px;
-  gap: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: rgba(48, 48, 48, 0.9);
-  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.34);
-  padding: 12px 14px;
-  transform: translateX(-50%) translateY(0);
-  transition: opacity 220ms ease, transform 220ms ease;
-  backdrop-filter: blur(18px);
-}
-
-.site-navbar.is-hidden {
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-50%) translateY(-130%);
-}
-
-.site-brand,
-.site-navlinks a,
-.site-action {
-  color: #fff7f0;
-  text-decoration: none;
-}
-
-.site-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.site-brand__mark {
-  display: grid;
-  width: 46px;
-  height: 46px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #ff7b33, #5b301f);
-  color: #ffffff;
-  font-weight: 950;
-}
-
-.site-brand strong,
-.site-brand small {
-  display: block;
-}
-
-.site-brand strong {
-  font-size: 0.92rem;
-  letter-spacing: 0.08em;
-}
-
-.site-brand small {
-  color: #d0c3ba;
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
-.site-navlinks {
+.nav-link {
   display: flex;
-  gap: 12px;
   align-items: center;
-  justify-content: center;
-}
-
-.nav-overflow {
-  position: relative;
-}
-
-.ellipsis-btn {
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: #404944;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  transition: background 150ms ease, color 150ms ease;
+  cursor: pointer;
   background: transparent;
   border: none;
-  color: #fff7f0;
+}
+
+.nav-link:hover {
+  background: rgba(0, 53, 39, 0.07);
+  color: #003527;
+}
+
+.nav-link--active,
+.nav-link.router-link-active:not(.router-link-exact-active[data-exact="false"]) {
+  background: rgba(0, 53, 39, 0.13);
+  color: #003527;
+  font-weight: 700;
+  border-left: 3px solid #003527;
+  padding-left: 9px;
+  box-shadow: 0 1px 6px rgba(0, 53, 39, 0.12);
+}
+
+.nav-link--icon-only {
+  justify-content: center;
+  padding: 8px;
+  gap: 0;
+}
+
+/* Icon-only active: no left-border, use ring instead */
+.nav-link--icon-only.nav-link--active,
+.nav-link--icon-only.router-link-active {
+  border-left: none;
+  padding: 8px;
+  background: rgba(0, 53, 39, 0.15);
+  box-shadow: 0 0 0 2px rgba(0, 53, 39, 0.25);
+}
+
+.nav-link__icon {
   font-size: 20px;
-  line-height: 1;
-  padding: 6px 10px;
-  cursor: pointer;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  flex-shrink: 0;
 }
 
-.nav-dropdown {
-  position: absolute;
-  right: 0;
-  margin-top: 8px;
-  background: rgba(20,20,20,0.95);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 6px;
-  min-width: 160px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-  z-index: 80;
+.nav-link--active .nav-link__icon,
+.nav-link.router-link-active .nav-link__icon {
+  font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24;
 }
 
-.nav-dropdown-item {
-  display: block;
-  padding: 8px 12px;
-  color: #fff7f0;
-  text-decoration: none;
-}
-
-.nav-dropdown-item:hover {
-  background: rgba(255,255,255,0.03);
-}
-
-.site-navlinks {
+.cta-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  border-radius: 8px;
-  background: rgba(255, 123, 51, 0.12);
-  padding: 6px;
-}
-
-.site-navlinks a {
-  border-radius: 8px;
-  font-size: 0.88rem;
-  font-weight: 850;
-  padding: 11px 14px;
-  white-space: nowrap;
-}
-
-.site-navlinks a:hover,
-.site-navlinks a.router-link-active {
-  background: rgba(255, 123, 51, 0.24);
-  color: #ffffff;
-}
-
-.site-actions {
-  display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 8px;
-}
-
-.site-action {
-  border: 0;
+  width: 100%;
+  padding: 10px 16px;
   border-radius: 8px;
-  background: #ff7b33;
+  background: #003527;
   color: #ffffff;
-  cursor: pointer;
-  font-size: 0.86rem;
-  font-weight: 900;
-  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(0, 53, 39, 0.2);
+  transition: opacity 150ms ease, transform 150ms ease;
 }
 
-.site-action--ghost {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(31, 31, 31, 0.38);
-  color: #fff7f0;
+.cta-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
 
-@media (max-width: 940px) {
-  .site-navbar {
-    grid-template-columns: 1fr;
-    position: absolute;
-  }
-
-  .site-navlinks,
-  .site-actions {
-    width: 100%;
-    justify-content: flex-start;
-    overflow-x: auto;
-  }
+/* ── Dark mode overrides (explicit, no CSS var dependency) ── */
+:global(html.dark) .nav-link {
+  color: #bfc9c3;
 }
 
-@media (max-width: 560px) {
-  .site-navbar {
-    top: 10px;
-    width: calc(100% - 20px);
-  }
+:global(html.dark) .nav-link:hover {
+  background: rgba(149, 211, 186, 0.08);
+  color: #95d3ba;
 }
+
+:global(html.dark) .nav-link--active,
+:global(html.dark) .nav-link.router-link-active {
+  background: rgba(149, 211, 186, 0.15);
+  color: #95d3ba;
+  font-weight: 700;
+  border-left-color: #95d3ba;
+  box-shadow: 0 1px 6px rgba(149, 211, 186, 0.12);
+}
+
+:global(html.dark) .nav-link--icon-only.nav-link--active,
+:global(html.dark) .nav-link--icon-only.router-link-active {
+  border-left: none;
+  padding: 8px;
+  background: rgba(149, 211, 186, 0.18);
+  box-shadow: 0 0 0 2px rgba(149, 211, 186, 0.3);
+}
+
+:global(html.dark) .cta-btn {
+  background: #0b513d;
+  color: #b0f0d6;
+  box-shadow: 0 2px 8px rgba(11, 81, 61, 0.3);
+}
+
+/* Vue Transition */
+.fade-enter-active,
+.fade-leave-active { transition: opacity 200ms ease; }
+.fade-enter-from,
+.fade-leave-to { opacity: 0; }
 </style>

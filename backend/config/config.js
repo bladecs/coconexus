@@ -23,7 +23,7 @@ module.exports = {
   },
   test: {
     ...common,
-    database: process.env.DB_TEST_NAME || 'coconexus_db_test',
+    database: process.env.DB_TEST_NAME || process.env.DB_NAME || 'coconexus_db',
     logging: false,
   },
   production: {

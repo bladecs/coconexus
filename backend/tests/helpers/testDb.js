@@ -1,7 +1,7 @@
 'use strict';
 
 const bcrypt = require('bcryptjs');
-const { sequelize, User, UserProfile } = require('../../models');
+const { sequelize, User, UserProfile, ModeratorAssignment } = require('../../models');
 
 async function resetTestDatabase() {
   // reset test database tanpa mengandalkan sequelize.sync({force:true})
@@ -72,8 +72,41 @@ async function createPengelolaUser(overrides = {}) {
   };
 }
 
+async function createModeratorUser(overrides = {}) {
+  const password = overrides.password || 'Moderator123';
+  const hashedPassword = await bcrypt.hash(password, 12);
+
+  const user = await User.create({
+    email: overrides.email || 'moderator.test@coconexus.local',
+    password: hashedPassword,
+    role: 'moderator',
+  });
+
+  await UserProfile.create({
+    user_id: user.id,
+    full_name: overrides.full_name || 'Moderator Test COCONEXUS',
+    bio: overrides.bio || 'Test moderator',
+    avatar_url: null,
+    job_title: null,
+    department: overrides.department || 'Moderasi',
+    division: overrides.division || 'Forum',
+  });
+
+  await ModeratorAssignment.create({
+    user_id: user.id,
+    moderator_type: overrides.moderator_type || 'forum',
+    assigned_by: overrides.assigned_by || null,
+  });
+
+  return {
+    user,
+    plainPassword: password,
+  };
+}
+
 module.exports = {
   resetTestDatabase,
   createAdminUser,
   createPengelolaUser,
+  createModeratorUser,
 };

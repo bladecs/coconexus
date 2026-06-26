@@ -7,10 +7,10 @@ const {
   isNonEmptyString,
   isValidCommentStatus,
   normalizeCommentStatus,
-  normalizeJobTitle,
 } = require('../utils/validators');
 const { buildCommentTree, sanitizeComment } = require('../utils/serializers');
 const { writeAuditLog } = require('../utils/auditLogger');
+const { hasModeratorScope } = require('../utils/accessControl');
 
 async function listArticleComments(req, res, next) {
   try {
@@ -32,7 +32,10 @@ async function listArticleComments(req, res, next) {
     }
 
     const comments = await Comment.findAll({
-      where: { article_id: articleId },
+      where: {
+        article_id: articleId,
+        discussion_forum_id: null,
+      },
       include: [
         {
           model: User,
@@ -106,10 +109,15 @@ async function createComment(req, res, next) {
 
     const comment = await Comment.create({
       body,
-      status: 'approved',
+      status: 'pending',
       user_id: req.user.id,
       article_id: articleId,
+      discussion_forum_id: null,
       parent_id: parentId,
+      attachment_name: req.file ? req.file.originalname : null,
+      attachment_path: req.file ? `/uploads/comment-attachments/${req.file.filename}` : null,
+      attachment_mime_type: req.file ? req.file.mimetype : null,
+      attachment_size: req.file ? req.file.size : null,
     });
 
     const createdComment = await Comment.findByPk(comment.id, {
@@ -159,19 +167,18 @@ async function deleteComment(req, res, next) {
 
     const isOwner = req.user.id === comment.user_id;
     const isAdmin = req.user.role === 'admin';
-    const isCommentModerator =
-      req.user.role === 'pengelola' && normalizeJobTitle(req.user.profile?.job_title) === 'Moderator Komentar';
+    const isForumModerator = hasModeratorScope(req.user, 'forum');
 
-    if (!isOwner && !isAdmin && !isCommentModerator) {
+    if (!isOwner && !isAdmin && !isForumModerator) {
       throw forbidden('Anda tidak memiliki akses untuk menghapus komentar ini.');
     }
 
     await comment.destroy();
 
-    if (isAdmin || isCommentModerator) {
+    if (isAdmin || isForumModerator) {
       await writeAuditLog({
         actorId: req.user.id,
-        action: isAdmin ? 'admin.delete_comment' : 'moderator.delete_comment',
+        action: isAdmin ? 'admin.delete_comment' : 'moderator.forum.delete_comment',
         entityType: 'comment',
         entityId: commentId,
         metadata: {
@@ -199,10 +206,9 @@ async function listAdminComments(req, res, next) {
     const offset = (page - 1) * limit;
     const authorArticlesOnly = req.query.author_articles_only === 'true' || req.query.author_articles_only === '1';
     const requestedStatus = normalizeCommentStatus(req.query.status);
-    const jobTitle = normalizeJobTitle(req.user.profile?.job_title);
     const status =
       requestedStatus ||
-      (req.user.role === 'pengelola' && jobTitle === 'Moderator Komentar' ? 'pending' : '');
+      (hasModeratorScope(req.user, 'forum') ? 'pending' : '');
     const where = {};
 
     if (search) {
@@ -279,7 +285,7 @@ async function listAdminComments(req, res, next) {
 
     return res.status(200).json({
       success: true,
-      message: 'Daftar komentar admin berhasil diambil.',
+      message: 'Daftar komentar moderasi berhasil diambil.',
       data: {
         comments: rows.map((comment) => ({
           id: comment.id,
@@ -287,6 +293,7 @@ async function listAdminComments(req, res, next) {
           status: comment.status,
           user_id: comment.user_id,
           article_id: comment.article_id,
+          discussion_forum_id: comment.discussion_forum_id,
           parent_id: comment.parent_id,
           created_at: comment.created_at,
           article: comment.article,
@@ -352,13 +359,14 @@ async function updateCommentStatus(req, res, next) {
 
     await writeAuditLog({
       actorId: req.user.id,
-      action: `moderator.${status}_comment`,
+      action: `moderator.forum.${status}_comment`,
       entityType: 'comment',
       entityId: comment.id,
       metadata: {
         article_id: comment.article_id,
         owner_id: comment.user_id,
         status,
+        moderator_scope: 'forum',
       },
     });
 
@@ -375,6 +383,7 @@ async function updateCommentStatus(req, res, next) {
           status: comment.status,
           user_id: comment.user_id,
           article_id: comment.article_id,
+          discussion_forum_id: comment.discussion_forum_id,
           parent_id: comment.parent_id,
           created_at: comment.created_at,
           updated_at: comment.updated_at,

@@ -14,34 +14,25 @@ const {
   deleteArticle,
 } = require('../controllers/articleController');
 const { authenticate, optionalAuthenticate } = require('../middlewares/authenticate');
-const { authorize, authorizeJobs } = require('../middlewares/authorize');
+const { authorize, authorizeModeratorScopes } = require('../middlewares/authorize');
 
 const router = express.Router();
-
-const ARTICLE_MANAGEMENT_JOBS = ['Penulis Artikel', 'Editor Konten'];
-const ARTICLE_REVIEW_JOBS = ['Editor Konten', 'Validator Artikel'];
-const ARTICLE_PUBLISH_JOBS = ['Publisher Artikel'];
 
 // Public routes
 router.get('/published', listPublishedArticles);
 router.get('/published/:id', optionalAuthenticate, getPublishedArticleDetail);
 
 // Author/Pengelola routes
-router.get('/', authenticate, authorizeJobs(...ARTICLE_MANAGEMENT_JOBS, ...ARTICLE_REVIEW_JOBS, ...ARTICLE_PUBLISH_JOBS), listAdminArticles);
-router.post('/', authenticate, authorizeJobs(...ARTICLE_MANAGEMENT_JOBS), createArticle);
-router.put('/:id', authenticate, authorizeJobs(...ARTICLE_MANAGEMENT_JOBS), updateArticle);
-router.delete('/:id', authenticate, authorizeJobs(...ARTICLE_MANAGEMENT_JOBS), deleteArticle);
-router.patch('/:id/status', authenticate, authorizeJobs(...ARTICLE_REVIEW_JOBS, ...ARTICLE_PUBLISH_JOBS), updateArticleStatus);
-// Admin routes
-router.get('/admin', authenticate, authorize('admin'), listAdminArticles);
-router.get('/admin/main-articles', authenticate, authorize('admin'), listMainArticles);
-router.get('/admin/product-cards/available', authenticate, authorize('admin'), listAvailableProductCards);
-router.get('/admin/:id', authenticate, authorize('admin'), getAdminArticleDetail);
-router.post('/admin', authenticate, authorize('admin'), createArticle);
-router.put('/admin/:id', authenticate, authorize('admin'), updateArticle);
-router.patch('/admin/:id/status', authenticate, authorize('admin'), updateArticleStatus);
-router.delete('/admin/:id', authenticate, authorize('admin'), deleteArticle);
+router.get('/', authenticate, authorize('pengelola'), listAdminArticles);
+router.post('/', authenticate, authorize('pengelola'), createArticle);
+router.put('/:id', authenticate, authorize('pengelola'), updateArticle);
+router.delete('/:id', authenticate, authorize('pengelola'), deleteArticle);
+router.patch('/:id/status', authenticate, authorize('pengelola'), updateArticleStatus);
 
-router.get('/:id', authenticate, authorizeJobs(...ARTICLE_MANAGEMENT_JOBS, ...ARTICLE_REVIEW_JOBS, ...ARTICLE_PUBLISH_JOBS), getAdminArticleDetail);
+// Moderator routes
+router.get('/moderation/content', authenticate, authorizeModeratorScopes('content'), listAdminArticles);
+router.get('/moderation/publication', authenticate, authorizeModeratorScopes('publication'), listAdminArticles);
+
+router.get('/:id', authenticate, authorize('pengelola'), getAdminArticleDetail);
 
 module.exports = router;

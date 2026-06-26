@@ -8,6 +8,7 @@ const {
   getReports,
 } = require('../controllers/adminController');
 const { listUsers, adminUpdateUser } = require('../controllers/userController');
+const { getSettings, updateSettings, testConnection } = require('../controllers/chatbotController');
 const { authenticate } = require('../middlewares/authenticate');
 const { authorize } = require('../middlewares/authorize');
 
@@ -32,5 +33,10 @@ router.post('/system/maintenance', authenticate, authorize('admin'), getSystemHe
 // Reports
 router.get('/reports', authenticate, authorize('admin'), getReports);
 router.get('/reports/export', authenticate, authorize('admin'), getReports);
+
+// Chatbot Settings
+router.get('/chatbot/settings', authenticate, authorize('admin'), getSettings);
+router.put('/chatbot/settings', authenticate, authorize('admin'), updateSettings);
+router.post('/chatbot/test', authenticate, authorize('admin'), testConnection);
 
 module.exports = router;

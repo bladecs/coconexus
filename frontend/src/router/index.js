@@ -16,11 +16,20 @@ import AdminActivityPage from '@/views/AdminActivityPage.vue';
 import AdminActivityLogPage from '@/views/AdminActivityLogPage.vue';
 import AdminSystemPage from '@/views/AdminSystemPage.vue';
 import AdminReportPage from '@/views/AdminReportPage.vue';
+import AdminChatbotPage from '@/views/AdminChatbotPage.vue';
 import PengelolaArticlesPage from '@/views/PengelolaArticlesPage.vue';
 import PengelolaArticleFormPage from '@/views/PengelolaArticleFormPage.vue';
 import PengelolaCommentsPage from '@/views/PengelolaCommentsPage.vue';
+import ModeratorForumsPage from '@/views/ModeratorForumsPage.vue';
+import ModeratorContentPage from '@/views/ModeratorContentPage.vue';
+import ModeratorPublicationPage from '@/views/ModeratorPublicationPage.vue';
+import ModeratorTagPage from '@/views/ModeratorTagPage.vue';
 import PengelolaTagsPage from '@/views/PengelolaTagsPage.vue';
+import ArticlesPage from '@/views/ArticlesPage.vue';
 import ArticleDetailPage from '@/views/ArticleDetailPage.vue';
+import GlossaryPage from '@/views/GlossaryPage.vue';
+import ForumDiscussionPage from '@/views/ForumDiscussionPage.vue';
+import ForumsListPage from '@/views/ForumsListPage.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useAdminStore } from '@/stores/admin';
 
@@ -29,6 +38,11 @@ const routes = [
     path: '/',
     name: 'home',
     component: HomePage,
+  },
+  {
+    path: '/articles',
+    name: 'articles',
+    component: ArticlesPage,
   },
   {
     path: '/login',
@@ -50,6 +64,21 @@ const routes = [
     path: '/articles/:id',
     name: 'article-detail',
     component: ArticleDetailPage,
+  },
+  {
+    path: '/glosarium',
+    name: 'glossary',
+    component: GlossaryPage,
+  },
+  {
+    path: '/forum',
+    name: 'forums-list',
+    component: ForumsListPage,
+  },
+  {
+    path: '/articles/:id/forum',
+    name: 'article-forum',
+    component: ForumDiscussionPage,
   },
   {
     path: '/admin',
@@ -186,6 +215,15 @@ const routes = [
       requiresAdmin: true,
     },
   },
+  {
+    path: '/admin/chatbot',
+    name: 'admin-chatbot',
+    component: AdminChatbotPage,
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+    },
+  },
   // Pengelola Routes
   {
     path: '/pengelola/articles',
@@ -194,7 +232,6 @@ const routes = [
     meta: {
       requiresAuth: true,
       requiresPengelola: true,
-      requiredJobs: ['Penulis Artikel', 'Editor Konten', 'Validator Artikel', 'Publisher Artikel'],
     },
   },
   {
@@ -204,7 +241,6 @@ const routes = [
     meta: {
       requiresAuth: true,
       requiresPengelola: true,
-      requiredJobs: ['Penulis Artikel', 'Editor Konten'],
     },
   },
   {
@@ -214,17 +250,56 @@ const routes = [
     meta: {
       requiresAuth: true,
       requiresPengelola: true,
-      requiredJobs: ['Penulis Artikel', 'Editor Konten'],
     },
   },
   {
-    path: '/pengelola/comments',
-    name: 'pengelola-comments',
+    path: '/moderator/content/articles',
+    name: 'moderator-content-articles',
+    component: ModeratorContentPage,
+    meta: {
+      requiresAuth: true,
+      requiresModerator: true,
+      requiredModeratorTypes: ['content'],
+    },
+  },
+  {
+    path: '/moderator/publication/articles',
+    name: 'moderator-publication-articles',
+    component: ModeratorPublicationPage,
+    meta: {
+      requiresAuth: true,
+      requiresModerator: true,
+      requiredModeratorTypes: ['publication'],
+    },
+  },
+  {
+    path: '/moderator/forum/comments',
+    name: 'moderator-forum-comments',
     component: PengelolaCommentsPage,
     meta: {
       requiresAuth: true,
-      requiresPengelola: true,
-      requiredJobs: ['Moderator Komentar'],
+      requiresModerator: true,
+      requiredModeratorTypes: ['forum'],
+    },
+  },
+  {
+    path: '/moderator/forum/discussions',
+    name: 'moderator-forum-discussions',
+    component: ModeratorForumsPage,
+    meta: {
+      requiresAuth: true,
+      requiresModerator: true,
+      requiredModeratorTypes: ['forum'],
+    },
+  },
+  {
+    path: '/moderator/tag/categories',
+    name: 'moderator-tag-categories',
+    component: ModeratorTagPage,
+    meta: {
+      requiresAuth: true,
+      requiresModerator: true,
+      requiredModeratorTypes: ['tag'],
     },
   },
   {
@@ -234,7 +309,6 @@ const routes = [
     meta: {
       requiresAuth: true,
       requiresPengelola: true,
-      requiredJobs: ['Pengelola Tag/Kategori'],
     },
   },
 ];
@@ -267,14 +341,18 @@ router.beforeEach(async (to) => {
     return { name: 'home' };
   }
 
-  if (to.meta.requiresPengelola && authStore.user?.role !== 'pengelola' && authStore.user?.role !== 'admin') {
+  if (to.meta.requiresPengelola && authStore.user?.role !== 'pengelola') {
     return { name: 'home' };
   }
 
-  const requiredJobs = to.meta.requiredJobs;
-  if (requiredJobs && authStore.user?.role === 'pengelola') {
-    const jobTitle = authStore.user?.profile?.job_title;
-    if (!requiredJobs.includes(jobTitle)) {
+  if (to.meta.requiresModerator && authStore.user?.role !== 'moderator') {
+    return { name: 'home' };
+  }
+
+  const requiredModeratorTypes = to.meta.requiredModeratorTypes;
+  if (requiredModeratorTypes && authStore.user?.role === 'moderator') {
+    const moderatorType = authStore.user?.moderator_assignment?.moderator_type;
+    if (!requiredModeratorTypes.includes(moderatorType)) {
       return { name: 'home' };
     }
   }
@@ -284,6 +362,12 @@ router.beforeEach(async (to) => {
       return { name: 'admin-dashboard' };
     } else if (authStore.user?.role === 'pengelola') {
       return { name: 'pengelola-articles' };
+    } else if (authStore.user?.role === 'moderator') {
+      const modType = authStore.user?.moderator_assignment?.moderator_type;
+      if (modType === 'content') return { name: 'moderator-content-articles' };
+      if (modType === 'publication') return { name: 'moderator-publication-articles' };
+      if (modType === 'tag') return { name: 'moderator-tag-categories' };
+      return { name: 'moderator-forum-comments' };
     }
     return { name: 'home' };
   }

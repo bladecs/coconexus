@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
@@ -71,8 +71,8 @@ async function submit() {
 </script>
 
 <template>
-  <main class="inner-page admin-workspace px-5 pb-12 pt-32 text-stone-100 sm:px-8 lg:px-10">
-    <SiteNavbar variant="admin" />
+  <SiteNavbar variant="admin" />
+  <main class="inner-page admin-workspace px-5 pb-12 pt-32 text-on-surface sm:px-8 lg:px-10">
 
     <section class="mx-auto max-w-3xl">
       <header class="admin-ops-header">
@@ -82,7 +82,7 @@ async function submit() {
         </div>
       </header>
 
-      <div class="mt-6 rounded-lg border border-[#2a2a2a] bg-[#0b0b0b]/40 p-6">
+      <div class="mt-6 rounded-lg border border-outline-variant/30 bg-surface-container p-6">
         <div class="space-y-4">
           <input v-model="form.email" placeholder="Email" class="w-full px-4 py-3" />
           <input v-model="form.password" type="password" placeholder="Password" class="w-full px-4 py-3" />
@@ -92,10 +92,10 @@ async function submit() {
             <option value="admin">Admin</option>
           </select>
           <input v-model="form.full_name" placeholder="Nama lengkap" class="w-full px-4 py-3" />
-          <p v-if="form.role === 'pengelola'" class="text-xs text-stone-400">
+          <p v-if="form.role === 'pengelola'" class="text-xs text-on-surface-variant">
             Pilih jabatan yang mengikuti alur kerja artikel: penulisan, editing, validasi, atau publikasi.
           </p>
-          
+
           <template v-if="form.role === 'pengelola'">
             <select v-model="form.job_title" class="w-full px-4 py-3">
               <option value="">Pilih Jabatan Pengelola</option>
@@ -112,11 +112,11 @@ async function submit() {
           </template>
 
           <div class="flex items-center gap-3">
-            <button class="admin-primary-action" @click="submit" :disabled="creating">{{ creating ? 'Membuat...' : 'Buat User' }}</button>
-            <button class="admin-secondary-action" @click="() => router.back()">Batal</button>
+            <button class="admin-primary-action transition-all duration-150" @click="submit" :disabled="creating">{{ creating ? 'Membuat...' : 'Buat User' }}</button>
+            <button class="admin-secondary-action transition-all duration-150" @click="() => router.back()">Batal</button>
           </div>
 
-          <div v-if="createError" class="text-red-400 text-sm">{{ createError }}</div>
+          <div v-if="createError" class="text-error text-sm">{{ createError }}</div>
         </div>
       </div>
     </section>

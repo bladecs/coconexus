@@ -28,10 +28,7 @@ const props = defineProps({
 const emit = defineEmits(['submit', 'cancel']);
 const authStore = useAuthStore();
 
-const form = reactive({
-  body: '',
-});
-
+const form = reactive({ body: '' });
 const feedback = ref('');
 
 watch(
@@ -65,32 +62,42 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="premium-panel p-5">
+  <div>
     <textarea
       v-model="form.body"
       rows="4"
-      class="w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-4 py-3 text-sm leading-7 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-[#ff7c35] focus:ring-4 focus:ring-[#ff7c35]/15"
+      class="w-full rounded-xl border border-outline-variant/60 bg-surface-container-lowest px-4 py-3 text-sm leading-7 text-on-surface outline-none transition resize-none
+             placeholder:text-on-surface-variant/60
+             focus:border-primary focus:ring-2 focus:ring-primary/10
+             disabled:opacity-50"
       :placeholder="placeholder"
+      :disabled="!authStore.isAuthenticated"
     />
 
-    <p v-if="feedback" class="mt-3 rounded-2xl border border-[#ff7c35]/20 bg-[#ff7c35]/10 px-4 py-3 text-sm text-[#ffd0b6]">
+    <p
+      v-if="feedback"
+      class="mt-2 flex items-center gap-2 rounded-lg border border-error/20 bg-error/5 px-4 py-2.5 text-sm text-error"
+    >
+      <span class="material-symbols-outlined flex-shrink-0" style="font-size:16px;font-variation-settings:'FILL' 1">info</span>
       {{ feedback }}
     </p>
 
-    <div class="mt-4 flex flex-wrap items-center gap-3">
+    <div class="mt-3 flex flex-wrap items-center gap-3">
       <button
         type="button"
-        :disabled="loading"
-        class="rounded-full bg-[#ff7c35] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#e86f2f] disabled:cursor-not-allowed disabled:opacity-60"
+        :disabled="loading || !authStore.isAuthenticated"
+        class="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-on-primary shadow-sm
+               transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         @click="handleSubmit"
       >
+        <span class="material-symbols-outlined" style="font-size:16px;font-variation-settings:'FILL' 1">send</span>
         {{ loading ? 'Memproses...' : submitLabel }}
       </button>
 
       <button
         v-if="parentId"
         type="button"
-        class="rounded-full border border-white/12 bg-[#383838] px-4 py-2 text-sm font-semibold text-stone-200 transition hover:bg-[#424242]"
+        class="rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold text-on-surface-variant transition hover:bg-surface-container"
         @click="$emit('cancel')"
       >
         Batal

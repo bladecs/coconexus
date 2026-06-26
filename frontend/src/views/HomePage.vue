@@ -1,791 +1,384 @@
 <script setup>
-import { computed, onMounted, reactive } from 'vue';
-import { RouterLink } from 'vue-router';
+import { computed, onMounted, ref } from 'vue';
+import { RouterLink, useRouter } from 'vue-router';
 import SiteFooter from '@/components/layout/SiteFooter.vue';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import { useArticleStore } from '@/stores/articles';
 import { resolveAssetUrl } from '@/lib/assets';
-import { articleNeeds, sampleArticles } from '@/data/sampleArticles';
+import { sampleArticles } from '@/data/sampleArticles';
 
 const articleStore = useArticleStore();
+const router = useRouter();
 
-const filters = reactive({
-  search: '',
-  category: '',
-  page: 1,
-  limit: 6,
-});
+const searchQuery = ref('');
 
-const categories = [
+const CATEGORIES = [
   {
     name: 'Batok Kelapa',
-    description: 'Briket, arang aktif, asap cair, tepung tempurung, dan produk energi komunitas.',
-    tone: 'orange',
+    icon: 'local_fire_department',
+    description: 'Briket, arang aktif, asap cair, tepung tempurung, dan produk energi berbasis komunitas.',
+    accent: '#e85d04',
+    bg: 'bg-orange-50 dark:bg-orange-950/30',
+    border: 'border-orange-200 dark:border-orange-900/50',
+    iconColor: 'text-orange-600 dark:text-orange-400',
+    iconBg: 'bg-orange-100 dark:bg-orange-900/40',
   },
   {
     name: 'Serabut Kelapa',
-    description: 'Cocopeat, cocofiber, cocomesh, tali serat, serta media tanam dan rehabilitasi lahan.',
-    tone: 'green',
+    icon: 'eco',
+    description: 'Cocopeat, cocofiber, cocomesh, tali serat, media tanam, dan rehabilitasi lahan.',
+    accent: '#2d6a4f',
+    bg: 'bg-emerald-50 dark:bg-emerald-950/30',
+    border: 'border-emerald-200 dark:border-emerald-900/50',
+    iconColor: 'text-emerald-700 dark:text-emerald-400',
+    iconBg: 'bg-emerald-100 dark:bg-emerald-900/40',
   },
   {
     name: 'Kulit Kelapa',
-    description: 'Pewarna alami, mulsa organik, biomassa, pupuk cair, dan bahan kerajinan.',
-    tone: 'blue',
+    icon: 'palette',
+    description: 'Pewarna alami, mulsa organik, biomassa, pupuk cair, dan bahan kerajinan tangan.',
+    accent: '#6d4c41',
+    bg: 'bg-amber-50 dark:bg-amber-950/30',
+    border: 'border-amber-200 dark:border-amber-900/50',
+    iconColor: 'text-amber-800 dark:text-amber-400',
+    iconBg: 'bg-amber-100 dark:bg-amber-900/40',
   },
 ];
 
-const heroProducts = [
+const QUICK_LINKS = [
   {
-    title: 'Briket Batok',
-    image:
-      'https://images.unsplash.com/photo-1590246814883-57c511a1a0fd?auto=format&fit=crop&w=900&q=80',
+    label: 'Glosarium Istilah',
+    desc: 'Kamus terminologi teknis pengolahan limbah kelapa.',
+    icon: 'menu_book',
+    to: '/glosarium',
+    cls: 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50 text-blue-700 dark:text-blue-400',
   },
   {
-    title: 'Cocopeat',
-    image:
-      'https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?auto=format&fit=crop&w=900&q=80',
+    label: 'Forum Diskusi',
+    desc: 'Tanya jawab dan diskusi antar praktisi dan peneliti.',
+    icon: 'forum',
+    to: '/forum',
+    cls: 'bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-900/50 text-violet-700 dark:text-violet-400',
   },
   {
-    title: 'Kerajinan Serat',
-    image:
-      'https://images.unsplash.com/photo-1606041008023-472dfb5e530f?auto=format&fit=crop&w=900&q=80',
+    label: 'Prosedur Teknis',
+    desc: 'Panduan langkah demi langkah untuk produksi dan pengolahan.',
+    icon: 'checklist',
+    to: '/articles?article_type=prosedur',
+    cls: 'bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-900/50 text-teal-700 dark:text-teal-400',
   },
   {
-    title: 'Arang Aktif',
-    image:
-      'https://images.unsplash.com/photo-1506368249639-73a05d6f6488?auto=format&fit=crop&w=900&q=80',
+    label: 'Studi Kasus',
+    desc: 'Kisah nyata penerapan teknologi pengolahan di lapangan.',
+    icon: 'science',
+    to: '/articles?article_type=studi_kasus',
+    cls: 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-400',
   },
 ];
 
 const publishedArticles = computed(() => articleStore.publishedArticles || []);
-const hasRealArticles = computed(() => publishedArticles.value.length > 0);
-const visibleArticles = computed(() => (hasRealArticles.value ? publishedArticles.value : sampleArticles));
-const totalArticles = computed(() =>
+const hasRealArticles   = computed(() => publishedArticles.value.length > 0);
+const latestArticles    = computed(() => hasRealArticles.value ? publishedArticles.value.slice(0, 6) : sampleArticles);
+const totalArticles     = computed(() =>
   articleStore.publishedMeta.total_items || publishedArticles.value.length || sampleArticles.length
 );
 
-function getArticleExcerpt(article) {
-  const source = article.summary || article?.detail?.meta_description || article?.detail?.body_content || '';
-  return source.length > 170 ? `${source.slice(0, 170)}...` : source;
+function getImage(article) {
+  const m = article?.media?.find(i => i.media_type === 'image') || article?.media?.[0];
+  return m?.media_type === 'image' ? resolveAssetUrl(m.file_path) : null;
 }
 
-function getArticleImage(article) {
-  const heroMedia = article?.media?.find((item) => item.media_type === 'image') || article?.media?.[0];
-  return heroMedia?.media_type === 'image' ? resolveAssetUrl(heroMedia.file_path) : null;
+function getExcerpt(article) {
+  const raw = article.summary || article?.detail?.meta_description || article?.detail?.body_content || '';
+  const clean = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  return clean.length > 110 ? `${clean.slice(0, 110)}…` : clean;
 }
 
-async function loadPublishedArticles() {
-  await articleStore.fetchPublishedArticles(filters);
+function formatDate(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-async function applyFilters() {
-  filters.page = 1;
-  await loadPublishedArticles();
-  document.querySelector('#articles')?.scrollIntoView({ behavior: 'smooth' });
+function handleSearch() {
+  const q = searchQuery.value.trim();
+  if (q) router.push(`/articles?search=${encodeURIComponent(q)}`);
+  else router.push('/articles');
 }
 
-async function filterCategory(category) {
-  filters.category = category;
-  filters.search = '';
-  await applyFilters();
-}
-
-async function goToPage(page) {
-  filters.page = page;
-  await loadPublishedArticles();
-}
-
-onMounted(loadPublishedArticles);
+onMounted(() => {
+  articleStore.fetchPublishedArticles({ page: 1, limit: 6 });
+});
 </script>
 
 <template>
-  <main class="article-home">
-    <SiteNavbar />
+  <SiteNavbar />
 
-    <section class="hero-section">
-      <div class="hero-mosaic" aria-label="Produk hasil pengolahan limbah kelapa">
-        <figure
-          v-for="product in heroProducts"
-          :key="product.title"
-          class="hero-panel"
-          :style="{ backgroundImage: `linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.58)), url(${product.image})` }"
-        >
-          <figcaption>{{ product.title }}</figcaption>
-        </figure>
-      </div>
+  <div class="md:ml-64 pt-14 md:pt-0 min-h-screen bg-background flex flex-col">
 
-      <div class="hero-overlay">
-        <p class="eyebrow">Knowledge Platform</p>
-        <h1>COCONEXUS</h1>
-        <p>
-          Transformasi Strategis: Mengintegrasikan Keberlanjutan ke dalam Ekonomi Sirkular Kelapa.
-        </p>
-        <div class="hero-actions">
-          <a href="#articles">Jelajahi artikel</a>
-          <a href="#needs" class="ghost">Lihat kebutuhan web</a>
+    <!-- ── Hero / Welcome ── -->
+    <section class="relative overflow-hidden mx-4 sm:mx-6 mt-5 rounded-2xl"
+      style="background: linear-gradient(135deg, #002a1f 0%, #003d2d 55%, #004d38 100%)">
+      <div class="absolute -top-20 -right-20 w-72 h-72 rounded-full pointer-events-none"
+        style="background: radial-gradient(circle, rgba(149,211,186,0.08), transparent 70%)"></div>
+      <div class="absolute -bottom-10 -left-10 w-52 h-52 rounded-full pointer-events-none"
+        style="background: radial-gradient(circle, rgba(149,211,186,0.05), transparent 70%)"></div>
+
+      <div class="relative z-10 px-6 sm:px-10 py-9 flex flex-col lg:flex-row gap-8 items-start lg:items-center">
+
+        <!-- Text -->
+        <div class="flex-1 min-w-0">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4"
+            style="background:rgba(149,211,186,0.15); color:#95d3ba; border:1px solid rgba(149,211,186,0.25)">
+            <span class="material-symbols-outlined" style="font-size:13px">eco</span>
+            Platform Manajemen Pengetahuan
+          </span>
+          <h1 class="text-3xl sm:text-4xl font-black text-white leading-tight mb-2">
+            Selamat Datang di <br class="hidden sm:block">COCONEXUS
+          </h1>
+          <p class="text-sm leading-relaxed mb-5 max-w-md" style="color:rgba(176,240,214,0.75)">
+            Temukan prosedur teknis, panduan ilmiah, dan studi kasus pengolahan limbah kelapa secara terpadu.
+          </p>
+
+          <!-- Search bar -->
+          <form class="flex gap-2 max-w-lg" @submit.prevent="handleSearch">
+            <div class="relative flex-1">
+              <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                style="font-size:18px; color:rgba(255,255,255,0.45)">search</span>
+              <input
+                v-model="searchQuery"
+                type="search"
+                placeholder="Cari artikel, prosedur, panduan…"
+                class="w-full rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all"
+                style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); color:#fff; caret-color:#95d3ba"
+              />
+            </div>
+            <button type="submit"
+              class="flex-shrink-0 px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:-translate-y-0.5"
+              style="background:#95d3ba; color:#002a1f">
+              Cari
+            </button>
+          </form>
         </div>
-      </div>
-    </section>
 
-    <section class="hero-bridge" aria-label="Ringkasan COCONEXUS">
-      <div>
-        <span>{{ totalArticles }} artikel</span>
-        <span>3 kategori utama</span>
-        <span>Diskusi komunitas</span>
-      </div>
-      <p>
-        Jelajahi pengetahuan limbah kelapa dari pengolahan bahan mentah, produk turunan, sampai peluang ekonomi
-        komunitas.
-      </p>
-    </section>
-
-    <section id="categories" class="section-block">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Kategori</p>
-          <h2>Topik utama yang dibutuhkan pembaca.</h2>
-        </div>
-        <p>
-          Pilih kategori untuk melihat artikel yang sesuai dengan jenis limbah kelapa dan produk turunannya.
-        </p>
-      </div>
-
-      <div class="category-grid">
-        <article
-          v-for="category in categories"
-          :key="category.name"
-          class="category-card"
-          :class="`category-card--${category.tone}`"
-        >
-          <span></span>
-          <h3>{{ category.name }}</h3>
-          <p>{{ category.description }}</p>
-          <button type="button" @click="filterCategory(category.name)">Filter artikel</button>
-        </article>
-      </div>
-    </section>
-
-    <section id="articles" class="section-block article-section">
-      <div class="section-heading article-heading">
-        <div>
-          <p class="eyebrow">Artikel</p>
-          <h2>Katalog pengetahuan COCONEXUS.</h2>
-        </div>
-        <p>
-          {{ hasRealArticles ? `${totalArticles} artikel published tersedia.` : 'Menampilkan artikel contoh agar layout terlihat.' }}
-        </p>
-      </div>
-
-      <form class="filter-panel" @submit.prevent="applyFilters">
-        <label>
-          <span>Cari artikel</span>
-          <input v-model="filters.search" type="search" placeholder="Contoh: briket, cocopeat, asap cair" />
-        </label>
-        <label>
-          <span>Kategori</span>
-          <input v-model="filters.category" type="text" placeholder="Batok Kelapa" />
-        </label>
-        <button type="submit">Terapkan</button>
-      </form>
-
-      <div v-if="articleStore.isLoading" class="article-state">
-        Memuat daftar artikel...
-      </div>
-
-      <div v-else class="article-list">
-        <article
-          v-for="(article, index) in visibleArticles"
-          :key="article.id"
-          class="story-card"
-          :style="{ '--accent': article.accent || ['#ff7b33', '#c26939', '#a65328'][index % 3] }"
-        >
-          <div class="story-cover">
-            <img v-if="getArticleImage(article)" :src="getArticleImage(article)" :alt="article.title" />
-            <div v-else class="story-cover__fallback">
-              <span>{{ article.category?.name || article.category || 'Artikel' }}</span>
+        <!-- Stats -->
+        <div class="grid grid-cols-3 lg:grid-cols-1 gap-2 w-full lg:w-auto">
+          <div class="hero-stat">
+            <span class="material-symbols-outlined hero-stat__icon">article</span>
+            <div>
+              <p class="hero-stat__value">{{ totalArticles }}</p>
+              <p class="hero-stat__label">Artikel</p>
             </div>
           </div>
+          <div class="hero-stat">
+            <span class="material-symbols-outlined hero-stat__icon">category</span>
+            <div>
+              <p class="hero-stat__value">3</p>
+              <p class="hero-stat__label">Kategori</p>
+            </div>
+          </div>
+          <RouterLink to="/forum" class="hero-stat hover:border-[rgba(149,211,186,0.4)] transition-colors">
+            <span class="material-symbols-outlined hero-stat__icon">forum</span>
+            <div>
+              <p class="hero-stat__value">Forum</p>
+              <p class="hero-stat__label">Diskusi</p>
+            </div>
+          </RouterLink>
+        </div>
 
-          <div class="story-content">
-            <p class="story-meta">
-              {{ article.category?.name || article.category || 'Tanpa Kategori' }}
-              <span>{{ article.readTime || `Versi ${article.version}` }}</span>
-            </p>
-            <h3>{{ article.title }}</h3>
-            <p>{{ getArticleExcerpt(article) }}</p>
+      </div>
+    </section>
 
-            <div class="story-tags">
-              <span v-for="tag in article.tags || []" :key="tag">{{ tag }}</span>
+    <div class="px-4 sm:px-6 mt-7 flex-1 flex flex-col gap-8">
+
+      <!-- ── Jelajahi Topik ── -->
+      <section>
+        <div class="flex items-end justify-between mb-4">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-widest text-secondary mb-1">Topik Utama</p>
+            <h2 class="text-xl font-black text-on-surface">Jelajahi berdasarkan kategori limbah</h2>
+          </div>
+          <RouterLink to="/articles" class="text-sm font-semibold text-primary hover:underline hidden sm:flex items-center gap-1">
+            Lihat semua
+            <span class="material-symbols-outlined" style="font-size:15px">arrow_forward</span>
+          </RouterLink>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <RouterLink
+            v-for="cat in CATEGORIES"
+            :key="cat.name"
+            :to="`/articles?category=${encodeURIComponent(cat.name)}`"
+            class="group flex flex-col gap-3 p-5 rounded-2xl border transition-all hover:-translate-y-1 hover:shadow-lg"
+            :class="[cat.bg, cat.border]"
+          >
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
+                :class="cat.iconBg">
+                <span class="material-symbols-outlined text-2xl" :class="cat.iconColor"
+                  style="font-variation-settings:'FILL' 1,'wght' 500">{{ cat.icon }}</span>
+              </div>
+              <h3 class="font-bold text-on-surface text-base leading-tight">{{ cat.name }}</h3>
+            </div>
+            <p class="text-xs text-on-surface-variant leading-relaxed flex-1">{{ cat.description }}</p>
+            <span class="inline-flex items-center gap-1 text-xs font-bold" :class="cat.iconColor">
+              Lihat artikel
+              <span class="material-symbols-outlined" style="font-size:13px">arrow_forward</span>
+            </span>
+          </RouterLink>
+        </div>
+      </section>
+
+      <!-- ── Artikel Terbaru ── -->
+      <section>
+        <div class="flex items-end justify-between mb-4">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-widest text-secondary mb-1">Konten Terbaru</p>
+            <h2 class="text-xl font-black text-on-surface">Artikel terbaru</h2>
+          </div>
+          <RouterLink to="/articles" class="text-sm font-semibold text-primary hover:underline flex items-center gap-1">
+            Lihat semua
+            <span class="material-symbols-outlined" style="font-size:15px">arrow_forward</span>
+          </RouterLink>
+        </div>
+
+        <!-- Loading -->
+        <div v-if="articleStore.isLoading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div v-for="i in 6" :key="i" class="rounded-2xl overflow-hidden border border-outline-variant/20 bg-surface-container-lowest animate-pulse">
+            <div class="aspect-video bg-outline-variant/20"></div>
+            <div class="p-4 space-y-2">
+              <div class="h-3 bg-outline-variant/20 rounded w-1/3"></div>
+              <div class="h-4 bg-outline-variant/20 rounded w-full"></div>
+              <div class="h-4 bg-outline-variant/20 rounded w-3/4"></div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <component
+            :is="hasRealArticles ? RouterLink : 'div'"
+            v-for="article in latestArticles"
+            :key="article.id"
+            :to="hasRealArticles ? `/articles/${article.id}` : undefined"
+            class="group flex flex-col rounded-2xl overflow-hidden border border-outline-variant/20 bg-surface-container-lowest shadow-sm transition-all hover:-translate-y-1 hover:shadow-md hover:border-primary/20"
+          >
+            <!-- Thumbnail -->
+            <div class="relative aspect-video overflow-hidden flex-shrink-0 bg-gradient-to-br from-[#003527] to-[#005c41]">
+              <img
+                v-if="getImage(article)"
+                :src="getImage(article)"
+                :alt="article.title"
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div v-else class="w-full h-full flex items-center justify-center">
+                <span class="material-symbols-outlined" style="font-size:40px; color:rgba(255,255,255,0.2)">article</span>
+              </div>
+              <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+              <div class="absolute bottom-2 left-2">
+                <span v-if="article.category?.name || article.category" class="inline-flex text-xs font-bold px-2 py-0.5 rounded-full bg-secondary/90 text-on-secondary">
+                  {{ article.category?.name || article.category }}
+                </span>
+              </div>
+              <div v-if="!hasRealArticles" class="absolute top-2 right-2">
+                <span class="inline-flex text-xs font-bold px-2 py-0.5 rounded-full" style="background:rgba(255,255,255,0.15);color:#fff">Contoh</span>
+              </div>
             </div>
 
-            <RouterLink v-if="hasRealArticles" :to="`/articles/${article.id}`">Baca detail</RouterLink>
-            <span v-else class="sample-pill">Contoh layout</span>
-          </div>
-        </article>
-      </div>
-
-      <div v-if="hasRealArticles && articleStore.publishedMeta.total_pages > 1" class="pagination-row">
-        <button type="button" :disabled="filters.page <= 1" @click="goToPage(filters.page - 1)">
-          Sebelumnya
-        </button>
-        <span>Halaman {{ articleStore.publishedMeta.page }} dari {{ articleStore.publishedMeta.total_pages }}</span>
-        <button
-          type="button"
-          :disabled="filters.page >= articleStore.publishedMeta.total_pages"
-          @click="goToPage(filters.page + 1)"
-        >
-          Berikutnya
-        </button>
-      </div>
-    </section>
-
-    <section id="needs" class="section-block needs-section">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Analisis</p>
-          <h2>Kebutuhan web artikel yang masih perlu ditambahkan.</h2>
+            <!-- Card body -->
+            <div class="flex flex-col flex-1 p-4">
+              <h3 class="font-bold text-sm text-on-surface leading-snug line-clamp-2 mb-2 group-hover:text-primary transition-colors">
+                {{ article.title }}
+              </h3>
+              <p class="text-xs text-on-surface-variant leading-relaxed line-clamp-2 flex-1">
+                {{ getExcerpt(article) }}
+              </p>
+              <div class="flex items-center justify-between mt-3 pt-3 border-t border-outline-variant/20 text-xs text-on-surface-variant">
+                <span class="flex items-center gap-1">
+                  <span class="material-symbols-outlined" style="font-size:12px">person</span>
+                  <span class="truncate max-w-[100px]">
+                    {{ article.author?.name || article.author?.username || article.author || 'Tim COCONEXUS' }}
+                  </span>
+                </span>
+                <span class="flex items-center gap-1 flex-shrink-0">
+                  <span class="material-symbols-outlined" style="font-size:12px">calendar_today</span>
+                  {{ formatDate(article.published_at || article.created_at) || article.date || '' }}
+                </span>
+              </div>
+            </div>
+          </component>
         </div>
-        <p>
-          Catatan pengembangan berikutnya agar website artikel lebih siap dipakai sebagai platform pengetahuan.
-        </p>
-      </div>
 
-      <div class="needs-grid">
-        <article v-for="(need, index) in articleNeeds" :key="need" class="need-item">
-          <strong>{{ String(index + 1).padStart(2, '0') }}</strong>
-          <p>{{ need }}</p>
-        </article>
-      </div>
-    </section>
+        <div class="mt-5 text-center">
+          <RouterLink
+            to="/articles"
+            class="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-outline-variant/40 bg-surface-container-lowest text-sm font-semibold text-on-surface hover:border-primary hover:text-primary transition-all"
+          >
+            <span class="material-symbols-outlined" style="font-size:16px">inventory_2</span>
+            Lihat semua artikel
+            <span class="material-symbols-outlined" style="font-size:16px">arrow_forward</span>
+          </RouterLink>
+        </div>
+      </section>
+
+      <!-- ── Akses Cepat ── -->
+      <section class="pb-2">
+        <div class="mb-4">
+          <p class="text-xs font-bold uppercase tracking-widest text-secondary mb-1">Navigasi Cepat</p>
+          <h2 class="text-xl font-black text-on-surface">Akses langsung ke fitur utama</h2>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <RouterLink
+            v-for="link in QUICK_LINKS"
+            :key="link.label"
+            :to="link.to"
+            class="group flex items-start gap-3 p-4 rounded-2xl border transition-all hover:-translate-y-1 hover:shadow-md"
+            :class="link.cls"
+          >
+            <span class="material-symbols-outlined text-2xl flex-shrink-0 mt-0.5"
+              style="font-variation-settings:'FILL' 1,'wght' 400">{{ link.icon }}</span>
+            <div class="min-w-0">
+              <p class="font-bold text-sm text-on-surface leading-tight mb-1 group-hover:underline">{{ link.label }}</p>
+              <p class="text-xs text-on-surface-variant leading-snug">{{ link.desc }}</p>
+            </div>
+          </RouterLink>
+        </div>
+      </section>
+
+    </div>
 
     <SiteFooter />
-  </main>
+  </div>
 </template>
 
 <style scoped>
-.article-home {
-  min-height: 100vh;
-  background:
-    linear-gradient(180deg, rgba(41, 41, 41, 0.9), rgba(31, 31, 31, 0.97)),
-    url('@/assets/img/background.jpg') center top / cover fixed;
-  color: #fff7f0;
-}
-
-.hero-section {
-  position: relative;
-  min-height: 720px;
-  width: 100%;
-  margin: 0;
-  overflow: hidden;
-  padding: 0;
-}
-
-.section-block {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(48, 48, 48, 0.94);
-  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.34);
-}
-
-.hero-mosaic {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0;
-}
-
-.hero-panel {
-  position: relative;
-  min-width: 0;
-  margin: 0;
-  background-position: center;
-  background-size: cover;
-}
-
-.hero-panel::after {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.2), transparent 22%, transparent 78%, rgba(0, 0, 0, 0.24));
-  content: '';
-}
-
-.hero-panel figcaption {
-  position: absolute;
-  right: 18px;
-  bottom: 18px;
-  z-index: 1;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 999px;
-  background: rgba(31, 31, 31, 0.62);
-  color: #fff7f0;
-  font-size: 0.78rem;
-  font-weight: 900;
-  padding: 9px 12px;
-}
-
-.hero-overlay {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  min-height: 720px;
-  place-content: center;
-  padding: 160px 24px 96px;
-  text-align: center;
-}
-
-.hero-bridge {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.72fr);
+.hero-stat {
+  display: flex;
   align-items: center;
-  gap: 28px;
-  width: min(1440px, calc(100% - 48px));
-  margin: clamp(28px, 5vw, 72px) auto 22px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: rgba(48, 48, 48, 0.94);
-  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.24);
-  padding: clamp(20px, 3vw, 32px);
-}
-
-.hero-bridge div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.hero-bridge span {
-  border-radius: 999px;
-  background: rgba(255, 123, 51, 0.14);
-  color: #ffb083;
-  font-size: 0.84rem;
-  font-weight: 900;
-  padding: 10px 14px;
-}
-
-.hero-bridge p {
-  margin: 0;
-  color: #d0c3ba;
-  font-size: 0.98rem;
-  line-height: 1.7;
-}
-
-.hero-overlay::before {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(circle at center, rgba(0, 0, 0, 0.2), transparent 34%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.52), rgba(0, 0, 0, 0.16) 46%, rgba(0, 0, 0, 0.72));
-  content: '';
-}
-
-.eyebrow {
-  margin: 0 0 16px;
-  color: #ffb083;
-  font-size: 0.78rem;
-  font-weight: 950;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-}
-
-.hero-overlay h1,
-.section-heading h2 {
-  margin: 0;
-  max-width: 1180px;
-  font-size: clamp(5rem, 12vw, 12rem);
-  font-weight: 950;
-  letter-spacing: 0;
-  line-height: 0.82;
-}
-
-.hero-overlay > p:not(.eyebrow) {
-  max-width: 820px;
-  margin: 32px auto 0;
-  color: #d0c3ba;
-  font-size: clamp(1rem, 2vw, 1.35rem);
-  font-weight: 800;
-  line-height: 1.55;
-}
-
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 34px;
-  justify-content: center;
-}
-
-.hero-actions a,
-.category-card button,
-.filter-panel button,
-.story-content a,
-.pagination-row button {
-  border: 0;
-  border-radius: 8px;
-  background: #ff7b33;
-  color: #fff8ef;
-  cursor: pointer;
-  font-weight: 900;
-  padding: 14px 18px;
+  gap: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.875rem;
+  border: 1px solid rgba(149, 211, 186, 0.2);
+  background: rgba(255, 255, 255, 0.06);
   text-decoration: none;
 }
-
-.hero-actions .ghost {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(31, 31, 31, 0.45);
-  color: #fff7f0;
+.hero-stat__icon {
+  font-size: 1.25rem;
+  color: #95d3ba;
+  flex-shrink: 0;
+  font-variation-settings: 'FILL' 1, 'wght' 400;
+}
+.hero-stat__value {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.1;
+}
+.hero-stat__label {
+  font-size: 0.6875rem;
+  color: rgba(176, 240, 214, 0.65);
 }
 
-.feature-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 22px;
-}
-
-.feature-meta span,
-.sample-pill,
-.story-tags span {
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.11);
-  color: inherit;
-  font-size: 0.78rem;
-  font-weight: 900;
-  padding: 8px 11px;
-}
-
-.section-block {
-  width: min(1440px, calc(100% - 48px));
-  margin: 0 auto 22px;
-  padding: clamp(24px, 4vw, 44px);
-}
-
-.section-heading {
-  display: grid;
-  grid-template-columns: minmax(0, 0.78fr) minmax(340px, 0.42fr);
-  gap: 32px;
-  align-items: start;
-  margin-bottom: 28px;
-}
-
-.section-heading .eyebrow {
-  margin-bottom: 14px;
-}
-
-.section-heading h2 {
-  max-width: 780px;
-  font-size: clamp(2rem, 3.15vw, 3.35rem);
-  line-height: 1.04;
-}
-
-.section-heading > p:last-child {
-  margin: 0;
-  color: #d0c3ba;
-  padding-top: 34px;
-  line-height: 1.7;
-}
-
-.category-grid,
-.needs-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.category-card,
-.need-item {
-  position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: #383838;
-  padding: 28px;
-}
-
-.category-card {
-  display: grid;
-  min-height: 275px;
-  align-content: space-between;
-}
-
-.category-card::after {
-  position: absolute;
-  top: -38px;
-  right: -34px;
-  width: 148px;
-  height: 148px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--card-accent, #ff7b33) 30%, transparent);
-  content: '';
-}
-
-.category-card--orange {
-  --card-accent: #ff7b33;
-}
-
-.category-card--green {
-  --card-accent: #c26939;
-}
-
-.category-card--blue {
-  --card-accent: #5b301f;
-}
-
-.category-card span {
-  display: block;
-  width: 50px;
-  height: 50px;
-  border-radius: 8px;
-  background: var(--card-accent, #ff7b33);
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.22);
-}
-
-.category-card--green span {
-  background: var(--card-accent);
-}
-
-.category-card--blue span {
-  background: var(--card-accent);
-}
-
-.category-card h3 {
-  margin: 24px 0 10px;
-  font-size: clamp(1.35rem, 1.7vw, 1.75rem);
-  font-weight: 950;
-}
-
-.category-card p,
-.need-item p {
-  color: #d0c3ba;
-  line-height: 1.7;
-}
-
-.category-card button {
-  margin-top: 14px;
-  width: fit-content;
-  background: rgba(255, 123, 51, 0.14);
-  color: #fff7f0;
-}
-
-.filter-panel {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 300px) auto;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.filter-panel label {
-  display: grid;
-  gap: 8px;
-  color: #d0c3ba;
-  font-size: 0.82rem;
-  font-weight: 900;
-}
-
-.filter-panel input {
-  min-width: 0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: #303030;
-  color: #fff7f0;
-  font: inherit;
-  padding: 14px;
-  outline: none;
-}
-
-.filter-panel input:focus {
-  border-color: rgba(255, 123, 51, 0.55);
-  box-shadow: 0 0 0 4px rgba(255, 123, 51, 0.16);
-}
-
-.filter-panel button {
-  align-self: end;
-}
-
-.article-list {
-  display: grid;
-  gap: 14px;
-}
-
-.story-card {
-  display: grid;
-  grid-template-columns: minmax(230px, 340px) minmax(0, 1fr);
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: #303030;
-}
-
-.story-cover {
-  min-height: 260px;
-  background: var(--accent);
-}
-
-.story-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.story-cover__fallback {
-  display: grid;
-  width: 100%;
-  height: 100%;
-  min-height: 260px;
-  place-items: center;
-  background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.34)),
-    url('@/assets/img/background.jpg') center / cover;
-  color: #fff8ef;
-}
-
-.story-cover__fallback span {
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.34);
-  font-weight: 950;
-  padding: 10px 14px;
-}
-
-.story-content {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-width: 0;
-  padding: clamp(22px, 4vw, 38px);
-}
-
-.story-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 0 0 12px;
-  color: var(--accent);
-  font-size: 0.82rem;
-  font-weight: 950;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.story-meta span {
-  color: #d0c3ba;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.story-content h3 {
-  max-width: 740px;
-  margin: 0;
-  color: #fff7f0;
-  font-size: clamp(1.45rem, 2.35vw, 2.25rem);
-  font-weight: 950;
-  letter-spacing: 0;
-  line-height: 1.04;
-}
-
-.story-content > p:not(.story-meta) {
-  max-width: 720px;
-  margin: 16px 0 0;
-  color: #d0c3ba;
-  line-height: 1.75;
-}
-
-.story-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 18px;
-}
-
-.story-tags span {
-  background: rgba(255, 123, 51, 0.12);
-  color: #ffb083;
-}
-
-.story-content a,
-.sample-pill {
-  align-self: flex-start;
-  margin-top: 22px;
-}
-
-.sample-pill {
-  background: rgba(255, 123, 51, 0.16);
-  color: #ffb083;
-}
-
-.article-state {
-  border: 1px dashed rgba(255, 255, 255, 0.18);
-  border-radius: 8px;
-  color: #d0c3ba;
-  font-weight: 850;
-  padding: 28px;
-  text-align: center;
-}
-
-.pagination-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  margin-top: 22px;
-  color: #d0c3ba;
-  font-weight: 850;
-}
-
-.pagination-row button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.need-item strong {
-  color: #ffb083;
-  font-size: 1.1rem;
-}
-
-.need-item p {
-  margin: 16px 0 0;
-}
-
-@media (max-width: 940px) {
-  .section-heading,
-  .hero-bridge,
-  .filter-panel,
-  .story-card {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-section,
-  .hero-overlay {
-    min-height: 620px;
-  }
-
-  .hero-mosaic {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .category-grid,
-  .needs-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 560px) {
-  .hero-section {
-    width: 100%;
-  }
-
-  .section-block {
-    width: calc(100% - 20px);
-    padding: 22px;
-  }
-
-  .hero-overlay {
-    padding-top: 240px;
-  }
-
-  .hero-overlay h1 {
-    font-size: clamp(3.6rem, 18vw, 5.5rem);
-  }
+input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
 }
 </style>

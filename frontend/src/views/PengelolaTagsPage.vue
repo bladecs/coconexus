@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { onMounted, ref } from 'vue';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import api from '@/lib/api';
@@ -59,8 +59,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="inner-page pengelola-workspace px-5 pb-12 pt-32 text-stone-100 sm:px-8 lg:px-10">
-    <SiteNavbar variant="pengelola" />
+  <SiteNavbar variant="pengelola" />
+  <main class="inner-page pengelola-workspace px-5 pb-12 pt-32 text-on-surface sm:px-8 lg:px-10">
 
     <section class="mx-auto max-w-[1680px]">
       <header class="admin-ops-header">
@@ -78,7 +78,7 @@ onMounted(() => {
             v-model="newCategoryName"
             type="text"
             placeholder="Nama kategori baru..."
-            class="flex-1 px-3 py-2 rounded bg-stone-800 border border-stone-600 text-stone-100 placeholder-stone-400 focus:outline-none focus:border-stone-500"
+            class="flex-1 px-3 py-2 rounded bg-stone-800 border border-stone-600 text-on-surface placeholder-stone-400 focus:outline-none focus:border-stone-500"
           />
           <button
             type="submit"
@@ -102,7 +102,7 @@ onMounted(() => {
           {{ error }}
         </div>
 
-        <div v-else-if="categories.length === 0" class="text-center py-8 text-stone-400">
+        <div v-else-if="categories.length === 0" class="text-center py-8 text-on-surface-variant">
           Belum ada kategori
         </div>
 
@@ -116,7 +116,7 @@ onMounted(() => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="category in categories" :key="category.id" class="border-b border-stone-700 hover:bg-stone-800">
+              <tr v-for="category in categories" :key="category.id" class="border-b border-outline-variant/40 hover:bg-stone-800">
                 <td class="px-4 py-3">{{ category.name }}</td>
                 <td class="px-4 py-3 text-right">{{ category.articles?.length || 0 }}</td>
                 <td class="px-4 py-3 text-right">
@@ -134,7 +134,7 @@ onMounted(() => {
         </div>
       </section>
 
-      <p class="text-xs text-stone-400 mt-4">
+      <p class="text-xs text-on-surface-variant mt-4">
         *Kategori yang memiliki artikel tidak bisa dihapus
       </p>
     </section>

@@ -4,6 +4,7 @@ import App from './App.vue';
 import router from './router';
 import { useAuthStore } from './stores/auth';
 import './assets/main.css';
+import 'katex/dist/katex.min.css';
 
 const app = createApp(App);
 const pinia = createPinia();

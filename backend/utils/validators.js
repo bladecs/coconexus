@@ -1,5 +1,12 @@
 'use strict';
 
+const {
+  PENGELOLA_JOBS,
+  normalizeModeratorType,
+  isValidModeratorType,
+  ROLES,
+} = require('./accessControl');
+
 function normalizeEmail(email) {
   return typeof email === 'string' ? email.trim().toLowerCase() : '';
 }
@@ -37,15 +44,6 @@ function normalizeCategoryName(name) {
 
 const COMMENT_STATUSES = ['pending', 'approved', 'rejected'];
 
-const PENGELOLA_JOBS = [
-  'Penulis Artikel',
-  'Editor Konten',
-  'Validator Artikel',
-  'Publisher Artikel',
-  'Moderator Komentar',
-  'Pengelola Tag/Kategori',
-];
-
 function normalizeJobTitle(jobTitle) {
   return typeof jobTitle === 'string' ? jobTitle.trim() : '';
 }
@@ -73,6 +71,9 @@ module.exports = {
   normalizeJobTitle,
   isValidPengelolaJob,
   PENGELOLA_JOBS,
+  normalizeModeratorType,
+  isValidModeratorType,
+  ROLES,
   normalizeCommentStatus,
   isValidCommentStatus,
   COMMENT_STATUSES,

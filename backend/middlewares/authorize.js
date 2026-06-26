@@ -1,7 +1,10 @@
 'use strict';
 
 const { forbidden } = require('../utils/httpErrors');
-const { normalizeJobTitle } = require('../utils/validators');
+const {
+  hasModeratorScope,
+  normalizeModeratorType,
+} = require('../utils/accessControl');
 
 function authorize(...allowedRoles) {
   return (req, res, next) => {
@@ -23,18 +26,24 @@ function authorizeJobs(...allowedJobs) {
       return next(forbidden('User belum terautentikasi.'));
     }
 
-    if (req.user.role === 'admin') {
-      return next();
-    }
-
+    // allowedJobs dipertahankan agar route lama tetap kompatibel,
+    // namun akses pengelola sekarang ditentukan oleh role saja.
     if (req.user.role !== 'pengelola') {
       return next(forbidden('Anda tidak memiliki akses ke resource ini.'));
     }
 
-    const jobTitle = normalizeJobTitle(req.user.profile?.job_title);
+    return next();
+  };
+}
 
-    if (!jobTitle || !allowedJobs.includes(jobTitle)) {
-      return next(forbidden('Jabatan Anda tidak memiliki akses ke resource ini.'));
+function authorizeModeratorScopes(...allowedScopes) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return next(forbidden('User belum terautentikasi.'));
+    }
+
+    if (!hasModeratorScope(req.user, ...allowedScopes.map(normalizeModeratorType))) {
+      return next(forbidden('Moderator tidak memiliki scope akses ke resource ini.'));
     }
 
     return next();
@@ -44,4 +53,5 @@ function authorizeJobs(...allowedJobs) {
 module.exports = {
   authorize,
   authorizeJobs,
+  authorizeModeratorScopes,
 };

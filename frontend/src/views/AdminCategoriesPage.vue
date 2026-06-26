@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import { useAdminStore } from '@/stores/admin';
@@ -53,8 +53,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="inner-page admin-workspace px-5 pb-12 pt-32 text-stone-100 sm:px-8 lg:px-10">
-    <SiteNavbar variant="admin" />
+  <SiteNavbar variant="admin" />
+  <main class="inner-page admin-workspace px-5 pb-12 pt-32 text-on-surface sm:px-8 lg:px-10">
 
     <section class="mx-auto max-w-[1500px]">
       <header class="admin-ops-header">
@@ -64,7 +64,7 @@ onMounted(async () => {
         </div>
       </header>
 
-      <p v-if="feedback" class="mt-6 rounded-lg border border-[#ff7c35]/20 bg-[#ff7c35]/10 px-5 py-4 text-sm font-medium text-[#ffd1b8]">
+      <p v-if="feedback" class="admin-feedback-alert mt-6">
         {{ feedback }}
       </p>
 
@@ -84,7 +84,7 @@ onMounted(async () => {
               class="w-full px-4 py-3"
               placeholder="Deskripsi kategori"
             />
-            <button type="button" class="admin-primary-action w-full" @click="handleCategoryCreate">
+            <button type="button" class="admin-primary-action w-full transition-all duration-150" @click="handleCategoryCreate">
               Tambah Kategori
             </button>
           </div>
@@ -110,7 +110,7 @@ onMounted(async () => {
             <article
               v-for="category in adminStore.categories"
               :key="category.id"
-              class="admin-taxonomy-tile"
+              class="admin-taxonomy-tile hover:shadow-md hover:-translate-y-0.5 transition-all"
             >
               <div>
                 <p>{{ category.name }}</p>
@@ -119,14 +119,14 @@ onMounted(async () => {
               <strong>{{ category.article_count || 0 }}</strong>
               <button
                 type="button"
-                class="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200"
+                class="admin-delete-btn"
                 @click="handleCategoryDelete(category.id)"
               >
                 Hapus
               </button>
             </article>
 
-            <div v-if="!adminStore.categories.length" class="admin-empty-state">
+            <div v-if="!adminStore.categories.length" class="admin-empty-state text-outline border-outline-variant/40">
               Belum ada kategori yang tersimpan.
             </div>
           </div>

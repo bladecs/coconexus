@@ -45,6 +45,7 @@ app.get('/health', (req, res) => {
 
 app.use('/uploads', express.static(path.join(uploadRoot)));
 app.use('/api', apiRateLimiter, routes);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use(notFoundHandler);
 app.use(errorHandler);

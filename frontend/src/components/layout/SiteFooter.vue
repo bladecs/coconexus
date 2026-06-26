@@ -1,77 +1,46 @@
 <template>
-  <footer class="site-footer">
-    <div>
-      <p class="footer-kicker">COCONEXUS</p>
-      <h2>Ruang baca untuk ekonomi sirkular kelapa.</h2>
-      <p>
-        Menghubungkan artikel, dokumentasi praktik, dan diskusi komunitas agar pengetahuan limbah kelapa lebih mudah
-        ditemukan, dipelajari, dan diterapkan.
-      </p>
-    </div>
+  <footer class="mt-16 pt-6 border-t border-outline-variant/30">
+    <div class="max-w-container-max mx-auto px-6 pb-10 grid grid-cols-1 md:grid-cols-2 gap-10">
+      <div>
+        <p class="text-xs font-semibold tracking-widest uppercase text-secondary mb-3">COCONEXUS</p>
+        <h2 class="font-display text-2xl font-bold text-on-surface leading-tight mb-3">
+          Ruang baca untuk ekonomi sirkular kelapa.
+        </h2>
+        <p class="text-on-surface-variant text-sm leading-relaxed max-w-lg">
+          Menghubungkan artikel, dokumentasi praktik, dan diskusi komunitas agar pengetahuan
+          limbah kelapa lebih mudah ditemukan, dipelajari, dan diterapkan.
+        </p>
+      </div>
 
-    <nav class="footer-links" aria-label="Footer">
-      <a href="/#articles">Artikel</a>
-      <a href="/#categories">Kategori</a>
-      <a href="/#needs">Analisis kebutuhan</a>
-      <a href="mailto:bladecs86@gmail.com">Kontak</a>
-    </nav>
+      <nav class="flex flex-col gap-2 md:justify-center" aria-label="Footer">
+        <a href="/#articles"  class="footer-link">Artikel</a>
+        <a href="/#categories" class="footer-link">Kategori</a>
+        <a href="/#needs"     class="footer-link">Analisis kebutuhan</a>
+        <a href="mailto:bladecs86@gmail.com" class="footer-link">Kontak</a>
+      </nav>
+    </div>
+    <div class="border-t border-outline-variant/20 py-4 text-center text-on-surface-variant text-xs">
+      © 2024 COCONEXUS — Industrial Diversification Platform
+    </div>
   </footer>
 </template>
 
 <style scoped>
-.site-footer {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
-  gap: 42px;
-  width: min(1440px, calc(100% - 48px));
-  margin: 0 auto;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 52px 0 64px;
-  color: #fff7f0;
-}
-
-.footer-kicker {
-  margin: 0 0 14px;
-  color: #ffb083;
-  font-size: 0.78rem;
-  font-weight: 950;
-  letter-spacing: 0.2em;
-}
-
-h2 {
-  max-width: 620px;
-  margin: 0;
-  font-size: clamp(2rem, 4vw, 4rem);
-  font-weight: 950;
-  letter-spacing: 0;
-  line-height: 0.98;
-}
-
-p:last-child {
-  max-width: 640px;
-  margin: 22px 0 0;
-  color: #d0c3ba;
-  line-height: 1.8;
-}
-
-.footer-links {
-  display: grid;
-  align-content: center;
-  gap: 12px;
-}
-
-.footer-links a {
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 14px;
   border-radius: 8px;
-  background: rgba(255, 123, 51, 0.12);
-  color: #fff7f0;
-  font-weight: 900;
-  padding: 15px 18px;
+  background: rgb(var(--color-primary) / 0.06);
+  color: rgb(var(--color-primary));
+  font-size: 0.875rem;
+  font-weight: 600;
   text-decoration: none;
+  transition: background 150ms ease, transform 150ms ease;
 }
 
-@media (max-width: 760px) {
-  .site-footer {
-    grid-template-columns: 1fr;
-  }
+.footer-link:hover {
+  background: rgb(var(--color-primary) / 0.12);
+  transform: translateX(2px);
 }
 </style>

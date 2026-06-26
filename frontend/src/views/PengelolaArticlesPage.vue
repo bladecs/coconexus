@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
@@ -7,10 +7,6 @@ import api from '@/lib/api';
 
 const router = useRouter();
 const authStore = useAuthStore();
-const jobTitle = computed(() => authStore.user?.profile?.job_title || '');
-const canWriteArticle = computed(() => ['Penulis Artikel', 'Editor Konten'].includes(jobTitle.value));
-const canValidateArticle = computed(() => jobTitle.value === 'Validator Artikel');
-const canPublishArticle = computed(() => jobTitle.value === 'Publisher Artikel');
 
 const articles = ref([]);
 const isLoading = ref(false);
@@ -41,8 +37,7 @@ async function fetchArticles() {
   error.value = null;
   
   try {
-    const params = canWriteArticle.value ? { author_only: true } : {};
-    const { data } = await api.get('/articles', { params });
+    const { data } = await api.get('/pengelola/articles');
     articles.value = data.data.articles || [];
   } catch (err) {
     error.value = err.message;
@@ -55,7 +50,7 @@ async function deleteArticle(id) {
   if (!confirm('Apakah Anda yakin ingin menghapus artikel ini?')) return;
   
   try {
-    await api.delete(`/articles/${id}`);
+    await api.delete(`/pengelola/articles/${id}`);
     articles.value = articles.value.filter((a) => a.id !== id);
   } catch (err) {
     error.value = err.message;
@@ -74,7 +69,7 @@ async function updateArticleStatus(id, status) {
   if (!confirm(`Ubah status artikel menjadi ${status}?`)) return;
 
   try {
-    await api.patch(`/articles/${id}/status`, { status });
+    await api.patch(`/pengelola/articles/${id}/status`, { status });
     await fetchArticles();
   } catch (err) {
     error.value = err.message;
@@ -87,57 +82,54 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="inner-page pengelola-workspace px-5 pb-12 pt-32 text-stone-100 sm:px-8 lg:px-10">
-    <SiteNavbar variant="pengelola" />
+  <SiteNavbar variant="pengelola" />
+  <main class="inner-page pengelola-workspace px-5 pb-12 pt-32 text-on-surface sm:px-8 lg:px-10 min-h-screen">
 
     <section class="mx-auto max-w-[1680px]">
-      <header class="admin-ops-header">
+      <header class="admin-ops-header mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-outline-variant/40 pb-6">
         <div>
-          <p class="admin-section-label">COCONEXUS / PENGELOLA ARTIKEL</p>
-          <h1>Dashboard Pengelola</h1>
+          <p class="text-xs font-bold tracking-widest text-on-surface-variant uppercase mb-1">Coconexus / Pengelola Artikel</p>
+          <h1 class="text-3xl font-bold text-white">Dashboard Pengelola</h1>
         </div>
-        <div class="admin-header-actions">
-          <span>{{ authStore.user?.profile?.full_name || authStore.user?.email }}</span>
-          <div>
-            <RouterLink v-if="canWriteArticle" to="/pengelola/articles/new" class="admin-primary-action">
-              Buat Artikel Baru
-            </RouterLink>
-          </div>
+        <div class="flex items-center gap-4">
+          <span class="text-sm font-medium text-on-surface-variant bg-stone-800 px-4 py-2 rounded-full">
+            👋 {{ authStore.user?.profile?.full_name || authStore.user?.email }}
+          </span>
+          <RouterLink 
+            to="/pengelola/articles/new" 
+            class="bg-primary hover:bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm"
+          >
+            + Buat Artikel
+          </RouterLink>
         </div>
       </header>
 
-      <!-- Stats Cards -->
       <section class="grid grid-cols-2 gap-4 md:grid-cols-4 lg:gap-6 mb-8">
-        <div class="admin-signal-board">
-          <p class="admin-section-label">TOTAL</p>
-          <strong class="text-3xl">{{ stats.total }}</strong>
-          <span class="text-sm">Total Artikel</span>
+        <div class="bg-stone-800/50 border border-outline-variant/40 rounded-xl p-5 flex flex-col justify-between">
+          <p class="text-xs font-semibold tracking-wider text-on-surface-variant mb-2">TOTAL ARTIKEL</p>
+          <strong class="text-4xl font-bold text-on-surface">{{ stats.total }}</strong>
         </div>
-        <div class="admin-signal-board">
-          <p class="admin-section-label">PUBLISHED</p>
-          <strong class="text-3xl text-green-400">{{ stats.published }}</strong>
-          <span class="text-sm">Artikel Dipublikasi</span>
+        <div class="bg-stone-800/50 border border-outline-variant/40 rounded-xl p-5 flex flex-col justify-between">
+          <p class="text-xs font-semibold tracking-wider text-on-surface-variant mb-2">DIPUBLIKASI</p>
+          <strong class="text-4xl font-bold text-emerald-400">{{ stats.published }}</strong>
         </div>
-        <div class="admin-signal-board">
-          <p class="admin-section-label">DRAFT</p>
-          <strong class="text-3xl text-yellow-400">{{ stats.draft }}</strong>
-          <span class="text-sm">Artikel Draft</span>
+        <div class="bg-stone-800/50 border border-outline-variant/40 rounded-xl p-5 flex flex-col justify-between">
+          <p class="text-xs font-semibold tracking-wider text-on-surface-variant mb-2">DRAFT</p>
+          <strong class="text-4xl font-bold text-amber-400">{{ stats.draft }}</strong>
         </div>
-        <div class="admin-signal-board">
-          <p class="admin-section-label">VIEWS</p>
-          <strong class="text-3xl text-blue-400">{{ stats.views }}</strong>
-          <span class="text-sm">Total Views</span>
+        <div class="bg-stone-800/50 border border-outline-variant/40 rounded-xl p-5 flex flex-col justify-between">
+          <p class="text-xs font-semibold tracking-wider text-on-surface-variant mb-2">TOTAL VIEWS</p>
+          <strong class="text-4xl font-bold text-blue-400">{{ stats.views }}</strong>
         </div>
       </section>
 
-      <!-- Filters -->
-      <section class="admin-signal-board mb-6">
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <label class="block text-sm mb-2">Status</label>
+      <section class="bg-stone-800/30 border border-outline-variant/40 rounded-xl p-5 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+          <div class="md:col-span-3">
+            <label class="block text-xs font-medium text-on-surface-variant mb-2 uppercase tracking-wide">Status</label>
             <select
               v-model="filters.status"
-              class="w-full rounded bg-stone-800 px-3 py-2 text-stone-100 border border-stone-600"
+              class="w-full rounded-lg bg-surface-container-low px-4 py-2.5 text-sm text-on-surface border border-outline-variant/40 focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
             >
               <option value="all">Semua Status</option>
               <option value="draft">Draft</option>
@@ -145,107 +137,117 @@ onMounted(() => {
               <option value="revision">Revision</option>
             </select>
           </div>
-          <div>
-            <label class="block text-sm mb-2">Cari Artikel</label>
+          <div class="md:col-span-9">
+            <label class="block text-xs font-medium text-on-surface-variant mb-2 uppercase tracking-wide">Pencarian</label>
             <input
               v-model="filters.search"
               type="text"
               placeholder="Cari judul artikel..."
-              class="w-full rounded bg-stone-800 px-3 py-2 text-stone-100 border border-stone-600"
+              class="w-full rounded-lg bg-surface-container-low px-4 py-2.5 text-sm text-on-surface border border-outline-variant/40 focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
             />
           </div>
         </div>
       </section>
 
-      <!-- Articles Table -->
-      <section class="admin-signal-board overflow-x-auto">
-        <p class="admin-section-label mb-4">DAFTAR ARTIKEL</p>
-        
-        <div v-if="isLoading" class="text-center py-8">
-          <p>Memuat artikel...</p>
+      <section class="bg-stone-800/30 border border-outline-variant/40 rounded-xl overflow-hidden">
+        <div class="p-5 border-b border-outline-variant/40 bg-stone-800/50">
+          <h2 class="text-base font-semibold text-stone-200">Daftar Artikel</h2>
         </div>
         
-        <div v-else-if="error" class="text-red-400 text-center py-8">
-          {{ error }}
+        <div class="overflow-x-auto">
+          <div v-if="isLoading" class="text-center py-12 text-on-surface-variant">
+            <span class="animate-pulse">Memuat data artikel...</span>
+          </div>
+          
+          <div v-else-if="error" class="text-center py-12 text-red-400 bg-red-900/10">
+            {{ error }}
+          </div>
+          
+          <table v-else class="w-full text-sm text-left">
+            <thead class="bg-surface-container text-on-surface-variant text-xs uppercase tracking-wider">
+              <tr>
+                <th class="px-6 py-4 font-medium">Judul</th>
+                <th class="px-6 py-4 font-medium">Status</th>
+                <th class="px-6 py-4 font-medium">Kategori</th>
+                <th class="px-6 py-4 font-medium text-right">Views</th>
+                <th class="px-6 py-4 font-medium text-right">Dibuat</th>
+                <th class="px-6 py-4 font-medium text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-stone-700/50">
+              <tr 
+                v-for="article in filteredArticles" 
+                :key="article.id" 
+                class="hover:bg-stone-800/80 transition-colors group"
+              >
+                <td class="px-6 py-4 font-medium text-stone-200">{{ article.title }}</td>
+                <td class="px-6 py-4">
+                  <span
+                    :class="{
+                      'px-2.5 py-1 rounded-md text-xs font-medium border': true,
+                      'bg-primary/10 text-emerald-400 border-emerald-500/20': article.status === 'published',
+                      'bg-amber-500/10 text-amber-400 border-amber-500/20': article.status === 'draft',
+                      'bg-orange-500/10 text-orange-400 border-orange-500/20': article.status === 'revision',
+                    }"
+                  >
+                    {{ article.status.charAt(0).toUpperCase() + article.status.slice(1) }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-on-surface-variant">{{ article.category?.name || '-' }}</td>
+                <td class="px-6 py-4 text-right text-on-surface-variant">{{ article.view_count || 0 }}</td>
+                <td class="px-6 py-4 text-right text-on-surface-variant text-xs">
+                  {{ new Date(article.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) }}
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <div class="flex gap-2 justify-end opacity-80 group-hover:opacity-100 transition-opacity">
+                    <button
+                      @click="viewArticle(article.id)"
+                      class="px-3 py-1.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 rounded text-xs font-medium transition-colors"
+                    >
+                      Lihat
+                    </button>
+                    <button
+                      v-if="article.status !== 'published'"
+                      @click="editArticle(article.id)"
+                      class="px-3 py-1.5 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300 rounded text-xs font-medium transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      v-if="article.status === 'published'"
+                      @click="updateArticleStatus(article.id, 'revision')"
+                      class="px-3 py-1.5 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 hover:text-orange-300 rounded text-xs font-medium transition-colors"
+                    >
+                      Ke Revisi
+                    </button>
+                    <button
+                      v-if="article.status !== 'published'"
+                      @click="updateArticleStatus(article.id, 'published')"
+                      class="px-3 py-1.5 bg-primary/10 text-emerald-400 hover:bg-primary/20 hover:text-emerald-300 rounded text-xs font-medium transition-colors"
+                    >
+                      Publish
+                    </button>
+                    <button
+                      @click="deleteArticle(article.id)"
+                      class="px-3 py-1.5 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 rounded text-xs font-medium transition-colors"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="filteredArticles.length === 0 && !isLoading">
+                <td colspan="6" class="text-center py-16">
+                  <div class="flex flex-col items-center justify-center text-stone-500">
+                    <span class="text-4xl mb-3">📄</span>
+                    <p class="text-base font-medium text-on-surface-variant">Tidak ada artikel ditemukan</p>
+                    <p class="text-sm mt-1">Coba sesuaikan filter pencarian atau status.</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        
-        <table v-else class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-stone-600">
-              <th class="text-left px-4 py-3">Judul</th>
-              <th class="text-left px-4 py-3">Status</th>
-              <th class="text-left px-4 py-3">Kategori</th>
-              <th class="text-right px-4 py-3">Views</th>
-              <th class="text-right px-4 py-3">Dibuat</th>
-              <th class="text-right px-4 py-3">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="article in filteredArticles" :key="article.id" class="border-b border-stone-700 hover:bg-stone-800">
-              <td class="px-4 py-3">{{ article.title }}</td>
-              <td class="px-4 py-3">
-                <span
-                  :class="{
-                    'px-2 py-1 rounded text-xs font-semibold': true,
-                    'bg-green-900 text-green-200': article.status === 'published',
-                    'bg-yellow-900 text-yellow-200': article.status === 'draft',
-                    'bg-orange-900 text-orange-200': article.status === 'revision',
-                  }"
-                >
-                  {{ article.status }}
-                </span>
-              </td>
-              <td class="px-4 py-3">{{ article.category?.name || '-' }}</td>
-              <td class="px-4 py-3 text-right">{{ article.view_count || 0 }}</td>
-              <td class="px-4 py-3 text-right text-xs text-stone-400">
-                {{ new Date(article.created_at).toLocaleDateString('id-ID') }}
-              </td>
-              <td class="px-4 py-3 text-right">
-                <div class="flex gap-2 justify-end">
-                  <button
-                    @click="viewArticle(article.id)"
-                    class="text-blue-400 hover:text-blue-300 text-xs"
-                  >
-                    Lihat
-                  </button>
-                  <button
-                    v-if="canWriteArticle && article.author_id === authStore.user?.id"
-                    @click="editArticle(article.id)"
-                    class="text-yellow-400 hover:text-yellow-300 text-xs"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    v-if="canWriteArticle && article.author_id === authStore.user?.id"
-                    @click="deleteArticle(article.id)"
-                    class="text-red-400 hover:text-red-300 text-xs"
-                  >
-                    Hapus
-                  </button>
-                  <button
-                    v-if="canValidateArticle && article.status !== 'revision'"
-                    @click="updateArticleStatus(article.id, 'revision')"
-                    class="text-orange-400 hover:text-orange-300 text-xs"
-                  >
-                    Revisi
-                  </button>
-                  <button
-                    v-if="canPublishArticle && article.status !== 'published'"
-                    @click="updateArticleStatus(article.id, 'published')"
-                    class="text-green-400 hover:text-green-300 text-xs"
-                  >
-                    Publish
-                  </button>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="filteredArticles.length === 0">
-              <td colspan="6" class="text-center py-8 text-stone-400">
-                Tidak ada artikel ditemukan
-              </td>
-            </tr>
-          </tbody>
-        </table>
       </section>
     </section>
   </main>

@@ -18,6 +18,15 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER.UNSIGNED,
         allowNull: true,
       },
+      article_type: {
+        type: DataTypes.ENUM('main', 'detail', 'prosedur', 'panduan', 'referensi', 'studi_kasus', 'troubleshooting'),
+        allowNull: false,
+        defaultValue: 'main',
+      },
+      wawasan_article_id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: true,
+      },
       title: {
         type: DataTypes.STRING(200),
         allowNull: false,
@@ -122,6 +131,35 @@ module.exports = (sequelize, DataTypes) => {
     Article.hasOne(models.ProductCard, {
       foreignKey: 'linked_article_id',
       as: 'linkedProductCard',
+      onDelete: 'SET NULL',
+      onUpdate: 'CASCADE',
+    });
+
+    Article.hasMany(models.ArticleVersion, {
+      foreignKey: 'article_id',
+      as: 'versions',
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
+    });
+
+    Article.hasMany(models.DiscussionForum, {
+      foreignKey: 'article_id',
+      as: 'discussionForums',
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
+    });
+
+    // Relasi wawasan ↔ teknis: artikel teknis mereferensi artikel wawasan
+    Article.belongsTo(models.Article, {
+      foreignKey: 'wawasan_article_id',
+      as: 'wawasanArticle',
+      onDelete: 'SET NULL',
+      onUpdate: 'CASCADE',
+    });
+
+    Article.hasMany(models.Article, {
+      foreignKey: 'wawasan_article_id',
+      as: 'technicalArticles',
       onDelete: 'SET NULL',
       onUpdate: 'CASCADE',
     });

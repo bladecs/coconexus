@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
@@ -112,14 +112,14 @@ watch(
 </script>
 
 <template>
-  <main class="inner-page px-5 pb-12 pt-32 text-stone-100 sm:px-8 lg:px-10">
-    <SiteNavbar variant="admin" />
+  <SiteNavbar variant="admin" />
+  <main class="inner-page px-5 pb-12 pt-32 text-on-surface sm:px-8 lg:px-10">
 
     <section class="mx-auto max-w-[1400px]">
       <div class="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p class="premium-kicker">Form Artikel</p>
-          <h1 class="mt-3 text-4xl font-black text-stone-50">
+          <h1 class="mt-3 text-4xl font-black text-on-surface">
             {{ isEditing ? 'Edit Artikel' : 'Tambah Artikel Baru' }}
           </h1>
           <p class="premium-copy mt-3 max-w-3xl">
@@ -132,7 +132,7 @@ watch(
         </RouterLink>
       </div>
 
-      <p v-if="feedback" class="mb-6 rounded-lg border border-[#ff7c35]/20 bg-[#ff7c35]/10 px-5 py-4 text-sm font-medium text-[#ffd1b8]">
+      <p v-if="feedback" class="admin-feedback-alert mb-6">
         {{ feedback }}
       </p>
 

@@ -76,7 +76,7 @@ function handleRoleToggle(user) {
             class="rounded-full border border-[#ff7c35]/20 bg-[#3b312d] px-4 py-2 text-sm font-semibold text-[#ffb084]"
             @click="handleRoleToggle(user)"
           >
-            Ubah ke {{ user.role === 'admin' ? 'User' : 'Admin' }}
+            {{ user.role === 'admin' ? 'Turunkan ke User' : 'Naikkan ke Admin' }}
           </button>
           <button
             type="button"

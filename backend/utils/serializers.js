@@ -13,6 +13,15 @@ function sanitizeUser(userInstance) {
     role: user.role,
     created_at: user.created_at,
     updated_at: user.updated_at,
+    moderator_assignment: user.moderatorAssignment
+      ? {
+          user_id: user.moderatorAssignment.user_id,
+          moderator_type: user.moderatorAssignment.moderator_type,
+          assigned_by: user.moderatorAssignment.assigned_by,
+          created_at: user.moderatorAssignment.created_at,
+          updated_at: user.moderatorAssignment.updated_at,
+        }
+      : null,
     profile: user.profile
       ? {
           user_id: user.profile.user_id,
@@ -40,7 +49,16 @@ function sanitizeComment(commentInstance) {
     status: comment.status,
     user_id: comment.user_id,
     article_id: comment.article_id,
+    discussion_forum_id: comment.discussion_forum_id,
     parent_id: comment.parent_id,
+    attachment: comment.attachment_path
+      ? {
+          name: comment.attachment_name,
+          path: comment.attachment_path,
+          mime_type: comment.attachment_mime_type,
+          size: comment.attachment_size,
+        }
+      : null,
     created_at: comment.created_at,
     updated_at: comment.updated_at,
     user: comment.user
@@ -103,7 +121,8 @@ function sanitizeArticle(articleInstance, options = {}) {
     author_id: article.author_id,
     category_id: article.category_id,
     parent_article_id: article.parent_article_id,
-    article_type: article.parent_article_id ? 'detail' : 'main',
+    wawasan_article_id: article.wawasan_article_id || null,
+    article_type: article.article_type || (article.parent_article_id ? 'detail' : 'main'),
     title: article.title,
     version: article.version,
     status: article.status,
@@ -145,6 +164,21 @@ function sanitizeArticle(articleInstance, options = {}) {
           status: article.parentArticle.status,
         }
       : null,
+    wawasan_article: article.wawasanArticle
+      ? {
+          id: article.wawasanArticle.id,
+          title: article.wawasanArticle.title,
+          status: article.wawasanArticle.status,
+        }
+      : null,
+    technical_articles: Array.isArray(article.technicalArticles)
+      ? article.technicalArticles.map((ta) => ({
+          id: ta.id,
+          title: ta.title,
+          article_type: ta.article_type,
+          status: ta.status,
+        }))
+      : [],
     detail: article.detail
       ? {
           id: article.detail.id,
@@ -153,6 +187,16 @@ function sanitizeArticle(articleInstance, options = {}) {
           meta_description: article.detail.meta_description,
           sections: Array.isArray(article.detail.sections) ? article.detail.sections : [],
           sources: Array.isArray(article.detail.sources) ? article.detail.sources : [],
+          difficulty_level: article.detail.difficulty_level || null,
+          time_required_minutes: article.detail.time_required_minutes || null,
+          materials_list: Array.isArray(article.detail.materials_list) ? article.detail.materials_list : null,
+          tools_list: Array.isArray(article.detail.tools_list) ? article.detail.tools_list : null,
+          process_parameters: article.detail.process_parameters || null,
+          quality_indicators: article.detail.quality_indicators || null,
+          safety_notes: article.detail.safety_notes || null,
+          prerequisite_article_ids: Array.isArray(article.detail.prerequisite_article_ids)
+            ? article.detail.prerequisite_article_ids
+            : null,
           created_at: article.detail.created_at,
           updated_at: article.detail.updated_at,
         }

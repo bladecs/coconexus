@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import { resolveAssetUrl } from '@/lib/assets';
@@ -52,8 +52,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="inner-page admin-workspace px-5 pb-12 pt-32 text-stone-100 sm:px-8 lg:px-10">
-    <SiteNavbar variant="admin" />
+  <SiteNavbar variant="admin" />
+  <main class="inner-page admin-workspace px-5 pb-12 pt-32 text-on-surface sm:px-8 lg:px-10">
 
     <section class="mx-auto max-w-[1300px]">
       <header class="admin-ops-header">
@@ -63,7 +63,7 @@ onMounted(() => {
         </div>
       </header>
 
-      <p v-if="feedback" class="mt-6 rounded-lg border border-[#ff7c35]/20 bg-[#ff7c35]/10 px-5 py-4 text-sm font-medium text-[#ffd1b8]">
+      <p v-if="feedback" class="admin-feedback-alert mt-6">
         {{ feedback }}
       </p>
 
@@ -80,7 +80,7 @@ onMounted(() => {
           <h2>{{ displayName }}</h2>
           <p>{{ authStore.user?.email }}</p>
           <strong>{{ authStore.user?.role || 'admin' }}</strong>
-          <label class="admin-secondary-action mt-5 cursor-pointer">
+          <label class="admin-secondary-action mt-5 cursor-pointer transition-all duration-150 hover:shadow-md">
             Upload Avatar
             <input
               type="file"
@@ -118,7 +118,7 @@ onMounted(() => {
                 placeholder="Bio admin"
               />
             </label>
-            <button type="button" class="admin-primary-action" @click="handleProfileUpdate">
+            <button type="button" class="admin-primary-action transition-all duration-150" @click="handleProfileUpdate">
               Simpan Profil
             </button>
           </div>

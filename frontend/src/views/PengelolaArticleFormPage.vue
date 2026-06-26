@@ -1,224 +1,164 @@
-<script setup>
-import { computed, onMounted, ref } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+﻿<script setup>
+import { computed, onMounted, ref, watch } from 'vue';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
-import api from '@/lib/api';
+import AdminArticleEditor from '@/components/admin/AdminArticleEditor.vue';
+import { useAdminStore } from '@/stores/admin';
+import { useArticleStore } from '@/stores/articles';
 
-const router = useRouter();
 const route = useRoute();
+const router = useRouter();
+const articleStore = useArticleStore();
+const adminStore = useAdminStore();
+const feedback = ref('');
 
-const isLoading = ref(false);
-const isSaving = ref(false);
-const error = ref(null);
-const isEditMode = computed(() => Boolean(route.params.id));
-const categories = ref([]);
+const articleId = computed(() => Number(route.params.id || 0));
+const isEditing = computed(() => Boolean(articleId.value));
+const editorArticle = computed(() => {
+  if (isEditing.value && articleStore.currentArticle?.id === articleId.value) {
+    return articleStore.currentArticle;
+  }
 
-const form = ref({
-  title: '',
-  summary: '',
-  content: '',
-  category_id: '',
-  tags_text: '',
-  status: 'draft',
+  return null;
 });
 
-async function fetchCategories() {
-  try {
-    const { data } = await api.get('/categories');
-    categories.value = data.data.categories || [];
-  } catch (err) {
-    error.value = err.message;
-  }
-}
+async function loadArticle() {
+  feedback.value = '';
 
-async function fetchArticle(id) {
-  isLoading.value = true;
+  if (!isEditing.value) {
+    articleStore.clearCurrentArticle();
+    return;
+  }
 
   try {
-    const { data } = await api.get(`/articles/${id}`);
-    const article = data.data.article;
-
-    form.value = {
-      title: article.title || '',
-      summary: article.detail?.meta_description || '',
-      content: article.detail?.body_content || '',
-      category_id: article.category_id || '',
-      tags_text: Array.isArray(article.tags) ? article.tags.join(', ') : '',
-      status: article.status === 'published' ? 'revision' : article.status || 'draft',
-    };
-  } catch (err) {
-    error.value = err.message;
-  } finally {
-    isLoading.value = false;
+    await articleStore.fetchAdminArticleDetail(articleId.value);
+  } catch (error) {
+    feedback.value = error.message;
   }
 }
 
-async function submitForm() {
-  isSaving.value = true;
-  error.value = null;
+async function handleCreate(payload) {
+  feedback.value = '';
 
   try {
-    const payload = {
-      title: form.value.title,
-      body_content: form.value.content,
-      meta_description: form.value.summary,
-      tags: form.value.tags_text
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter(Boolean),
-      category: {
-        id: Number(form.value.category_id),
-      },
-      status: form.value.status,
-    };
-
-    if (isEditMode.value) {
-      await api.put(`/articles/${route.params.id}`, payload);
-    } else {
-      await api.post('/articles', payload);
-    }
-
-    router.push({ name: 'pengelola-articles' });
-  } catch (err) {
-    error.value = err.message;
-  } finally {
-    isSaving.value = false;
+    const article = await articleStore.createArticle(payload);
+    await adminStore.fetchDashboardStats();
+    await router.push(`/pengelola/articles`);
+    feedback.value = 'Draft artikel berhasil dibuat.';
+  } catch (error) {
+    feedback.value = error.message;
   }
 }
 
-function goBack() {
-  router.push({ name: 'pengelola-articles' });
+async function handleUpdate({ id, payload }) {
+  feedback.value = '';
+
+  try {
+    await articleStore.updateArticle(id, payload);
+    await articleStore.fetchAdminArticleDetail(id);
+    await adminStore.fetchDashboardStats();
+    feedback.value = 'Artikel berhasil diperbarui.';
+  } catch (error) {
+    feedback.value = error.message;
+  }
 }
 
-onMounted(async () => {
-  await fetchCategories();
+async function handlePublish(id) {
+  feedback.value = '';
 
-  if (isEditMode.value) {
-    await fetchArticle(route.params.id);
+  try {
+    await articleStore.updateArticleStatus(id, 'published');
+    await articleStore.fetchAdminArticleDetail(id);
+    await adminStore.fetchDashboardStats();
+    feedback.value = 'Artikel berhasil dipublish.';
+  } catch (error) {
+    feedback.value = error.message;
   }
-});
+}
+
+async function handleRevision(id) {
+  feedback.value = '';
+
+  try {
+    await articleStore.updateArticleStatus(id, 'revision');
+    await articleStore.fetchAdminArticleDetail(id);
+    await adminStore.fetchDashboardStats();
+    feedback.value = 'Artikel berhasil dikembalikan ke revision.';
+  } catch (error) {
+    feedback.value = error.message;
+  }
+}
+
+async function handleDelete(id) {
+  feedback.value = '';
+
+  try {
+    await articleStore.deleteArticle(id);
+    await adminStore.fetchDashboardStats();
+    await router.push('/pengelola/articles');
+  } catch (error) {
+    feedback.value = error.message;
+  }
+}
+
+async function handlePublishVersion({ id, version }) {
+  feedback.value = '';
+
+  try {
+    await articleStore.publishArticleVersion(id, version);
+    await articleStore.fetchAdminArticleDetail(id);
+    await adminStore.fetchDashboardStats();
+    feedback.value = `Versi ${version} berhasil dipublish.`;
+  } catch (error) {
+    feedback.value = error.message;
+  }
+}
+
+onMounted(loadArticle);
+
+watch(
+  () => route.params.id,
+  async () => {
+    await loadArticle();
+  }
+);
 </script>
 
 <template>
-  <main class="inner-page pengelola-workspace px-5 pb-12 pt-32 text-stone-100 sm:px-8 lg:px-10">
-    <SiteNavbar variant="pengelola" />
+  <SiteNavbar variant="pengelola" />
+  <main class="inner-page px-5 pb-12 pt-32 text-on-surface sm:px-8 lg:px-10">
 
-    <section class="mx-auto max-w-4xl">
-      <header class="mb-8 flex items-center justify-between border-b border-stone-600 pb-4">
+    <section class="mx-auto max-w-[1400px]">
+      <div class="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p class="admin-section-label">COCONEXUS / PENGELOLA ARTIKEL</p>
-          <h1 class="text-2xl font-bold">{{ isEditMode ? 'Edit Artikel' : 'Buat Artikel Baru' }}</h1>
+          <p class="premium-kicker">Form Artikel</p>
+          <h1 class="mt-3 text-4xl font-black text-on-surface">
+            {{ isEditing ? 'Edit Artikel' : 'Tambah Artikel Baru' }}
+          </h1>
+          <p class="premium-copy mt-3 max-w-3xl">
+            Form artikel dipisah dari dashboard supaya proses penulisan lebih fokus dan rapi.
+          </p>
         </div>
-        <button @click="goBack" class="rounded border border-stone-600 px-4 py-2 transition hover:bg-stone-800">
-          Kembali
-        </button>
-      </header>
 
-      <div v-if="isLoading" class="py-12 text-center">
-        <p>Memuat data artikel...</p>
+        <RouterLink to="/pengelola/articles" class="admin-secondary-action">
+          Kembali ke Daftar
+        </RouterLink>
       </div>
 
-      <form v-else @submit.prevent="submitForm" class="space-y-6">
-        <div v-if="error" class="rounded bg-red-900 p-4 text-red-200">
-          {{ error }}
-        </div>
+      <p v-if="feedback" class="admin-feedback-alert mb-6">
+        {{ feedback }}
+      </p>
 
-        <div>
-          <label class="mb-2 block text-sm font-semibold">Judul Artikel *</label>
-          <input
-            v-model="form.title"
-            type="text"
-            required
-            placeholder="Masukkan judul artikel..."
-            class="w-full rounded bg-stone-800 border border-stone-600 px-3 py-2 text-stone-100 placeholder-stone-400 focus:outline-none focus:border-stone-500"
-          />
-        </div>
-
-        <div>
-          <label class="mb-2 block text-sm font-semibold">Kategori *</label>
-          <select
-            v-model="form.category_id"
-            required
-            class="w-full rounded bg-stone-800 border border-stone-600 px-3 py-2 text-stone-100 focus:outline-none focus:border-stone-500"
-          >
-            <option value="">Pilih Kategori</option>
-            <option v-for="cat in categories" :key="cat.id" :value="cat.id">
-              {{ cat.name }}
-            </option>
-          </select>
-        </div>
-
-        <div>
-          <label class="mb-2 block text-sm font-semibold">Tag Artikel</label>
-          <input
-            v-model="form.tags_text"
-            type="text"
-            placeholder="Pisahkan dengan koma, misal: Cocopeat, Pertanian, UMKM"
-            class="w-full rounded bg-stone-800 border border-stone-600 px-3 py-2 text-stone-100 placeholder-stone-400 focus:outline-none focus:border-stone-500"
-          />
-        </div>
-
-        <div>
-          <label class="mb-2 block text-sm font-semibold">Ringkasan Artikel *</label>
-          <textarea
-            v-model="form.summary"
-            rows="3"
-            required
-            placeholder="Ringkasan singkat artikel..."
-            class="w-full rounded bg-stone-800 border border-stone-600 px-3 py-2 text-stone-100 placeholder-stone-400 focus:outline-none focus:border-stone-500"
-          />
-        </div>
-
-        <div>
-          <label class="mb-2 block text-sm font-semibold">Konten Artikel *</label>
-          <textarea
-            v-model="form.content"
-            rows="10"
-            required
-            placeholder="Tulis konten artikel di sini..."
-            class="w-full rounded bg-stone-800 border border-stone-600 px-3 py-2 text-stone-100 placeholder-stone-400 focus:outline-none focus:border-stone-500"
-          />
-        </div>
-
-        <div>
-          <label class="mb-2 block text-sm font-semibold">Status *</label>
-          <select
-            v-model="form.status"
-            required
-            class="w-full rounded bg-stone-800 border border-stone-600 px-3 py-2 text-stone-100 focus:outline-none focus:border-stone-500"
-          >
-            <option value="draft">Draft</option>
-            <option value="revision">Revision</option>
-          </select>
-        </div>
-
-        <div class="flex gap-4 pt-4">
-          <button
-            type="submit"
-            :disabled="isSaving"
-            class="rounded bg-green-600 px-6 py-2 transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-stone-700"
-          >
-            {{ isSaving ? 'Menyimpan...' : isEditMode ? 'Perbarui Artikel' : 'Buat Artikel' }}
-          </button>
-          <button
-            type="button"
-            @click="goBack"
-            class="rounded border border-stone-600 px-6 py-2 transition hover:bg-stone-800"
-          >
-            Batal
-          </button>
-        </div>
-      </form>
+      <AdminArticleEditor
+        :selected-article="editorArticle"
+        :loading="articleStore.isSubmitting"
+        @create="handleCreate"
+        @update="handleUpdate"
+      @publish="handlePublish"
+      @request-revision="handleRevision"
+      @publish-version="handlePublishVersion"
+      @delete="handleDelete"
+    />
     </section>
   </main>
 </template>
-
-<style scoped>
-.admin-section-label {
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
-  color: rgb(168 162 158);
-  font-weight: 600;
-  text-transform: uppercase;
-}
-</style>

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(npx sequelize-cli *)",
+      "Bash(timeout 8 node -e ' *)",
+      "Bash(node --test tests/kms-teknis.test.js)",
+      "Bash(npm run *)"
+    ]
+  }
+}

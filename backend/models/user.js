@@ -27,7 +27,7 @@ module.exports = (sequelize, DataTypes) => {
         },
       },
       role: {
-        type: DataTypes.ENUM('admin', 'pengelola', 'user'),
+        type: DataTypes.ENUM('admin', 'pengelola', 'moderator', 'user'),
         allowNull: false,
         defaultValue: 'user',
       },
@@ -55,6 +55,13 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: 'CASCADE',
     });
 
+    User.hasOne(models.ModeratorAssignment, {
+      foreignKey: 'user_id',
+      as: 'moderatorAssignment',
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
+    });
+
     User.hasMany(models.Article, {
       foreignKey: 'author_id',
       as: 'articles',
@@ -66,6 +73,20 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'user_id',
       as: 'comments',
       onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
+    });
+
+    User.hasMany(models.DiscussionForum, {
+      foreignKey: 'created_by_id',
+      as: 'createdForums',
+      onDelete: 'RESTRICT',
+      onUpdate: 'CASCADE',
+    });
+
+    User.hasMany(models.DiscussionForum, {
+      foreignKey: 'validated_by_id',
+      as: 'validatedForums',
+      onDelete: 'SET NULL',
       onUpdate: 'CASCADE',
     });
 

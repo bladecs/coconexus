@@ -19,6 +19,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => Boolean(token.value && user.value));
   const isAdmin = computed(() => user.value?.role === 'admin');
   const isPengelola = computed(() => user.value?.role === 'pengelola');
+  const isModerator = computed(() => user.value?.role === 'moderator');
 
   function setSession(sessionToken, sessionUser) {
     token.value = sessionToken;
@@ -127,6 +128,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     isAdmin,
     isPengelola,
+    isModerator,
     login,
     register,
     updateProfile,

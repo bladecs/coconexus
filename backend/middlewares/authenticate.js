@@ -1,6 +1,6 @@
 'use strict';
 
-const { User, UserProfile } = require('../models');
+const { User, UserProfile, ModeratorAssignment } = require('../models');
 const { unauthorized } = require('../utils/httpErrors');
 const { verifyToken } = require('../utils/jwt');
 
@@ -20,6 +20,10 @@ async function authenticate(req, res, next) {
         {
           model: UserProfile,
           as: 'profile',
+        },
+        {
+          model: ModeratorAssignment,
+          as: 'moderatorAssignment',
         },
       ],
     });
@@ -51,6 +55,10 @@ async function optionalAuthenticate(req, res, next) {
         {
           model: UserProfile,
           as: 'profile',
+        },
+        {
+          model: ModeratorAssignment,
+          as: 'moderatorAssignment',
         },
       ],
     });

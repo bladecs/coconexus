@@ -1,5 +1,23 @@
 'use strict';
 
+async function getTableColumns(queryInterface, tableName) {
+  return queryInterface.describeTable(tableName).catch(() => ({}));
+}
+
+function withOptionalTimestamps(columns, payload, now) {
+  const row = { ...payload };
+
+  if (columns.created_at && row.created_at === undefined) {
+    row.created_at = now;
+  }
+
+  if (columns.updated_at && row.updated_at === undefined) {
+    row.updated_at = now;
+  }
+
+  return row;
+}
+
 function normalizeTextLines(title, lines) {
   return (lines || []).map((line, index) => line.replace(/\{title\}/g, title).replace(/\{index\}/g, index + 1));
 }
@@ -320,13 +338,27 @@ module.exports = {
   async up(queryInterface) {
     const now = new Date();
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@coconexus.local';
+    const pengelolaEditorEmail = 'pengelola.editor@coconexus.local';
+    const articleTagColumns = await getTableColumns(queryInterface, 'ArticleTag');
 
-    const [admins] = await queryInterface.sequelize.query(
-      'SELECT id FROM `User` WHERE email = :email LIMIT 1',
-      { replacements: { email: adminEmail } }
+    const [authors] = await queryInterface.sequelize.query(
+      `
+      SELECT id, email
+      FROM \`User\`
+      WHERE email IN (:emails)
+      ORDER BY FIELD(email, :preferredEmail, :fallbackEmail)
+      LIMIT 1
+      `,
+      {
+        replacements: {
+          emails: [pengelolaEditorEmail, adminEmail],
+          preferredEmail: pengelolaEditorEmail,
+          fallbackEmail: adminEmail,
+        },
+      }
     );
 
-    if (admins.length === 0) return;
+    if (authors.length === 0) return;
 
     for (const data of articlesData) {
       const [existingArticles] = await queryInterface.sequelize.query(
@@ -366,7 +398,7 @@ module.exports = {
       const tagNames = [...new Set((data.tags || seedTagsByTitle[data.title] || []).map((item) => String(item).trim()).filter(Boolean))];
 
       await queryInterface.bulkInsert('Article', [{
-        author_id: admins[0].id,
+        author_id: authors[0].id,
         category_id: categoryId,
         parent_article_id: null,
         title: data.title,
@@ -406,11 +438,28 @@ module.exports = {
         }
 
         if (tagId) {
-          await queryInterface.bulkInsert('ArticleTag', [{
-            article_id: articleId,
-            tag_id: tagId,
-            created_at: now,
-          }]);
+          const [existingArticleTags] = await queryInterface.sequelize.query(
+            'SELECT article_id, tag_id FROM `ArticleTag` WHERE article_id = :article_id AND tag_id = :tag_id LIMIT 1',
+            {
+              replacements: {
+                article_id: articleId,
+                tag_id: tagId,
+              },
+            }
+          );
+
+          if (existingArticleTags.length === 0) {
+            await queryInterface.bulkInsert('ArticleTag', [
+              withOptionalTimestamps(
+                articleTagColumns,
+                {
+                  article_id: articleId,
+                  tag_id: tagId,
+                },
+                now
+              ),
+            ]);
+          }
         }
       }
 

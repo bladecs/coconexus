@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { onMounted, ref, computed } from 'vue';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import api from '@/lib/api';
@@ -51,8 +51,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="inner-page admin-workspace px-5 pb-12 pt-32 text-stone-100 sm:px-8 lg:px-10">
-    <SiteNavbar variant="admin" />
+  <SiteNavbar variant="admin" />
+  <main class="inner-page admin-workspace px-5 pb-12 pt-32 text-on-surface sm:px-8 lg:px-10">
 
     <section class="mx-auto max-w-[1680px]">
       <header class="admin-ops-header">
@@ -62,24 +62,20 @@ onMounted(() => {
         </div>
         <button
           @click="exportReport"
-          class="px-4 py-2 rounded bg-green-600 hover:bg-green-700 transition"
+          class="admin-primary-action transition-all duration-150"
         >
           Export Report
         </button>
       </header>
 
-      <div v-if="error" class="text-red-400 mb-6 p-4 rounded bg-red-900">
+      <div v-if="error" class="text-error mb-6 p-4 rounded bg-error-container/20 border border-error/30">
         {{ error }}
       </div>
 
       <!-- Period Filter -->
-      <section class="admin-signal-board mb-6">
+      <section class="admin-ds-panel mb-6">
         <div class="flex gap-4">
-          <select
-            v-model="selectedPeriod"
-            @change="fetchReport"
-            class="px-3 py-2 rounded bg-stone-800 border border-stone-600 text-stone-100"
-          >
+          <select v-model="selectedPeriod" @change="fetchReport" class="px-3 py-2 rounded">
             <option value="week">Minggu Ini</option>
             <option value="month">Bulan Ini</option>
             <option value="quarter">Kuartal Ini</option>
@@ -90,67 +86,67 @@ onMounted(() => {
 
       <!-- Report Stats -->
       <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-        <div class="admin-signal-board">
+        <div class="admin-ds-panel transition-all duration-200 hover:shadow-md">
           <p class="admin-section-label">PENGGUNA</p>
-          <strong class="text-3xl">{{ reportData.users }}</strong>
-          <span class="text-sm">Total Pengguna</span>
+          <strong class="text-3xl text-on-surface block mt-2">{{ reportData.users }}</strong>
+          <span class="text-sm text-on-surface-variant">Total Pengguna</span>
         </div>
-        <div class="admin-signal-board">
+        <div class="admin-ds-panel transition-all duration-200 hover:shadow-md">
           <p class="admin-section-label">ARTIKEL</p>
-          <strong class="text-3xl text-green-400">{{ reportData.articles }}</strong>
-          <span class="text-sm">Total Artikel</span>
+          <strong class="text-3xl text-primary block mt-2">{{ reportData.articles }}</strong>
+          <span class="text-sm text-on-surface-variant">Total Artikel</span>
         </div>
-        <div class="admin-signal-board">
+        <div class="admin-ds-panel transition-all duration-200 hover:shadow-md">
           <p class="admin-section-label">KOMENTAR</p>
-          <strong class="text-3xl text-blue-400">{{ reportData.comments }}</strong>
-          <span class="text-sm">Total Komentar</span>
+          <strong class="text-3xl text-secondary block mt-2">{{ reportData.comments }}</strong>
+          <span class="text-sm text-on-surface-variant">Total Komentar</span>
         </div>
-        <div class="admin-signal-board">
+        <div class="admin-ds-panel transition-all duration-200 hover:shadow-md">
           <p class="admin-section-label">VIEWS</p>
-          <strong class="text-3xl text-yellow-400">{{ reportData.views }}</strong>
-          <span class="text-sm">Total Views</span>
+          <strong class="text-3xl text-secondary block mt-2">{{ reportData.views }}</strong>
+          <span class="text-sm text-on-surface-variant">Total Views</span>
         </div>
-        <div class="admin-signal-board">
+        <div class="admin-ds-panel transition-all duration-200 hover:shadow-md">
           <p class="admin-section-label">KATEGORI</p>
-          <strong class="text-3xl text-purple-400">{{ reportData.categories }}</strong>
-          <span class="text-sm">Total Kategori</span>
+          <strong class="text-3xl text-primary block mt-2">{{ reportData.categories }}</strong>
+          <span class="text-sm text-on-surface-variant">Total Kategori</span>
         </div>
       </section>
 
       <!-- Detailed Report -->
-      <section class="admin-signal-board">
+      <section class="admin-ds-panel">
         <p class="admin-section-label mb-4">RINGKASAN LAPORAN DETAIL</p>
 
-        <div v-if="isLoading" class="text-center py-8">
+        <div v-if="isLoading" class="text-center py-8 text-on-surface-variant">
           <p>Memuat laporan...</p>
         </div>
 
         <div v-else class="space-y-4">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="p-4 rounded bg-stone-900 border border-stone-700">
-              <p class="text-sm text-stone-400 mb-2">Periode</p>
-              <p class="font-semibold capitalize">{{ selectedPeriod }}</p>
+            <div class="p-4 rounded bg-surface-container border border-outline-variant/40">
+              <p class="text-sm text-on-surface-variant mb-2">Periode</p>
+              <p class="font-semibold capitalize text-on-surface">{{ selectedPeriod }}</p>
             </div>
-            <div class="p-4 rounded bg-stone-900 border border-stone-700">
-              <p class="text-sm text-stone-400 mb-2">Tanggal Laporan</p>
-              <p class="font-semibold">{{ new Date().toLocaleDateString('id-ID') }}</p>
+            <div class="p-4 rounded bg-surface-container border border-outline-variant/40">
+              <p class="text-sm text-on-surface-variant mb-2">Tanggal Laporan</p>
+              <p class="font-semibold text-on-surface">{{ new Date().toLocaleDateString('id-ID') }}</p>
             </div>
           </div>
 
           <div class="mt-6">
-            <h3 class="font-semibold mb-4">Statistik Konten</h3>
+            <h3 class="font-semibold mb-4 text-on-surface">Statistik Konten</h3>
             <div class="space-y-2 text-sm">
               <div class="flex justify-between">
-                <span>Rata-rata Artikel per Pengguna</span>
-                <strong>{{ reportData.articles > 0 ? (reportData.articles / reportData.users).toFixed(2) : 0 }}</strong>
+                <span class="text-on-surface-variant">Rata-rata Artikel per Pengguna</span>
+                <strong class="text-on-surface">{{ reportData.articles > 0 ? (reportData.articles / reportData.users).toFixed(2) : 0 }}</strong>
               </div>
               <div class="flex justify-between">
-                <span>Rata-rata Komentar per Artikel</span>
-                <strong>{{ reportData.articles > 0 ? (reportData.comments / reportData.articles).toFixed(2) : 0 }}</strong>
+                <span class="text-on-surface-variant">Rata-rata Komentar per Artikel</span>
+                <strong class="text-on-surface">{{ reportData.articles > 0 ? (reportData.comments / reportData.articles).toFixed(2) : 0 }}</strong>
               </div>
               <div class="flex justify-between">
-                <span>Rata-rata Views per Artikel</span>
-                <strong>{{ reportData.articles > 0 ? (reportData.views / reportData.articles).toFixed(0) : 0 }}</strong>
+                <span class="text-on-surface-variant">Rata-rata Views per Artikel</span>
+                <strong class="text-on-surface">{{ reportData.articles > 0 ? (reportData.views / reportData.articles).toFixed(0) : 0 }}</strong>
               </div>
             </div>
           </div>
@@ -160,34 +156,3 @@ onMounted(() => {
   </main>
 </template>
 
-<style scoped>
-.admin-ops-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 2px solid rgb(120 113 108);
-}
-
-.admin-ops-header h1 {
-  font-size: 2rem;
-  font-weight: bold;
-  margin-top: 0.25rem;
-}
-
-.admin-section-label {
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
-  color: rgb(168 162 158);
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.admin-signal-board {
-  background-color: rgb(41 37 36);
-  border: 1px solid rgb(120 113 108);
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-}
-</style>

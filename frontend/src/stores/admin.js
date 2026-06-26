@@ -1,5 +1,6 @@
 import { ref } from 'vue';
 import { defineStore } from 'pinia';
+import { useAuthStore } from '@/stores/auth';
 import api from '@/lib/api';
 
 export const useAdminStore = defineStore('admin', () => {
@@ -177,14 +178,14 @@ export const useAdminStore = defineStore('admin', () => {
   }
 
   async function fetchDashboardStats() {
+    const authStore = useAuthStore();
+
     return withLoading(async () => {
-      const { data } = await api.get('/admin/stats');
-      // debug: log when stats are fetched to help trace timing issues
-      try {
-        console.log('[admin] fetchDashboardStats: received', data?.data);
-      } catch (e) {
-        // ignore
+      if (authStore.user?.role !== 'admin') {
+        return null;
       }
+
+      const { data } = await api.get('/admin/stats');
       dashboardStats.value = data.data;
       dashboardStatsLoaded.value = true;
       return dashboardStats.value;

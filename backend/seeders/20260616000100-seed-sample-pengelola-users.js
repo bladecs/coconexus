@@ -12,51 +12,67 @@ module.exports = {
         profile: {
           full_name: 'Fitria Susanti',
           bio: 'Editor konten yang fokus pada kurasi artikel dan proses review editorial.',
-          job_title: 'Editor Konten',
           department: 'Editorial',
           division: 'Konten',
         },
       },
       {
-        email: 'pengelola.publikasi@coconexus.local',
-        password: 'Pengelola12345',
-        role: 'pengelola',
+        email: 'moderator.konten@coconexus.local',
+        password: 'Moderator12345',
+        role: 'moderator',
+        moderator_type: 'content',
         profile: {
-          full_name: 'Rizki Wardana',
-          bio: 'Koordinator publikasi yang menangani distribusi dan sosial media.',
-          job_title: 'Koordinator Publikasi',
+          full_name: 'Dimas Prakoso',
+          bio: 'Moderator konten yang fokus pada review kualitas dan kepatuhan naskah.',
+          job_title: 'Moderator Konten',
+          department: 'Editorial',
+          division: 'Moderasi Konten',
+        },
+      },
+      {
+        email: 'moderator.publikasi@coconexus.local',
+        password: 'Moderator12345',
+        role: 'moderator',
+        moderator_type: 'publication',
+        profile: {
+          full_name: 'Nadia Maharani',
+          bio: 'Moderator publikasi yang memeriksa kesiapan artikel sebelum tayang.',
+          job_title: 'Moderator Publikasi',
           department: 'Komunikasi',
-          division: 'Publikasi',
+          division: 'Moderasi Publikasi',
         },
       },
       {
-        email: 'pengelola.komunitas@coconexus.local',
-        password: 'Pengelola12345',
-        role: 'pengelola',
+        email: 'moderator.forum@coconexus.local',
+        password: 'Moderator12345',
+        role: 'moderator',
+        moderator_type: 'forum',
         profile: {
-          full_name: 'Maya Nurul',
-          bio: 'Manajer komunitas yang mengelola hubungan pembaca dan stakeholder.',
-          job_title: 'Manajer Komunitas',
+          full_name: 'Rama Saputra',
+          bio: 'Moderator forum yang menjaga diskusi tetap aman dan relevan.',
+          job_title: 'Moderator Forum',
           department: 'Community',
-          division: 'Engagement',
+          division: 'Moderasi Forum',
         },
       },
       {
-        email: 'pengelola.data@coconexus.local',
-        password: 'Pengelola12345',
-        role: 'pengelola',
+        email: 'moderator.tag@coconexus.local',
+        password: 'Moderator12345',
+        role: 'moderator',
+        moderator_type: 'tag',
         profile: {
-          full_name: 'Andi Taufik',
-          bio: 'Analis data editorial yang mengawasi performa konten dan insight pembaca.',
-          job_title: 'Analis Data',
-          department: 'Data',
-          division: 'Insight',
+          full_name: 'Salsa Wibowo',
+          bio: 'Moderator tag yang memastikan taksonomi konten tetap rapi dan konsisten.',
+          job_title: 'Moderator Tag',
+          department: 'Taxonomy',
+          division: 'Moderasi Tag',
         },
       },
     ];
 
     const now = new Date();
     const userRecords = [];
+    const moderatorAssignmentTable = await queryInterface.describeTable('ModeratorAssignment').catch(() => null);
 
     for (const user of sampleUsers) {
       const [existing] = await queryInterface.sequelize.query(
@@ -104,10 +120,70 @@ module.exports = {
       };
     });
 
-    if (profileRecords.length > 0) {
-      await queryInterface.bulkInsert('UserProfile', profileRecords, {
-        ignoreDuplicates: true,
-      });
+    for (const profile of profileRecords) {
+      const [existingProfile] = await queryInterface.sequelize.query(
+        'SELECT user_id FROM `UserProfile` WHERE user_id = :user_id LIMIT 1',
+        { replacements: { user_id: profile.user_id } }
+      );
+
+      if (existingProfile.length === 0) {
+        await queryInterface.bulkInsert('UserProfile', [profile]);
+        continue;
+      }
+
+      await queryInterface.bulkUpdate(
+        'UserProfile',
+        {
+          full_name: profile.full_name,
+          bio: profile.bio,
+          avatar_url: profile.avatar_url,
+          job_title: profile.job_title,
+          department: profile.department,
+          division: profile.division,
+        },
+        { user_id: profile.user_id }
+      );
+    }
+
+    if (moderatorAssignmentTable) {
+      for (const row of insertedUsers) {
+        const sample = sampleUsers.find((item) => item.email === row.email);
+        if (sample.role !== 'moderator' || !sample.moderator_type) {
+          continue;
+        }
+
+        const [existingAssignment] = await queryInterface.sequelize.query(
+          'SELECT user_id FROM `ModeratorAssignment` WHERE user_id = :user_id LIMIT 1',
+          { replacements: { user_id: row.id } }
+        );
+
+        const assignmentPayload = {
+          moderator_type: sample.moderator_type,
+          assigned_by: null,
+          created_at: now,
+          updated_at: now,
+        };
+
+        if (existingAssignment.length === 0) {
+          await queryInterface.bulkInsert('ModeratorAssignment', [
+            {
+              user_id: row.id,
+              ...assignmentPayload,
+            },
+          ]);
+          continue;
+        }
+
+        await queryInterface.bulkUpdate(
+          'ModeratorAssignment',
+          {
+            moderator_type: assignmentPayload.moderator_type,
+            assigned_by: assignmentPayload.assigned_by,
+            updated_at: assignmentPayload.updated_at,
+          },
+          { user_id: row.id }
+        );
+      }
     }
   },
 
@@ -117,6 +193,10 @@ module.exports = {
       'pengelola.publikasi@coconexus.local',
       'pengelola.komunitas@coconexus.local',
       'pengelola.data@coconexus.local',
+      'moderator.konten@coconexus.local',
+      'moderator.publikasi@coconexus.local',
+      'moderator.forum@coconexus.local',
+      'moderator.tag@coconexus.local',
     ];
 
     const [users] = await queryInterface.sequelize.query(
@@ -128,6 +208,9 @@ module.exports = {
 
     if (users.length > 0) {
       const ids = users.map((row) => row.id);
+      await queryInterface.bulkDelete('ModeratorAssignment', {
+        user_id: ids,
+      });
       await queryInterface.bulkDelete('UserProfile', {
         user_id: ids,
       });

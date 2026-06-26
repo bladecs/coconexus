@@ -1,5 +1,5 @@
-<script setup>
-import { computed, onMounted, watch } from 'vue';
+﻿<script setup>
+import { computed, onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import AdminStatsChart from '@/components/admin/AdminStatsChart.vue';
@@ -63,27 +63,17 @@ function formatActivityDate(value) {
 }
 
 onMounted(async () => {
-  console.log('[admin-dashboard] mounted, fetching stats');
   try {
     await adminStore.fetchDashboardStats();
-    console.log('[admin-dashboard] stats fetched', adminStore.dashboardStats);
   } catch (err) {
     console.warn('[admin-dashboard] failed to fetch stats:', err);
   }
 });
-
-watch(
-  () => adminStore.dashboardStats,
-  (value) => {
-    console.log('[admin-dashboard] dashboardStats changed', value);
-  },
-  { deep: true }
-);
 </script>
 
 <template>
-  <main class="inner-page admin-workspace px-5 pb-12 pt-32 text-stone-100 sm:px-8 lg:px-10">
-    <SiteNavbar variant="admin" />
+  <SiteNavbar variant="admin" />
+  <main class="inner-page admin-workspace px-5 pb-12 pt-32 text-on-surface sm:px-8 lg:px-10">
 
     <section class="mx-auto max-w-[1680px]">
       <header class="admin-ops-header">

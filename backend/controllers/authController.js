@@ -1,7 +1,7 @@
 'use strict';
 
 const bcrypt = require('bcryptjs');
-const { User, UserProfile, sequelize } = require('../models');
+const { User, UserProfile, ModeratorAssignment, sequelize } = require('../models');
 const { generateToken } = require('../utils/jwt');
 const { badRequest, conflict, unauthorized } = require('../utils/httpErrors');
 const { sanitizeUser } = require('../utils/serializers');
@@ -73,6 +73,10 @@ async function register(req, res, next) {
           model: UserProfile,
           as: 'profile',
         },
+        {
+          model: ModeratorAssignment,
+          as: 'moderatorAssignment',
+        },
       ],
     });
 
@@ -108,6 +112,10 @@ async function login(req, res, next) {
         {
           model: UserProfile,
           as: 'profile',
+        },
+        {
+          model: ModeratorAssignment,
+          as: 'moderatorAssignment',
         },
       ],
     });

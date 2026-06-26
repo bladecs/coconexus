@@ -30,7 +30,27 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
       },
+      discussion_forum_id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: true,
+      },
       parent_id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: true,
+      },
+      attachment_name: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+      attachment_path: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+      attachment_mime_type: {
+        type: DataTypes.STRING(120),
+        allowNull: true,
+      },
+      attachment_size: {
         type: DataTypes.INTEGER.UNSIGNED,
         allowNull: true,
       },
@@ -58,6 +78,13 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: 'CASCADE',
     });
 
+    Comment.belongsTo(models.DiscussionForum, {
+      foreignKey: 'discussion_forum_id',
+      as: 'discussionForum',
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
+    });
+
     Comment.belongsTo(models.Comment, {
       foreignKey: 'parent_id',
       as: 'parent',
@@ -68,6 +95,13 @@ module.exports = (sequelize, DataTypes) => {
     Comment.hasMany(models.Comment, {
       foreignKey: 'parent_id',
       as: 'replies',
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
+    });
+
+    Comment.hasMany(models.DiscussionForumSourceComment, {
+      foreignKey: 'comment_id',
+      as: 'forumSourceLinks',
       onDelete: 'CASCADE',
       onUpdate: 'CASCADE',
     });

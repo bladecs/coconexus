@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { onMounted, ref, computed } from 'vue';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import api from '@/lib/api';
@@ -66,8 +66,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="inner-page admin-workspace px-5 pb-12 pt-32 text-stone-100 sm:px-8 lg:px-10">
-    <SiteNavbar variant="admin" />
+  <SiteNavbar variant="admin" />
+  <main class="inner-page admin-workspace px-5 pb-12 pt-32 text-on-surface sm:px-8 lg:px-10">
 
     <section class="mx-auto max-w-[1680px]">
       <header class="admin-ops-header">
@@ -79,97 +79,97 @@ onMounted(() => {
 
       <!-- Stats Cards -->
       <section class="grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-6 mb-8">
-        <div class="admin-signal-board">
+        <div class="admin-ds-panel transition-all duration-200 hover:shadow-md">
           <p class="admin-section-label">TOTAL</p>
-          <strong class="text-3xl">{{ stats.total }}</strong>
-          <span class="text-sm">Total Aktivitas</span>
+          <strong class="text-3xl text-on-surface block mt-2">{{ stats.total }}</strong>
+          <span class="text-sm text-on-surface-variant">Total Aktivitas</span>
         </div>
-        <div class="admin-signal-board">
+        <div class="admin-ds-panel transition-all duration-200 hover:shadow-md">
           <p class="admin-section-label">HARI INI</p>
-          <strong class="text-3xl text-green-400">{{ stats.today }}</strong>
-          <span class="text-sm">Aktivitas Hari Ini</span>
+          <strong class="text-3xl text-primary block mt-2">{{ stats.today }}</strong>
+          <span class="text-sm text-on-surface-variant">Aktivitas Hari Ini</span>
         </div>
-        <div class="admin-signal-board">
+        <div class="admin-ds-panel transition-all duration-200 hover:shadow-md">
           <p class="admin-section-label">MINGGU INI</p>
-          <strong class="text-3xl text-blue-400">{{ stats.thisWeek }}</strong>
-          <span class="text-sm">Aktivitas Minggu Ini</span>
+          <strong class="text-3xl text-secondary block mt-2">{{ stats.thisWeek }}</strong>
+          <span class="text-sm text-on-surface-variant">Aktivitas Minggu Ini</span>
         </div>
       </section>
 
       <!-- Activity by User -->
       <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div class="admin-signal-board">
+        <div class="admin-ds-panel">
           <p class="admin-section-label mb-4">AKTIVITAS PER PENGGUNA</p>
-          <div v-if="isLoading" class="text-center py-4">
+          <div v-if="isLoading" class="text-center py-4 text-on-surface-variant">
             <p>Memuat...</p>
           </div>
-          <div v-else-if="activityByUser.length === 0" class="text-center py-4 text-stone-400">
+          <div v-else-if="activityByUser.length === 0" class="text-center py-4 text-outline">
             Belum ada aktivitas
           </div>
           <div v-else class="space-y-2">
             <div v-for="(item, idx) in activityByUser.slice(0, 10)" :key="idx" class="flex justify-between text-sm">
-              <span>{{ item.user }}</span>
-              <strong>{{ item.count }}</strong>
+              <span class="text-on-surface-variant">{{ item.user }}</span>
+              <strong class="text-on-surface">{{ item.count }}</strong>
             </div>
           </div>
         </div>
 
         <!-- Activity by Action -->
-        <div class="admin-signal-board">
+        <div class="admin-ds-panel">
           <p class="admin-section-label mb-4">AKTIVITAS PER AKSI</p>
-          <div v-if="isLoading" class="text-center py-4">
+          <div v-if="isLoading" class="text-center py-4 text-on-surface-variant">
             <p>Memuat...</p>
           </div>
-          <div v-else-if="activityByAction.length === 0" class="text-center py-4 text-stone-400">
+          <div v-else-if="activityByAction.length === 0" class="text-center py-4 text-outline">
             Belum ada aktivitas
           </div>
           <div v-else class="space-y-2">
             <div v-for="(item, idx) in activityByAction" :key="idx" class="flex justify-between text-sm">
-              <span>{{ item.action }}</span>
-              <strong>{{ item.count }}</strong>
+              <span class="text-on-surface-variant">{{ item.action }}</span>
+              <strong class="text-on-surface">{{ item.count }}</strong>
             </div>
           </div>
         </div>
       </section>
 
       <!-- Recent Activities -->
-      <section class="admin-signal-board">
+      <section class="admin-ds-panel">
         <p class="admin-section-label mb-4">AKTIVITAS TERBARU</p>
 
-        <div v-if="isLoading" class="text-center py-8">
+        <div v-if="isLoading" class="text-center py-8 text-on-surface-variant">
           <p>Memuat aktivitas...</p>
         </div>
 
-        <div v-else-if="error" class="text-red-400 text-center py-8">
+        <div v-else-if="error" class="text-error text-center py-8">
           {{ error }}
         </div>
 
-        <div v-else-if="activities.length === 0" class="text-center py-8 text-stone-400">
+        <div v-else-if="activities.length === 0" class="text-center py-8 text-outline">
           Belum ada aktivitas
         </div>
 
         <div v-else class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
-              <tr class="border-b border-stone-600">
-                <th class="text-left px-4 py-3">Waktu</th>
-                <th class="text-left px-4 py-3">Pengguna</th>
-                <th class="text-left px-4 py-3">Aksi</th>
-                <th class="text-left px-4 py-3">Keterangan</th>
+              <tr class="border-b border-outline-variant/50">
+                <th class="text-left px-4 py-3 text-on-surface">Waktu</th>
+                <th class="text-left px-4 py-3 text-on-surface">Pengguna</th>
+                <th class="text-left px-4 py-3 text-on-surface">Aksi</th>
+                <th class="text-left px-4 py-3 text-on-surface">Keterangan</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="activity in activities.slice(0, 20)" :key="activity.id" class="border-b border-stone-700 hover:bg-stone-800">
-                <td class="px-4 py-3 text-xs text-stone-400">
+              <tr v-for="activity in activities.slice(0, 20)" :key="activity.id" class="border-b border-outline-variant/50 hover:bg-surface-container-high transition-colors">
+                <td class="px-4 py-3 text-xs text-on-surface-variant">
                   {{ new Date(activity.created_at).toLocaleString('id-ID') }}
                 </td>
-                <td class="px-4 py-3">{{ activity.user?.email || '-' }}</td>
+                <td class="px-4 py-3 text-on-surface">{{ activity.user?.email || '-' }}</td>
                 <td class="px-4 py-3">
-                  <span class="px-2 py-1 rounded text-xs bg-stone-700">
+                  <span class="admin-badge admin-badge--muted">
                     {{ activity.action }}
                   </span>
                 </td>
-                <td class="px-4 py-3 text-xs">{{ activity.description || '-' }}</td>
+                <td class="px-4 py-3 text-xs text-on-surface-variant">{{ activity.description || '-' }}</td>
               </tr>
             </tbody>
           </table>
@@ -179,34 +179,3 @@ onMounted(() => {
   </main>
 </template>
 
-<style scoped>
-.admin-ops-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 2px solid rgb(120 113 108);
-}
-
-.admin-ops-header h1 {
-  font-size: 2rem;
-  font-weight: bold;
-  margin-top: 0.25rem;
-}
-
-.admin-section-label {
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
-  color: rgb(168 162 158);
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.admin-signal-board {
-  background-color: rgb(41 37 36);
-  border: 1px solid rgb(120 113 108);
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-}
-</style>
