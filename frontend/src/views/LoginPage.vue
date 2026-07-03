@@ -100,40 +100,40 @@ async function handleSubmit() {
 
       <section class="flex items-center px-4 py-8 sm:px-6 lg:col-span-2 lg:px-10 xl:px-12">
         <div
-          class="auth-card w-full rounded-[2rem] bg-white p-6 text-slate-900 shadow-[0_30px_80px_rgba(15,23,42,0.28)] sm:p-8 xl:p-10"
+          class="auth-card w-full rounded-[2rem] bg-white dark:bg-surface-container p-6 text-on-surface shadow-[0_30px_80px_rgba(15,23,42,0.28)] dark:shadow-[0_30px_80px_rgba(0,0,0,0.5)] sm:p-8 xl:p-10"
           :class="{ 'is-ready': isReady }"
         >
-          <h2 class="text-3xl font-bold tracking-tight text-slate-900">Welcome Back</h2>
-          <p class="mt-3 text-base leading-7 text-slate-500">
+          <h2 class="text-3xl font-bold tracking-tight text-on-surface">Welcome Back</h2>
+          <p class="mt-3 text-base leading-7 text-on-surface-variant">
             Gunakan akun yang sudah terdaftar untuk melanjutkan aktivitas Anda di COCONEXUS.
           </p>
 
           <form class="mt-8 space-y-5" @submit.prevent="handleSubmit">
             <div class="auth-item" :class="{ 'is-ready': isReady }" style="--delay: 0.18s;">
-              <label class="mb-2 block text-sm font-semibold text-slate-800" for="email">Email</label>
+              <label class="mb-2 block text-sm font-semibold text-on-surface-variant" for="email">Email</label>
               <input
                 id="email"
                 v-model="form.email"
                 type="email"
-                class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#1f3bb3] focus:bg-white focus:ring-4 focus:ring-[#1f3bb3]/10"
+                class="w-full rounded-2xl border border-outline-variant/50 bg-surface-container-low px-4 py-3 text-on-surface outline-none transition placeholder:text-outline focus:border-[#1f3bb3] dark:focus:border-primary focus:ring-4 focus:ring-[#1f3bb3]/10 dark:focus:ring-primary/15"
                 placeholder="nama@email.com"
               />
             </div>
 
             <div class="auth-item" :class="{ 'is-ready': isReady }" style="--delay: 0.26s;">
-              <label class="mb-2 block text-sm font-semibold text-slate-800" for="password">Password</label>
+              <label class="mb-2 block text-sm font-semibold text-on-surface-variant" for="password">Password</label>
               <input
                 id="password"
                 v-model="form.password"
                 type="password"
-                class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#1f3bb3] focus:bg-white focus:ring-4 focus:ring-[#1f3bb3]/10"
+                class="w-full rounded-2xl border border-outline-variant/50 bg-surface-container-low px-4 py-3 text-on-surface outline-none transition placeholder:text-outline focus:border-[#1f3bb3] dark:focus:border-primary focus:ring-4 focus:ring-[#1f3bb3]/10 dark:focus:ring-primary/15"
                 placeholder="Masukkan password"
               />
             </div>
 
             <p
               v-if="feedback"
-              class="auth-item rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600"
+              class="auth-item rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-600 dark:text-red-400"
               :class="{ 'is-ready': isReady }"
               style="--delay: 0.34s;"
             >
@@ -143,7 +143,7 @@ async function handleSubmit() {
             <button
               type="submit"
               :disabled="authStore.isLoading"
-              class="auth-item w-full rounded-full bg-[#1f3bb3] px-5 py-4 text-sm font-semibold text-white transition hover:bg-[#18339d] disabled:cursor-not-allowed disabled:opacity-60"
+              class="auth-item w-full rounded-full bg-[#1f3bb3] dark:bg-primary px-5 py-4 text-sm font-semibold text-white dark:text-on-primary transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               :class="{ 'is-ready': isReady }"
               style="--delay: 0.38s;"
             >
@@ -155,18 +155,18 @@ async function handleSubmit() {
               :class="{ 'is-ready': isReady }"
               style="--delay: 0.44s;"
             >
-              <span class="h-px flex-1 bg-slate-200" />
-              <span class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Akun baru</span>
-              <span class="h-px flex-1 bg-slate-200" />
+              <span class="h-px flex-1 bg-outline-variant/40" />
+              <span class="text-xs font-semibold uppercase tracking-[0.25em] text-on-surface-variant/60">Akun baru</span>
+              <span class="h-px flex-1 bg-outline-variant/40" />
             </div>
 
             <p
-              class="auth-item text-center text-sm text-slate-500"
+              class="auth-item text-center text-sm text-on-surface-variant"
               :class="{ 'is-ready': isReady }"
               style="--delay: 0.5s;"
             >
               Belum punya akun?
-              <RouterLink to="/register" class="font-semibold text-slate-900 transition hover:text-[#1f3bb3]">
+              <RouterLink to="/register" class="font-semibold text-on-surface dark:text-primary transition hover:text-[#1f3bb3] dark:hover:underline">
                 Sign up di sini
               </RouterLink>
             </p>

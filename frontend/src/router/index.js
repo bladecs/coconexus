@@ -30,6 +30,12 @@ import ArticleDetailPage from '@/views/ArticleDetailPage.vue';
 import GlossaryPage from '@/views/GlossaryPage.vue';
 import ForumDiscussionPage from '@/views/ForumDiscussionPage.vue';
 import ForumsListPage from '@/views/ForumsListPage.vue';
+import BookmarksPage from '@/views/BookmarksPage.vue';
+import ReadingHistoryPage from '@/views/ReadingHistoryPage.vue';
+import UserProfilePage from '@/views/UserProfilePage.vue';
+import PengelolaContributorsPage from '@/views/PengelolaContributorsPage.vue';
+import ContributorArticlesPage from '@/views/ContributorArticlesPage.vue';
+import ContributorArticleFormPage from '@/views/ContributorArticleFormPage.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useAdminStore } from '@/stores/admin';
 
@@ -79,6 +85,42 @@ const routes = [
     path: '/articles/:id/forum',
     name: 'article-forum',
     component: ForumDiscussionPage,
+  },
+  {
+    path: '/profil',
+    name: 'user-profile',
+    component: UserProfilePage,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/profil/tersimpan',
+    name: 'bookmarks',
+    component: BookmarksPage,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/profil/riwayat-baca',
+    name: 'reading-history',
+    component: ReadingHistoryPage,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/kontributor/artikel',
+    name: 'contributor-articles',
+    component: ContributorArticlesPage,
+    meta: { requiresAuth: true, requiresContributor: true },
+  },
+  {
+    path: '/kontributor/artikel/baru',
+    name: 'contributor-article-new',
+    component: ContributorArticleFormPage,
+    meta: { requiresAuth: true, requiresContributor: true },
+  },
+  {
+    path: '/kontributor/artikel/:id/edit',
+    name: 'contributor-article-edit',
+    component: ContributorArticleFormPage,
+    meta: { requiresAuth: true, requiresContributor: true },
   },
   {
     path: '/admin',
@@ -311,6 +353,15 @@ const routes = [
       requiresPengelola: true,
     },
   },
+  {
+    path: '/pengelola/contributors',
+    name: 'pengelola-contributors',
+    component: PengelolaContributorsPage,
+    meta: {
+      requiresAuth: true,
+      requiresPengelola: true,
+    },
+  },
 ];
 
 const router = createRouter({
@@ -347,6 +398,13 @@ router.beforeEach(async (to) => {
 
   if (to.meta.requiresModerator && authStore.user?.role !== 'moderator') {
     return { name: 'home' };
+  }
+
+  if (to.meta.requiresContributor) {
+    const profile = authStore.user?.profile;
+    if (authStore.user?.role !== 'user' || profile?.contributor_status !== 'approved') {
+      return { name: 'user-profile' };
+    }
   }
 
   const requiredModeratorTypes = to.meta.requiredModeratorTypes;

@@ -20,6 +20,11 @@ const {
   updateCategory,
   deleteCategory,
 } = require('../controllers/categoryController');
+const { listAllTags, deleteTag } = require('../controllers/tagController');
+const {
+  listContributorRequests,
+  reviewContributorRequest,
+} = require('../controllers/contributorController');
 const { authenticate } = require('../middlewares/authenticate');
 const { authorizePengelola } = require('../middlewares/authorizePengelola');
 
@@ -41,5 +46,11 @@ router.get('/categories', authenticate, authorizePengelola(), listCategories);
 router.post('/categories', authenticate, authorizePengelola(), createCategory);
 router.put('/categories/:id', authenticate, authorizePengelola(), updateCategory);
 router.delete('/categories/:id', authenticate, authorizePengelola(), deleteCategory);
+
+router.get('/tags', authenticate, authorizePengelola(), listAllTags);
+router.delete('/tags/:id', authenticate, authorizePengelola(), deleteTag);
+
+router.get('/contributor-requests', authenticate, authorizePengelola(), listContributorRequests);
+router.patch('/contributor-requests/:userId', authenticate, authorizePengelola(), reviewContributorRequest);
 
 module.exports = router;

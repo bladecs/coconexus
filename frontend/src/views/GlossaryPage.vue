@@ -161,7 +161,7 @@ onMounted(() => loadTerms(1));
 
 .eyebrow {
   margin: 0 0 12px;
-  color: #944a23;
+  color: rgb(var(--color-secondary));
   font-size: .72rem;
   font-weight: 950;
   letter-spacing: .2em;
@@ -182,12 +182,12 @@ onMounted(() => loadTerms(1));
   font-size: clamp(2.2rem, 4vw, 3.6rem);
   font-weight: 950;
   line-height: 1.05;
-  color: #0d1c2e;
+  color: rgb(var(--color-on-surface));
 }
 
 .glos-header__sub {
   margin: 0;
-  color: #404944;
+  color: rgb(var(--color-on-surface-variant));
   font-size: .95rem;
   line-height: 1.7;
   max-width: 560px;
@@ -209,10 +209,10 @@ onMounted(() => loadTerms(1));
   flex-direction: column;
   gap: 24px;
   padding: 20px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid rgb(var(--color-outline-variant) / 0.4);
   border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 2px 12px rgba(0,0,0,.06);
+  background: rgb(var(--color-surface-container-lowest));
+  box-shadow: 0 2px 12px rgb(var(--color-on-background) / 0.06);
 }
 
 .sidebar-group { display: flex; flex-direction: column; gap: 10px; }
@@ -223,34 +223,36 @@ onMounted(() => loadTerms(1));
   font-weight: 900;
   letter-spacing: .12em;
   text-transform: uppercase;
-  color: #64736d;
+  color: rgb(var(--color-on-surface-variant));
 }
 
 .sidebar-search {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  background: rgb(var(--color-surface-container));
+  border: 1px solid rgb(var(--color-outline-variant) / 0.5);
   border-radius: 8px;
   padding: 0 0 0 10px;
   transition: border-color .2s;
 }
 
-.sidebar-search:focus-within { border-color: #003527; }
+.sidebar-search:focus-within { border-color: rgb(var(--color-primary)); }
 
-.sidebar-search svg { flex-shrink: 0; color: #64736d; }
+.sidebar-search svg { flex-shrink: 0; color: rgb(var(--color-on-surface-variant)); }
 
 .sidebar-search input {
   flex: 1;
   background: transparent;
   border: none;
-  color: #0d1c2e;
+  color: rgb(var(--color-on-surface));
   font-size: .86rem;
   outline: none;
   padding: 9px 8px 9px 0;
   min-width: 0;
 }
+
+.sidebar-search input::placeholder { color: rgb(var(--color-outline)); }
 
 .sidebar-categories { display: flex; flex-direction: column; gap: 2px; }
 
@@ -258,7 +260,7 @@ onMounted(() => loadTerms(1));
   background: transparent;
   border: none;
   border-radius: 6px;
-  color: #404944;
+  color: rgb(var(--color-on-surface-variant));
   cursor: pointer;
   font-size: .84rem;
   font-weight: 700;
@@ -267,26 +269,26 @@ onMounted(() => loadTerms(1));
   transition: background .15s, color .15s;
 }
 
-.cat-chip:hover { background: rgba(0,53,39,.07); color: #003527; }
-.cat-chip.active { background: rgba(0,53,39,.14); color: #003527; font-weight: 900; }
+.cat-chip:hover { background: rgb(var(--color-primary) / 0.08); color: rgb(var(--color-primary)); }
+.cat-chip.active { background: rgb(var(--color-primary) / 0.14); color: rgb(var(--color-primary)); font-weight: 900; }
 
 .sidebar-stats {
   margin: 0;
   font-size: .78rem;
-  color: #94a3b8;
+  color: rgb(var(--color-outline));
   font-weight: 700;
   text-align: center;
   padding-top: 4px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid rgb(var(--color-outline-variant) / 0.4);
 }
 
 /* ── Content ── */
 .glos-content { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 
 .glos-state {
-  border: 1px dashed #bfc9c3;
+  border: 1px dashed rgb(var(--color-outline-variant));
   border-radius: 12px;
-  color: #64736d;
+  color: rgb(var(--color-on-surface-variant));
   padding: 48px;
   text-align: center;
   font-size: .95rem;
@@ -296,14 +298,17 @@ onMounted(() => loadTerms(1));
 
 .term-card {
   padding: 22px 24px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid rgb(var(--color-outline-variant) / 0.4);
   border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  background: rgb(var(--color-surface-container-lowest));
+  box-shadow: 0 2px 8px rgb(var(--color-on-background) / 0.04);
   transition: border-color .2s, box-shadow .2s;
 }
 
-.term-card:hover { border-color: rgba(0,53,39,.25); box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+.term-card:hover {
+  border-color: rgb(var(--color-primary) / 0.3);
+  box-shadow: 0 4px 16px rgb(var(--color-on-background) / 0.08);
+}
 
 .term-card__head {
   display: flex;
@@ -318,7 +323,7 @@ onMounted(() => loadTerms(1));
   font-size: 1.15rem;
   font-weight: 900;
   line-height: 1.3;
-  color: #0d1c2e;
+  color: rgb(var(--color-on-surface));
 }
 
 .term-badge {
@@ -334,7 +339,7 @@ onMounted(() => loadTerms(1));
 
 .term-card__def {
   margin: 0;
-  color: #404944;
+  color: rgb(var(--color-on-surface-variant));
   font-size: .92rem;
   line-height: 1.75;
 }
@@ -345,13 +350,13 @@ onMounted(() => loadTerms(1));
   gap: 10px;
   margin: 12px 0 0;
   font-size: .8rem;
-  color: #64736d;
+  color: rgb(var(--color-on-surface-variant));
 }
 
 .term-card__ref span {
-  border: 1px solid rgba(0,53,39,.25);
+  border: 1px solid rgb(var(--color-primary) / 0.25);
   border-radius: 4px;
-  color: #003527;
+  color: rgb(var(--color-primary));
   font-size: .65rem;
   font-weight: 800;
   letter-spacing: .08em;
@@ -366,23 +371,27 @@ onMounted(() => loadTerms(1));
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: #404944;
+  color: rgb(var(--color-on-surface-variant));
   font-weight: 800;
   font-size: .88rem;
 }
 
 .glos-pagination button {
-  border: 1px solid #e2e8f0;
+  border: 1px solid rgb(var(--color-outline-variant) / 0.5);
   border-radius: 8px;
-  background: transparent;
-  color: #0d1c2e;
+  background: rgb(var(--color-surface-container-lowest));
+  color: rgb(var(--color-on-surface));
   cursor: pointer;
   font-weight: 800;
   padding: 8px 14px;
-  transition: background .2s, border-color .2s;
+  transition: background .2s, border-color .2s, color .2s;
 }
 
-.glos-pagination button:hover:not(:disabled) { background: rgba(0,53,39,.08); border-color: #003527; color: #003527; }
+.glos-pagination button:hover:not(:disabled) {
+  background: rgb(var(--color-primary) / 0.08);
+  border-color: rgb(var(--color-primary) / 0.4);
+  color: rgb(var(--color-primary));
+}
 .glos-pagination button:disabled { opacity: .4; cursor: not-allowed; }
 
 /* ── Responsive ── */

@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, onMounted, ref } from 'vue';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import api from '@/lib/api';
@@ -32,65 +32,110 @@ onMounted(() => fetchCategories());
 
 <template>
   <SiteNavbar variant="moderator" />
-  <main class="inner-page min-h-screen px-5 pb-16 pt-32 text-on-surface sm:px-8 lg:px-10">
-
+  <main class="inner-page moderator-workspace min-h-screen px-5 pb-16 pt-32 text-on-surface sm:px-8 lg:px-10">
     <section class="mx-auto max-w-5xl">
-      <header class="mb-8 flex flex-col gap-4 border-b border-outline-variant/40 pb-6">
+
+      <!-- ── Header ── -->
+      <header class="mb-8 flex flex-col gap-4 border-b border-outline-variant/30 pb-6 md:flex-row md:items-center md:justify-between">
         <div>
-          <p class="mb-1 text-xs font-bold uppercase tracking-widest text-on-surface-variant">Coconexus / Moderator Tag</p>
-          <h1 class="text-3xl font-extrabold tracking-tight text-white">Pantau Kategori & Tag</h1>
-          <p class="mt-2 text-sm text-on-surface-variant">Tampilan read-only daftar kategori untuk memastikan konsistensi taksonomi konten.</p>
+          <div class="mb-2 flex items-center gap-2">
+            <span class="material-symbols-outlined text-violet-400" style="font-size:15px">sell</span>
+            <p class="text-xs font-bold uppercase tracking-widest text-violet-400/80">Coconexus / Moderator Tag</p>
+          </div>
+          <h1 class="text-3xl font-black tracking-tight text-on-surface">Pantau Kategori & Tag</h1>
+          <p class="mt-1 text-sm text-on-surface-variant">Tampilan read-only untuk memastikan konsistensi taksonomi konten</p>
         </div>
+        <button @click="fetchCategories" class="inline-flex items-center gap-2 self-start rounded-xl border border-outline-variant/30 bg-surface-container px-4 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface md:self-auto">
+          <span class="material-symbols-outlined" style="font-size:16px">refresh</span>
+          Refresh
+        </button>
       </header>
 
-      <!-- Stats -->
-      <section class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-2">
-        <div class="rounded-xl border border-outline-variant/40 bg-stone-800/50 p-5">
-          <p class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Total Kategori</p>
-          <strong class="mt-2 block text-3xl font-black text-on-surface">{{ categories.length }}</strong>
+      <!-- ── Stats ── -->
+      <section class="mb-8 grid grid-cols-2 gap-4">
+        <div class="tag-stat-card">
+          <span class="material-symbols-outlined tag-stat-icon text-on-surface-variant">category</span>
+          <p class="tag-stat-label">Total Kategori</p>
+          <strong class="tag-stat-value text-on-surface">{{ categories.length }}</strong>
         </div>
-        <div class="rounded-xl border border-outline-variant/40 bg-stone-800/50 p-5">
-          <p class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Ditampilkan</p>
-          <strong class="mt-2 block text-3xl font-black text-sky-400">{{ filteredCategories.length }}</strong>
+        <div class="tag-stat-card">
+          <span class="material-symbols-outlined tag-stat-icon text-violet-400">visibility</span>
+          <p class="tag-stat-label">Ditampilkan</p>
+          <strong class="tag-stat-value text-violet-400">{{ filteredCategories.length }}</strong>
         </div>
       </section>
 
-      <!-- Search -->
-      <section class="mb-6 rounded-xl border border-outline-variant/40 bg-stone-800/30 p-5">
-        <label class="mb-2 block text-sm font-medium text-on-surface-variant">Cari Kategori</label>
-        <input v-model="search" type="text" placeholder="Cari nama atau deskripsi kategori..." class="w-full rounded-lg border border-stone-600 bg-stone-800 px-4 py-2.5 text-sm text-on-surface outline-none transition focus:border-stone-400" />
+      <!-- ── Search ── -->
+      <section class="mb-5 rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-4">
+        <div class="flex items-center gap-2 rounded-lg border border-outline-variant/30 bg-surface-container px-3 py-2">
+          <span class="material-symbols-outlined text-on-surface-variant" style="font-size:16px">search</span>
+          <input v-model="search" type="text" placeholder="Cari nama atau deskripsi kategori..." class="flex-1 bg-transparent text-sm text-on-surface outline-none placeholder:text-on-surface-variant/50" />
+        </div>
       </section>
 
-      <!-- List -->
-      <section class="rounded-xl border border-outline-variant/40 bg-stone-800/30 overflow-hidden">
-        <div class="border-b border-outline-variant/40 bg-stone-800/50 px-5 py-4 flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-stone-200">Daftar Kategori</h2>
-          <span class="text-xs text-on-surface-variant rounded-full bg-stone-700 px-3 py-1">Read-only</span>
+      <!-- ── Table ── -->
+      <section class="overflow-hidden rounded-2xl border border-outline-variant/30">
+        <div class="flex items-center justify-between border-b border-outline-variant/30 bg-surface-container px-5 py-3.5">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-violet-400" style="font-size:16px">list</span>
+            <h2 class="text-sm font-bold text-on-surface">Daftar Kategori</h2>
+          </div>
+          <span class="rounded-full border border-outline-variant/30 bg-surface-container-low px-3 py-1 text-xs text-on-surface-variant">Read-only</span>
         </div>
 
-        <div v-if="isLoading" class="py-16 text-center text-on-surface-variant">Memuat kategori...</div>
-        <div v-else-if="error" class="py-12 text-center text-red-400">{{ error }}</div>
-        <div v-else-if="filteredCategories.length === 0" class="py-16 text-center text-stone-500">Tidak ada kategori yang cocok.</div>
+        <div v-if="isLoading" class="flex items-center justify-center gap-3 py-16 text-on-surface-variant">
+          <span class="material-symbols-outlined animate-spin" style="font-size:20px">progress_activity</span>
+          <span class="text-sm">Memuat kategori...</span>
+        </div>
+        <div v-else-if="error" class="flex items-center justify-center gap-2 py-12 text-red-400">
+          <span class="material-symbols-outlined" style="font-size:18px">error</span>
+          <span class="text-sm">{{ error }}</span>
+        </div>
+        <div v-else-if="filteredCategories.length === 0" class="py-20 text-center">
+          <span class="material-symbols-outlined mb-3 block text-5xl text-outline-variant">category</span>
+          <p class="font-semibold text-on-surface-variant">Tidak ada kategori yang cocok</p>
+        </div>
 
         <table v-else class="w-full text-left text-sm">
-          <thead class="bg-surface-container text-xs uppercase tracking-wider text-on-surface-variant">
+          <thead class="border-b border-outline-variant/20 bg-surface-container-low text-xs uppercase tracking-wider text-on-surface-variant">
             <tr>
-              <th class="px-6 py-4 font-medium">Nama</th>
-              <th class="px-6 py-4 font-medium">Deskripsi</th>
-              <th class="px-6 py-4 font-medium text-right">Dibuat</th>
+              <th class="px-5 py-3.5 font-semibold">Nama</th>
+              <th class="px-5 py-3.5 font-semibold">Deskripsi</th>
+              <th class="px-5 py-3.5 text-right font-semibold">Dibuat</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-stone-700/50">
-            <tr v-for="cat in filteredCategories" :key="cat.id" class="hover:bg-stone-800/50 transition-colors">
-              <td class="px-6 py-4 font-semibold text-stone-200">{{ cat.name }}</td>
-              <td class="px-6 py-4 text-on-surface-variant">{{ cat.description || '-' }}</td>
-              <td class="px-6 py-4 text-right text-xs text-stone-500">
+          <tbody>
+            <tr v-for="cat in filteredCategories" :key="cat.id" class="border-b border-outline-variant/10 transition-colors last:border-0 hover:bg-violet-500/3">
+              <td class="px-5 py-3.5">
+                <span class="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/30 bg-surface-container px-2.5 py-1 text-xs font-bold text-on-surface">
+                  <span class="material-symbols-outlined" style="font-size:10px">sell</span>
+                  {{ cat.name }}
+                </span>
+              </td>
+              <td class="px-5 py-3.5 text-sm text-on-surface-variant">{{ cat.description || '—' }}</td>
+              <td class="px-5 py-3.5 text-right text-xs text-on-surface-variant">
                 {{ new Date(cat.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) }}
               </td>
             </tr>
           </tbody>
         </table>
       </section>
+
     </section>
   </main>
 </template>
+
+<style scoped>
+.tag-stat-card {
+  border-radius: 1rem;
+  border: 1px solid rgb(var(--color-outline-variant) / 0.3);
+  background: rgb(var(--color-surface-container-lowest));
+  padding: 1.1rem 1.25rem;
+  display: flex; flex-direction: column; gap: 0.35rem;
+  transition: border-color 0.2s;
+}
+.tag-stat-card:hover { border-color: rgb(139 92 246 / 0.3); }
+.tag-stat-icon { font-size: 1.25rem; }
+.tag-stat-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgb(var(--color-on-surface-variant)); }
+.tag-stat-value { font-size: 2rem; font-weight: 900; line-height: 1; display: block; }
+</style>

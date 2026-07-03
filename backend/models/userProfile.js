@@ -36,6 +36,23 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(100),
         allowNull: true,
       },
+      contributor_status: {
+        type: DataTypes.ENUM('none', 'pending', 'approved', 'rejected'),
+        allowNull: false,
+        defaultValue: 'none',
+      },
+      contributor_note: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      contributor_reviewed_by: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: true,
+      },
+      contributor_reviewed_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
     },
     {
       tableName: 'UserProfile',

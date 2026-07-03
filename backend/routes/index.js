@@ -13,6 +13,9 @@ const moderatorRoutes = require('./moderatorRoutes');
 const glossaryRoutes = require('./glossaryRoutes');
 const forumRoutes = require('./forumRoutes');
 const chatbotRoutes = require('./chatbotRoutes');
+const bookmarkRoutes = require('./bookmarkRoutes');
+const readingHistoryRoutes = require('./readingHistoryRoutes');
+const stepProgressRoutes = require('./stepProgressRoutes');
 
 const router = express.Router();
 
@@ -28,5 +31,8 @@ router.use('/uploads', uploadRoutes);
 router.use('/glossary', glossaryRoutes);
 router.use('/forums', forumRoutes);
 router.use('/chatbot', chatbotRoutes);
+router.use('/bookmarks', bookmarkRoutes);
+router.use('/reading-history', readingHistoryRoutes);
+router.use('/step-progress', stepProgressRoutes);
 
 module.exports = router;

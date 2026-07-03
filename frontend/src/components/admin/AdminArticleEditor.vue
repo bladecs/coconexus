@@ -527,8 +527,12 @@ function buildPayload() {
     ? {
         difficulty_level: form.difficultyLevel || null,
         time_required_minutes: form.timeRequiredMinutes ? Number(form.timeRequiredMinutes) : null,
-        materials_list: form.materialsList.length > 0 ? form.materialsList : null,
-        tools_list: form.toolsList.length > 0 ? form.toolsList : null,
+        materials_list: form.materialsList.filter(m => m.name?.trim()).length > 0
+          ? form.materialsList.filter(m => m.name?.trim())
+          : null,
+        tools_list: form.toolsList.filter(t => t.name?.trim()).length > 0
+          ? form.toolsList.filter(t => t.name?.trim())
+          : null,
         process_parameters: Object.keys(form.processParameters).length > 0 ? form.processParameters : null,
         quality_indicators: Object.keys(form.qualityIndicators).length > 0 ? form.qualityIndicators : null,
         safety_notes: form.safetyNotes || null,

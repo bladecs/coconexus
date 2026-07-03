@@ -116,7 +116,7 @@ onMounted(() => {
   <div class="md:ml-64 pt-14 md:pt-0 min-h-screen bg-background flex flex-col">
 
     <!-- ── Hero / Welcome ── -->
-    <section class="relative overflow-hidden mx-4 sm:mx-6 mt-5 rounded-2xl"
+    <section class="relative overflow-hidden"
       style="background: linear-gradient(135deg, #002a1f 0%, #003d2d 55%, #004d38 100%)">
       <div class="absolute -top-20 -right-20 w-72 h-72 rounded-full pointer-events-none"
         style="background: radial-gradient(circle, rgba(149,211,186,0.08), transparent 70%)"></div>

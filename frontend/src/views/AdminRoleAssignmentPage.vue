@@ -1,13 +1,27 @@
 ﻿<script setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
+import { useAuthStore } from '@/stores/auth';
 import api from '@/lib/api';
 
+const authStore = useAuthStore();
 const users = ref([]);
 const isLoading = ref(false);
 const error = ref(null);
-const selectedRole = ref('user');
 const updatingUserId = ref(null);
+
+const currentAdminId = computed(() => authStore.user?.id);
+
+const roleOptions = ['admin', 'pengelola', 'moderator', 'user'];
+
+const pendingModeratorType = reactive({});
+
+const moderatorTypeOptions = [
+  { value: 'content',     label: 'Konten' },
+  { value: 'publication', label: 'Publikasi' },
+  { value: 'forum',       label: 'Forum' },
+  { value: 'tag',         label: 'Kategori & Tag' },
+];
 
 async function fetchUsers() {
   isLoading.value = true;
@@ -30,15 +44,17 @@ async function updateUserRole(userId, newRole) {
   error.value = null;
 
   try {
-    const { data } = await api.put(`/admin/users/${userId}/role`, {
-      role: newRole,
-    });
-    const user = users.value.find((u) => u.id === userId);
-    if (user) {
-      user.role = data.data.user.role;
+    const payload = { role: newRole };
+    if (newRole === 'moderator' && pendingModeratorType[userId]) {
+      payload.moderator_type = pendingModeratorType[userId];
+    }
+    const { data } = await api.put(`/admin/users/${userId}/role`, payload);
+    const idx = users.value.findIndex((u) => u.id === userId);
+    if (idx !== -1) {
+      users.value[idx] = data.data.user;
     }
   } catch (err) {
-    error.value = err.message;
+    error.value = err.response?.data?.message || err.message;
   } finally {
     updatingUserId.value = null;
   }
@@ -61,6 +77,12 @@ onMounted(() => {
         </div>
       </header>
 
+      <!-- Info Kontributor -->
+      <div class="mb-4 p-4 rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-950/30 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2">
+        <span class="material-symbols-outlined text-base mt-0.5">info</span>
+        <span>Permohonan verifikasi kontributor dikelola oleh <strong>Pengelola</strong> di halaman <strong>Kontributor</strong>. Kolom "Kontributor" di bawah menampilkan status permohonan user biasa.</span>
+      </div>
+
       <!-- Users Table -->
       <section class="admin-ds-panel overflow-x-auto">
         <p class="admin-section-label mb-4">DAFTAR PENGGUNA</p>
@@ -79,8 +101,9 @@ onMounted(() => {
               <th class="text-left px-4 py-3 text-on-surface">Nama</th>
               <th class="text-left px-4 py-3 text-on-surface">Email</th>
               <th class="text-left px-4 py-3 text-on-surface">Role Saat Ini</th>
+              <th class="text-left px-4 py-3 text-on-surface">Kontributor</th>
               <th class="text-left px-4 py-3 text-on-surface">Ubah Role</th>
-              <th class="text-right px-4 py-3 text-on-surface">Aksi</th>
+              <th class="text-right px-4 py-3 text-on-surface">Bergabung</th>
             </tr>
           </thead>
           <tbody>
@@ -100,10 +123,24 @@ onMounted(() => {
                   >
                     {{ user.role }}
                   </span>
-                  <span v-if="user.role === 'moderator' && user.moderatorAssignment?.moderator_type" class="text-xs text-on-surface-variant">
-                    {{ user.moderatorAssignment.moderator_type }}
+                  <span v-if="user.role === 'moderator' && user.moderator_assignment?.moderator_type" class="text-xs text-on-surface-variant">
+                    {{ user.moderator_assignment.moderator_type }}
                   </span>
                 </div>
+              </td>
+              <td class="px-4 py-3">
+                <span
+                  v-if="user.role === 'user' && user.profile?.contributor_status && user.profile.contributor_status !== 'none'"
+                  class="admin-badge w-fit text-xs"
+                  :class="{
+                    'admin-badge--warning': user.profile.contributor_status === 'pending',
+                    'admin-badge--success': user.profile.contributor_status === 'approved',
+                    'admin-badge--error':   user.profile.contributor_status === 'rejected',
+                  }"
+                >
+                  {{ user.profile.contributor_status === 'pending' ? 'Menunggu' : user.profile.contributor_status === 'approved' ? 'Terverifikasi' : 'Ditolak' }}
+                </span>
+                <span v-else class="text-xs text-on-surface-variant">-</span>
               </td>
               <td class="px-4 py-3">
                 <div class="flex flex-col gap-2">
@@ -147,7 +184,7 @@ onMounted(() => {
               </td>
             </tr>
             <tr v-if="users.length === 0">
-              <td colspan="5" class="text-center py-8 text-outline">
+              <td colspan="6" class="text-center py-8 text-outline">
                 Tidak ada pengguna ditemukan
               </td>
             </tr>

@@ -147,9 +147,14 @@ export const useArticleStore = defineStore('articles', () => {
 
   async function fetchMainArticles(params = {}) {
     return withLoading(async () => {
-      const { data } = await api.get('/pengelola/articles/main-articles', { params });
-      mainArticles.value = data.data.articles;
-      return mainArticles.value;
+      try {
+        const { data } = await api.get('/pengelola/articles/main-articles', { params });
+        mainArticles.value = data.data.articles;
+        return mainArticles.value;
+      } catch {
+        mainArticles.value = [];
+        return [];
+      }
     });
   }
 

@@ -20,6 +20,9 @@ const { isDark, toggleTheme } = useTheme();
 const { isOpen: chatOpen, open: openChat } = useChatWidget();
 const { isCollapsed, toggle: toggleSidebar } = useSidebar();
 const moderatorType = computed(() => authStore.user?.moderator_assignment?.moderator_type || '');
+const isContributor = computed(() =>
+  authStore.user?.role === 'user' && authStore.user?.profile?.contributor_status === 'approved'
+);
 
 function getDefaultPengelolaRoute() {
   return '/pengelola/articles';
@@ -74,31 +77,48 @@ const navLinks = computed(() => {
   }
   if (props.variant === 'pengelola') {
     return [
-      { to: '/pengelola/articles', label: 'Artikel',  icon: 'inventory_2' },
-      { to: '/pengelola/tags',     label: 'Kategori', icon: 'category' },
+      { to: '/pengelola/articles',     label: 'Artikel',      icon: 'inventory_2' },
+      { to: '/pengelola/tags',         label: 'Kategori',     icon: 'category' },
+      { to: '/pengelola/contributors', label: 'Kontributor',  icon: 'verified_user' },
+    ];
+  }
+  if (props.variant === 'contributor') {
+    return [
+      { to: '/kontributor/artikel', label: 'Artikel Saya', icon: 'article' },
+      { to: '/profil',              label: 'Profil',       icon: 'person' },
     ];
   }
   if (props.variant === 'moderator') {
     return getModeratorNavLinks(moderatorType.value);
   }
-  return [
+  const links = [
     { to: '/',            label: 'Beranda',   icon: 'home',       exact: true },
     { to: '/articles',    label: 'Artikel',   icon: 'inventory_2' },
     { to: '/glosarium',   label: 'Glosarium', icon: 'menu_book' },
     { to: '/forum',       label: 'Forum',     icon: 'forum' },
   ];
+  if (authStore.isAuthenticated) {
+    links.push(
+      { to: '/profil',              label: 'Profil',    icon: 'person' },
+      { to: '/profil/tersimpan',    label: 'Tersimpan', icon: 'bookmark' },
+      { to: '/profil/riwayat-baca', label: 'Riwayat',   icon: 'history' },
+    );
+  }
+  return links;
 });
 
 const brandTitle = computed(() => {
-  if (props.variant === 'admin')     return 'COCONEXUS Admin';
-  if (props.variant === 'pengelola') return 'COCONEXUS Pengelola';
-  if (props.variant === 'moderator') return 'COCONEXUS Moderator';
+  if (props.variant === 'admin')       return 'COCONEXUS Admin';
+  if (props.variant === 'pengelola')   return 'COCONEXUS Pengelola';
+  if (props.variant === 'moderator')   return 'COCONEXUS Moderator';
+  if (props.variant === 'contributor') return 'COCONEXUS';
   return 'COCONEXUS';
 });
 
 const brandSubtitle = computed(() => {
-  if (props.variant === 'admin')     return 'System Control Center';
-  if (props.variant === 'pengelola') return 'Article Manager';
+  if (props.variant === 'admin')       return 'System Control Center';
+  if (props.variant === 'pengelola')   return 'Article Manager';
+  if (props.variant === 'contributor') return 'Kontributor';
   if (props.variant === 'moderator') {
     const subtitleMap = {
       content: 'Content Review',
@@ -228,6 +248,17 @@ function closeMobile() {
     <!-- Role / Auth Links -->
     <div class="mt-2 flex flex-col gap-0.5 border-t border-outline-variant/30 pt-3" :class="isCollapsed ? 'px-2' : 'px-3'">
       <RouterLink
+        v-if="isContributor && variant !== 'contributor'"
+        to="/kontributor/artikel"
+        class="nav-link"
+        :class="isCollapsed && 'nav-link--icon-only'"
+        :title="isCollapsed ? 'Mode Kontributor' : ''"
+        @click="closeMobile"
+      >
+        <span class="material-symbols-outlined nav-link__icon">edit_note</span>
+        <span v-if="!isCollapsed">Mode Kontributor</span>
+      </RouterLink>
+      <RouterLink
         v-if="authStore.isPengelola && variant !== 'pengelola'"
         :to="getDefaultPengelolaRoute()"
         class="nav-link"
@@ -321,6 +352,15 @@ function closeMobile() {
         Artikel Baru
       </RouterLink>
       <RouterLink
+        v-else-if="isContributor && variant === 'contributor'"
+        to="/kontributor/artikel/baru"
+        class="cta-btn"
+        @click="closeMobile"
+      >
+        <span class="material-symbols-outlined text-[18px]">add</span>
+        Tulis Artikel
+      </RouterLink>
+      <RouterLink
         v-else-if="!authStore.isAuthenticated"
         to="/register"
         class="cta-btn"
@@ -340,7 +380,7 @@ function closeMobile() {
   gap: 12px;
   padding: 8px 12px;
   border-radius: 8px;
-  color: #404944;
+  color: rgb(var(--color-on-surface-variant));
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -352,18 +392,18 @@ function closeMobile() {
 }
 
 .nav-link:hover {
-  background: rgba(0, 53, 39, 0.07);
-  color: #003527;
+  background: rgb(var(--color-primary) / 0.08);
+  color: rgb(var(--color-primary));
 }
 
 .nav-link--active,
 .nav-link.router-link-active:not(.router-link-exact-active[data-exact="false"]) {
-  background: rgba(0, 53, 39, 0.13);
-  color: #003527;
+  background: rgb(var(--color-primary) / 0.12);
+  color: rgb(var(--color-primary));
   font-weight: 700;
-  border-left: 3px solid #003527;
+  border-left: 3px solid rgb(var(--color-primary));
   padding-left: 9px;
-  box-shadow: 0 1px 6px rgba(0, 53, 39, 0.12);
+  box-shadow: 0 1px 6px rgb(var(--color-primary) / 0.12);
 }
 
 .nav-link--icon-only {
@@ -377,8 +417,8 @@ function closeMobile() {
 .nav-link--icon-only.router-link-active {
   border-left: none;
   padding: 8px;
-  background: rgba(0, 53, 39, 0.15);
-  box-shadow: 0 0 0 2px rgba(0, 53, 39, 0.25);
+  background: rgb(var(--color-primary) / 0.14);
+  box-shadow: 0 0 0 2px rgb(var(--color-primary) / 0.28);
 }
 
 .nav-link__icon {
@@ -400,52 +440,19 @@ function closeMobile() {
   width: 100%;
   padding: 10px 16px;
   border-radius: 8px;
-  background: #003527;
-  color: #ffffff;
+  background: rgb(var(--color-primary));
+  color: rgb(var(--color-on-primary));
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.01em;
   text-decoration: none;
-  box-shadow: 0 2px 8px rgba(0, 53, 39, 0.2);
+  box-shadow: 0 2px 8px rgb(var(--color-primary) / 0.2);
   transition: opacity 150ms ease, transform 150ms ease;
 }
 
 .cta-btn:hover {
   opacity: 0.9;
   transform: translateY(-1px);
-}
-
-/* ── Dark mode overrides (explicit, no CSS var dependency) ── */
-:global(html.dark) .nav-link {
-  color: #bfc9c3;
-}
-
-:global(html.dark) .nav-link:hover {
-  background: rgba(149, 211, 186, 0.08);
-  color: #95d3ba;
-}
-
-:global(html.dark) .nav-link--active,
-:global(html.dark) .nav-link.router-link-active {
-  background: rgba(149, 211, 186, 0.15);
-  color: #95d3ba;
-  font-weight: 700;
-  border-left-color: #95d3ba;
-  box-shadow: 0 1px 6px rgba(149, 211, 186, 0.12);
-}
-
-:global(html.dark) .nav-link--icon-only.nav-link--active,
-:global(html.dark) .nav-link--icon-only.router-link-active {
-  border-left: none;
-  padding: 8px;
-  background: rgba(149, 211, 186, 0.18);
-  box-shadow: 0 0 0 2px rgba(149, 211, 186, 0.3);
-}
-
-:global(html.dark) .cta-btn {
-  background: #0b513d;
-  color: #b0f0d6;
-  box-shadow: 0 2px 8px rgba(11, 81, 61, 0.3);
 }
 
 /* Vue Transition */

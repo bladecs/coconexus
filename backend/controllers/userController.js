@@ -497,7 +497,28 @@ async function adminSoftDeleteUser(req, res, next) {
   }
 }
 
+async function getMe(req, res, next) {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      include: [{ model: UserProfile, as: 'profile' }],
+    });
+
+    if (!user) {
+      throw notFound('User tidak ditemukan.');
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Data pengguna berhasil diambil.',
+      data: { user: sanitizeUser(user) },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
+  getMe,
   updateMyProfile,
   listUsers,
   getUserById,

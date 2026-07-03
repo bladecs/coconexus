@@ -50,8 +50,28 @@ function authorizeModeratorScopes(...allowedScopes) {
   };
 }
 
+function authorizeContributor() {
+  return (req, res, next) => {
+    if (!req.user) {
+      return next(forbidden('User belum terautentikasi.'));
+    }
+
+    if (req.user.role !== 'user') {
+      return next(forbidden('Fitur ini hanya untuk akun pengguna biasa.'));
+    }
+
+    const status = req.user.profile?.contributor_status;
+    if (status !== 'approved') {
+      return next(forbidden('Akun Anda belum diverifikasi sebagai kontributor.'));
+    }
+
+    return next();
+  };
+}
+
 module.exports = {
   authorize,
   authorizeJobs,
   authorizeModeratorScopes,
+  authorizeContributor,
 };

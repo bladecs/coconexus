@@ -6,14 +6,23 @@ import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import CommentComposer from '@/components/comments/CommentComposer.vue';
 import CommentItem from '@/components/comments/CommentItem.vue';
 import SectionRenderer from '@/components/editor/SectionRenderer.vue';
+import ArticleRating from '@/components/article/ArticleRating.vue';
+import RelatedArticles from '@/components/article/RelatedArticles.vue';
 import { useArticleStore } from '@/stores/articles';
 import { useAuthStore } from '@/stores/auth';
+import { useBookmarkStore } from '@/stores/bookmark';
+import { useReadingHistoryStore } from '@/stores/readingHistory';
+import { useStepProgressStore } from '@/stores/stepProgress';
 import { resolveAssetUrl } from '@/lib/assets';
 
 const route = useRoute();
-const articleStore = useArticleStore();
-const authStore = useAuthStore();
-const commentNotice = ref('');
+const articleStore        = useArticleStore();
+const authStore           = useAuthStore();
+const bookmarkStore       = useBookmarkStore();
+const readingHistoryStore = useReadingHistoryStore();
+const stepProgressStore   = useStepProgressStore();
+const commentNotice   = ref('');
+const bookmarkLoading = ref(false);
 
 // Step guide state (technical articles only)
 const activeStep = ref(0);
@@ -77,7 +86,8 @@ const meta = computed(() => {
 
 const hasTechSpec = computed(() =>
   isTechnical.value && meta.value &&
-  (meta.value.materials?.length || meta.value.tools?.length ||
+  (meta.value.materials?.filter(m => m.name).length ||
+   meta.value.tools?.filter(t => t.name).length ||
    meta.value.processParams || meta.value.safetyNotes || meta.value.qualityIndicators)
 );
 
@@ -147,18 +157,42 @@ function getStepState(index) {
   return 'upcoming';
 }
 
-function markStepComplete(index) {
+async function markStepComplete(index) {
   if (!completedSteps.value.includes(index)) {
     completedSteps.value = [...completedSteps.value, index];
   }
   let next = index + 1;
   while (next < sections.value.length && completedSteps.value.includes(next)) next++;
   if (next < sections.value.length) activeStep.value = next;
+
+  if (authStore.isAuthenticated) {
+    await stepProgressStore.toggleStep(articleId.value, index);
+  }
+}
+
+async function resetSteps() {
+  activeStep.value = 0;
+  completedSteps.value = [];
+  if (authStore.isAuthenticated) {
+    await stepProgressStore.resetProgress(articleId.value);
+  }
 }
 
 function jumpToStep(index) {
   activeStep.value = index;
   document.getElementById(`step-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+const isBookmarked = computed(() => bookmarkStore.isBookmarked(articleId.value));
+
+async function toggleBookmark() {
+  if (!authStore.isAuthenticated) return;
+  bookmarkLoading.value = true;
+  try {
+    await bookmarkStore.toggleBookmark(articleId.value);
+  } finally {
+    bookmarkLoading.value = false;
+  }
 }
 
 async function loadArticle() {
@@ -167,6 +201,17 @@ async function loadArticle() {
   completedSteps.value = [];
   if (Number.isInteger(articleId.value) && articleId.value > 0) {
     await articleStore.fetchPublishedArticleDetail(articleId.value);
+    if (authStore.isAuthenticated) {
+      bookmarkStore.checkBookmark(articleId.value);
+      readingHistoryStore.recordRead(articleId.value);
+      const savedSteps = await stepProgressStore.fetchProgress(articleId.value);
+      completedSteps.value = savedSteps;
+      if (savedSteps.length > 0) {
+        let next = Math.max(...savedSteps) + 1;
+        while (next < sections.value.length && savedSteps.includes(next)) next++;
+        activeStep.value = Math.min(next, sections.value.length - 1);
+      }
+    }
   }
 }
 
@@ -179,6 +224,10 @@ async function handleCommentSubmit(payload) {
 
 async function handleDeleteComment(id) {
   await articleStore.deleteComment(id, articleId.value);
+}
+
+function printArticle() {
+  window.print();
 }
 
 watch(() => route.params.id, loadArticle);
@@ -207,7 +256,7 @@ onMounted(loadArticle);
         </div>
       </div>
 
-      <div v-else>
+      <div v-else id="article-print-area">
 
         <!-- ═══════════════════════════════════════════════════════
              LAYOUT A — WAWASAN (main / detail)
@@ -229,7 +278,7 @@ onMounted(loadArticle);
           <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
 
             <!-- ── Main Content ── -->
-            <main class="lg:col-span-8 min-w-0">
+            <main class="lg:col-span-8 min-w-0 article-main-col">
 
               <!-- Article Header -->
               <header class="mb-8">
@@ -283,6 +332,25 @@ onMounted(loadArticle);
                     <span class="material-symbols-outlined" style="font-size:15px">timer</span>
                     {{ readTime }} menit baca
                   </span>
+                  <!-- Bookmark button -->
+                  <button
+                    v-if="authStore.isAuthenticated"
+                    type="button"
+                    :disabled="bookmarkLoading"
+                    class="ml-auto flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors"
+                    :class="isBookmarked
+                      ? 'text-primary bg-primary/8 hover:bg-primary/15'
+                      : 'text-on-surface-variant hover:text-primary hover:bg-primary/8'"
+                    :aria-label="isBookmarked ? 'Hapus bookmark' : 'Simpan bookmark'"
+                    @click="toggleBookmark"
+                  >
+                    <span
+                      class="material-symbols-outlined"
+                      style="font-size:18px"
+                      :style="isBookmarked ? 'font-variation-settings:\'FILL\' 1' : 'font-variation-settings:\'FILL\' 0'"
+                    >bookmark</span>
+                    <span class="text-xs font-medium">{{ isBookmarked ? 'Tersimpan' : 'Simpan' }}</span>
+                  </button>
                 </div>
 
                 <!-- Hero Image -->
@@ -376,9 +444,10 @@ onMounted(loadArticle);
               </div>
 
               <!-- Action Buttons -->
-              <div class="flex flex-wrap gap-3 mb-10">
+              <div class="no-print flex flex-wrap gap-3 mb-10">
                 <button
                   class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm"
+                  @click="printArticle"
                 >
                   <span class="material-symbols-outlined" style="font-size:17px">download</span>
                   Unduh PDF
@@ -423,8 +492,16 @@ onMounted(loadArticle);
                 </ol>
               </section>
 
+              <!-- Related Articles -->
+              <div class="no-print"><RelatedArticles :article-id="articleId" /></div>
+
+              <!-- Rating -->
+              <div class="no-print mt-10 mb-8">
+                <ArticleRating :article-id="articleId" />
+              </div>
+
               <!-- Discussion -->
-              <section id="discussion" class="border-t border-outline-variant/40 pt-8">
+              <section id="discussion" class="no-print border-t border-outline-variant/40 pt-8">
                 <div class="flex items-center justify-between mb-6">
                   <h2 class="font-display text-xl font-bold text-on-surface">Diskusi</h2>
                   <RouterLink
@@ -464,7 +541,7 @@ onMounted(loadArticle);
             </main>
 
             <!-- ── Right Sidebar ── -->
-            <aside class="lg:col-span-4 space-y-5">
+            <aside class="no-print lg:col-span-4 space-y-5">
 
               <!-- Resource Info Card -->
               <div class="rounded-2xl bg-surface-container-lowest border border-outline-variant/40 overflow-hidden shadow-md">
@@ -657,7 +734,7 @@ onMounted(loadArticle);
           </nav>
 
           <!-- Sticky Progress Bar -->
-          <div class="sticky top-0 z-30 bg-background/95 backdrop-blur-sm -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 mb-8 border-b border-outline-variant/30">
+          <div class="no-print sticky top-0 z-30 bg-background/95 backdrop-blur-sm -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 mb-8 border-b border-outline-variant/30">
             <div class="flex items-center justify-between text-sm mb-1.5">
               <span class="font-semibold text-on-surface">
                 Langkah {{ Math.min(activeStep + 1, sections.length) }} dari {{ sections.length }}
@@ -722,7 +799,7 @@ onMounted(loadArticle);
           <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
 
             <!-- ── Steps Column ── -->
-            <div class="lg:col-span-8 space-y-5">
+            <div class="lg:col-span-8 space-y-5 article-main-col">
 
               <!-- Technical Specs Card -->
               <div v-if="hasTechSpec" class="rounded-2xl border border-outline-variant/40 overflow-hidden">
@@ -738,26 +815,26 @@ onMounted(loadArticle);
                   <!-- Safety -->
                   <div
                     v-if="meta.safetyNotes"
-                    class="flex gap-3 p-4 rounded-xl bg-red-50 border border-red-200 border-l-4 border-l-red-500"
+                    class="flex gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 border-l-4 border-l-red-500 dark:border-l-red-500"
                   >
                     <span
-                      class="material-symbols-outlined text-red-500 flex-shrink-0"
+                      class="material-symbols-outlined text-red-500 dark:text-red-400 flex-shrink-0"
                       style="font-size:20px;font-variation-settings:'FILL' 1"
                     >warning</span>
                     <div>
-                      <p class="text-xs font-bold text-red-700 mb-1">Keselamatan Kerja (K3)</p>
-                      <p class="text-sm text-red-600 leading-relaxed">{{ meta.safetyNotes }}</p>
+                      <p class="text-xs font-bold text-red-700 dark:text-red-300 mb-1">Keselamatan Kerja (K3)</p>
+                      <p class="text-sm text-red-600 dark:text-red-400 leading-relaxed">{{ meta.safetyNotes }}</p>
                     </div>
                   </div>
 
                   <!-- Materials -->
-                  <div v-if="meta.materials?.length">
+                  <div v-if="meta.materials?.filter(m => m.name).length">
                     <p class="text-xs font-bold tracking-wider uppercase text-on-surface-variant mb-3">
                       Bahan yang Dibutuhkan
                     </p>
                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       <div
-                        v-for="m in meta.materials" :key="m.name"
+                        v-for="m in meta.materials.filter(m => m.name)" :key="m.name"
                         class="flex flex-col gap-1 p-3 rounded-xl bg-surface-container border border-outline-variant/30"
                       >
                         <span v-if="m.quantity" class="text-xs font-bold text-secondary">{{ m.quantity }} {{ m.unit }}</span>
@@ -768,13 +845,13 @@ onMounted(loadArticle);
                   </div>
 
                   <!-- Tools -->
-                  <div v-if="meta.tools?.length">
+                  <div v-if="meta.tools?.filter(t => t.name).length">
                     <p class="text-xs font-bold tracking-wider uppercase text-on-surface-variant mb-3">
                       Alat yang Diperlukan
                     </p>
                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       <div
-                        v-for="t in meta.tools" :key="t.name"
+                        v-for="t in meta.tools.filter(t => t.name)" :key="t.name"
                         class="flex items-start gap-2.5 p-3 rounded-xl bg-surface-container border border-outline-variant/30"
                       >
                         <span class="text-xl flex-shrink-0">{{ toolIcon(t.name) }}</span>
@@ -836,18 +913,18 @@ onMounted(loadArticle);
                 :id="`step-${i}`"
                 class="rounded-2xl border overflow-hidden transition-all duration-300"
                 :class="{
-                  'border-emerald-200 bg-emerald-50/40 shadow-sm':          getStepState(i) === 'completed',
-                  'border-primary bg-surface-container-lowest shadow-lg shadow-primary/10': getStepState(i) === 'active',
-                  'border-outline-variant/40 bg-surface-container-lowest opacity-60':       getStepState(i) === 'upcoming',
+                  'border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-sm': getStepState(i) === 'completed',
+                  'border-primary bg-surface-container-lowest shadow-lg shadow-primary/10':                          getStepState(i) === 'active',
+                  'border-outline-variant/40 bg-surface-container-lowest opacity-60':                                getStepState(i) === 'upcoming',
                 }"
               >
                 <!-- Step Header -->
                 <div
                   class="flex items-start gap-4 p-5 border-b cursor-pointer select-none"
                   :class="{
-                    'border-emerald-200/60 bg-emerald-50/50': getStepState(i) === 'completed',
-                    'border-primary/15 bg-primary/5':         getStepState(i) === 'active',
-                    'border-outline-variant/30':               getStepState(i) === 'upcoming',
+                    'border-emerald-200/60 dark:border-emerald-800/30 bg-emerald-50/50 dark:bg-emerald-950/25': getStepState(i) === 'completed',
+                    'border-primary/15 bg-primary/5':                                                           getStepState(i) === 'active',
+                    'border-outline-variant/30':                                                                 getStepState(i) === 'upcoming',
                   }"
                   @click="jumpToStep(i)"
                 >
@@ -855,9 +932,9 @@ onMounted(loadArticle);
                   <div
                     class="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-colors"
                     :class="{
-                      'bg-emerald-100 text-emerald-700': getStepState(i) === 'completed',
-                      'bg-primary text-on-primary':       getStepState(i) === 'active',
-                      'bg-surface-container text-on-surface-variant': getStepState(i) === 'upcoming',
+                      'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300': getStepState(i) === 'completed',
+                      'bg-primary text-on-primary':                                                    getStepState(i) === 'active',
+                      'bg-surface-container text-on-surface-variant':                                  getStepState(i) === 'upcoming',
                     }"
                   >
                     <span
@@ -926,7 +1003,7 @@ onMounted(loadArticle);
                   </div>
 
                   <!-- Action button row -->
-                  <div class="mt-5 flex items-center justify-end">
+                  <div class="no-print mt-5 flex items-center justify-end">
                     <button
                       v-if="getStepState(i) === 'active'"
                       class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm"
@@ -977,7 +1054,7 @@ onMounted(loadArticle);
               </section>
 
               <!-- Discussion -->
-              <section class="rounded-2xl border border-outline-variant/40 p-5 bg-surface-container-low">
+              <section class="no-print rounded-2xl border border-outline-variant/40 p-5 bg-surface-container-low">
                 <div class="flex items-center justify-between mb-5">
                   <h2 class="font-display text-lg font-bold text-on-surface">Diskusi</h2>
                   <RouterLink
@@ -1017,11 +1094,12 @@ onMounted(loadArticle);
             </div>
 
             <!-- ── Right Sidebar (Technical) ── -->
-            <aside class="lg:col-span-4 space-y-5">
+            <aside class="no-print lg:col-span-4 space-y-5">
 
               <!-- Download CTA -->
               <button
                 class="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-primary text-on-primary font-semibold text-sm hover:opacity-90 transition-opacity shadow-md shadow-primary/20"
+                @click="printArticle"
               >
                 <span class="material-symbols-outlined" style="font-size:19px">download</span>
                 Unduh Panduan PDF
@@ -1042,11 +1120,20 @@ onMounted(loadArticle);
                 </div>
                 <div
                   v-if="stepProgress === 100"
-                  class="mt-3 flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2"
+                  class="mt-3 flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg px-3 py-2"
                 >
                   <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1">check_circle</span>
                   Semua langkah telah diselesaikan!
                 </div>
+                <button
+                  v-if="completedSteps.length > 0"
+                  type="button"
+                  class="mt-3 w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-on-surface-variant hover:text-secondary transition-colors"
+                  @click="resetSteps"
+                >
+                  <span class="material-symbols-outlined" style="font-size:14px">restart_alt</span>
+                  Ulangi dari Awal
+                </button>
               </div>
 
               <!-- Table of Contents -->
@@ -1062,7 +1149,7 @@ onMounted(loadArticle);
                     type="button"
                     class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors text-left"
                     :class="{
-                      'text-emerald-700 bg-emerald-50/60 hover:bg-emerald-50':  getStepState(i) === 'completed',
+                      'text-emerald-700 dark:text-emerald-300 bg-emerald-50/60 dark:bg-emerald-950/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/40': getStepState(i) === 'completed',
                       'text-primary font-semibold bg-primary/5':                 getStepState(i) === 'active',
                       'text-on-surface-variant hover:bg-surface-container':      getStepState(i) === 'upcoming',
                     }"
@@ -1071,9 +1158,9 @@ onMounted(loadArticle);
                     <span
                       class="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors"
                       :class="{
-                        'bg-emerald-100 text-emerald-700': getStepState(i) === 'completed',
-                        'bg-primary text-on-primary':       getStepState(i) === 'active',
-                        'bg-surface-container text-on-surface-variant': getStepState(i) === 'upcoming',
+                        'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300': getStepState(i) === 'completed',
+                        'bg-primary text-on-primary':                                                    getStepState(i) === 'active',
+                        'bg-surface-container text-on-surface-variant':                                  getStepState(i) === 'upcoming',
                       }"
                     >
                       <span
@@ -1164,16 +1251,16 @@ onMounted(loadArticle);
 </template>
 
 <style scoped>
-/* Prose styles for article body content */
+/* Prose styles for article body content — all colors use CSS vars to adapt light/dark */
 .article-body :deep(p) {
-  color: #0d1c2e;
+  color: var(--inner-text);
   line-height: 1.85;
   margin-bottom: 1.1em;
   font-size: 0.95rem;
 }
 .article-body :deep(h2),
 .article-body :deep(h3) {
-  color: #003527;
+  color: rgb(var(--color-primary));
   font-weight: 700;
   margin-top: 1.6em;
   margin-bottom: 0.6em;
@@ -1185,36 +1272,41 @@ onMounted(loadArticle);
 .article-body :deep(ol) {
   padding-left: 1.5em;
   margin-bottom: 1em;
-  color: #0d1c2e;
+  color: var(--inner-text);
   line-height: 1.8;
 }
 .article-body :deep(li) { margin-bottom: 0.35em; }
 .article-body :deep(blockquote) {
-  border-left: 3px solid #003527;
+  border-left: 3px solid rgb(var(--color-primary));
   padding: 0.5em 1em;
-  color: #404944;
+  color: var(--inner-muted);
   font-style: italic;
   margin: 1.2em 0;
-  background: rgba(0, 53, 39, 0.03);
+  background: rgb(var(--color-surface-container));
   border-radius: 0 8px 8px 0;
 }
 .article-body :deep(code) {
-  background: rgba(0, 53, 39, 0.06);
+  background: rgb(var(--color-primary) / 0.08);
   border-radius: 4px;
   padding: 0.15em 0.4em;
   font-size: 0.84em;
-  color: #003527;
+  color: rgb(var(--color-primary));
 }
 .article-body :deep(pre) {
-  background: #eff4ff;
+  background: rgb(var(--color-surface-container));
   border-radius: 10px;
   padding: 1em;
   overflow-x: auto;
   margin: 1em 0;
-  border: 1px solid #bfc9c3;
+  border: 1px solid rgb(var(--color-outline-variant) / 0.5);
+}
+.article-body :deep(pre) :deep(code) {
+  background: transparent;
+  color: var(--inner-text);
+  padding: 0;
 }
 .article-body :deep(img)   { max-width: 100%; border-radius: 10px; margin: 1em 0; }
-.article-body :deep(a)     { color: #003527; text-decoration: underline; text-underline-offset: 2px; }
+.article-body :deep(a)     { color: rgb(var(--color-primary)); text-decoration: underline; text-underline-offset: 2px; }
 .article-body :deep(table) {
   width: 100%;
   border-collapse: collapse;
@@ -1222,17 +1314,58 @@ onMounted(loadArticle);
   font-size: 0.88rem;
 }
 .article-body :deep(th) {
-  background: #e6eeff;
-  color: #0d1c2e;
+  background: rgb(var(--color-surface-container-high));
+  color: var(--inner-text);
   font-weight: 600;
   padding: 8px 12px;
   text-align: left;
-  border: 1px solid #bfc9c3;
+  border: 1px solid rgb(var(--color-outline-variant) / 0.5);
 }
 .article-body :deep(td) {
   padding: 8px 12px;
-  border: 1px solid #bfc9c3;
-  color: #0d1c2e;
+  border: 1px solid rgb(var(--color-outline-variant) / 0.5);
+  color: var(--inner-text);
 }
-.article-body :deep(tr:nth-child(even) td) { background: #eff4ff; }
+.article-body :deep(tr:nth-child(even) td) { background: rgb(var(--color-surface-container-low)); }
+
+/* ── Print styles ── */
+@media print {
+  .article-main-col {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* All step content visible in print regardless of progress state */
+  .article-main-col [class*="opacity-40"] {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  /* Article body text for print */
+  .article-body :deep(p),
+  .article-body :deep(li) { color: #1a1a1a !important; }
+  .article-body :deep(h2),
+  .article-body :deep(h3) { color: #1a4731 !important; }
+  .article-body :deep(a)  { color: #1a4731 !important; }
+  .article-body :deep(blockquote) {
+    background: #f5f5f5 !important;
+    color: #444 !important;
+  }
+  .article-body :deep(code) {
+    background: #f0f0f0 !important;
+    color: #333 !important;
+  }
+  .article-body :deep(pre) {
+    background: #f0f0f0 !important;
+    border: 1px solid #ccc !important;
+  }
+  .article-body :deep(th) {
+    background: #e8e8e8 !important;
+    color: #1a1a1a !important;
+    border-color: #ccc !important;
+  }
+  .article-body :deep(td)           { color: #1a1a1a !important; border-color: #ccc !important; }
+  .article-body :deep(tr:nth-child(even) td) { background: #f5f5f5 !important; }
+}
 </style>

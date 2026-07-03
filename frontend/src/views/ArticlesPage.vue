@@ -1,13 +1,18 @@
 <script setup>
-import { computed, onMounted, reactive, watch } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import SiteFooter from '@/components/layout/SiteFooter.vue';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import { useArticleStore } from '@/stores/articles';
+import { useAuthStore } from '@/stores/auth';
+import { useReadingHistoryStore } from '@/stores/readingHistory';
 import { resolveAssetUrl } from '@/lib/assets';
 import { sampleArticles } from '@/data/sampleArticles';
+import api from '@/lib/api';
 
-const articleStore = useArticleStore();
+const articleStore        = useArticleStore();
+const authStore           = useAuthStore();
+const readingHistoryStore = useReadingHistoryStore();
 const route = useRoute();
 
 const filters = reactive({
@@ -15,9 +20,21 @@ const filters = reactive({
   category: '',
   article_type: '',
   difficulty_level: '',
+  tag: '',
   page: 1,
   limit: 9,
 });
+
+const availableTags = ref([]);
+
+async function fetchTags() {
+  try {
+    const { data } = await api.get('/articles/tags/public');
+    availableTags.value = data.data.tags || [];
+  } catch {
+    availableTags.value = [];
+  }
+}
 
 const CATEGORIES = [
   { name: 'Batok Kelapa', icon: 'spa' },
@@ -64,7 +81,7 @@ const totalArticles     = computed(() => articleStore.publishedMeta.total_items 
 const totalPages        = computed(() => articleStore.publishedMeta.total_pages || 1);
 
 const showDifficultyFilter = computed(() => TECHNICAL_TYPES.has(filters.article_type));
-const hasActiveFilter      = computed(() => !!(filters.search || filters.category || filters.article_type || filters.difficulty_level));
+const hasActiveFilter      = computed(() => !!(filters.search || filters.category || filters.article_type || filters.difficulty_level || filters.tag));
 
 const featuredArticle = computed(() =>
   hasRealArticles.value && !hasActiveFilter.value && filters.page === 1
@@ -133,11 +150,18 @@ async function toggleDifficulty(level) {
   await load();
 }
 
+async function toggleTag(tag) {
+  filters.tag = filters.tag === tag ? '' : tag;
+  filters.page = 1;
+  await load();
+}
+
 async function clearFilters() {
   filters.search = '';
   filters.category = '';
   filters.article_type = '';
   filters.difficulty_level = '';
+  filters.tag = '';
   filters.page = 1;
   await load();
 }
@@ -149,10 +173,13 @@ async function goToPage(page) {
 }
 
 onMounted(() => {
-  if (route.query.category) {
-    filters.category = String(route.query.category);
-  }
+  if (route.query.category) filters.category = String(route.query.category);
+  if (route.query.article_type) filters.article_type = String(route.query.article_type);
+  if (route.query.search) filters.search = String(route.query.search);
+  if (route.query.tag) filters.tag = String(route.query.tag);
+  fetchTags();
   load();
+  if (authStore.isAuthenticated) readingHistoryStore.fetchReadIds();
 });
 </script>
 
@@ -233,6 +260,21 @@ onMounted(() => {
               {{ tf.label }}
             </button>
           </div>
+        </div>
+
+        <!-- Tags -->
+        <div v-if="availableTags.length" class="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-outline-variant/20">
+          <span class="flex items-center gap-1 text-xs font-semibold text-on-surface-variant">
+            <span class="material-symbols-outlined" style="font-size:14px">label</span>
+            Tag:
+          </span>
+          <button
+            v-for="tag in availableTags"
+            :key="tag.id"
+            class="tag-chip"
+            :class="filters.tag === tag.name && 'tag-chip--active'"
+            @click="toggleTag(tag.name)"
+          >{{ tag.name }}</button>
         </div>
 
         <!-- Difficulty + clear -->
@@ -380,8 +422,16 @@ onMounted(() => {
                   {{ TYPE_LABEL[article.article_type] }}
                 </span>
               </div>
-              <div v-if="!hasRealArticles" class="absolute top-3 right-3">
-                <span class="img-badge" style="background:rgba(255,255,255,0.15);color:#fff">Contoh</span>
+              <div class="absolute top-3 right-3 flex gap-1.5">
+                <span
+                  v-if="hasRealArticles && readingHistoryStore.isRead(article.id)"
+                  class="img-badge"
+                  style="background:rgba(16,185,129,0.85);color:#fff"
+                >
+                  <span class="material-symbols-outlined" style="font-size:11px;font-variation-settings:'FILL' 1">check_circle</span>
+                  Dibaca
+                </span>
+                <span v-if="!hasRealArticles" class="img-badge" style="background:rgba(255,255,255,0.15);color:#fff">Contoh</span>
               </div>
             </div>
 
@@ -523,9 +573,35 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.15s;
 }
-.diff-pemula.diff-chip--active   { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
-.diff-menengah.diff-chip--active { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
-.diff-lanjutan.diff-chip--active { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+.diff-pemula.diff-chip--active   { background: rgb(var(--color-primary) / 0.12); color: rgb(var(--color-primary)); border-color: rgb(var(--color-primary) / 0.35); }
+.diff-menengah.diff-chip--active { background: rgb(var(--color-secondary) / 0.12); color: rgb(var(--color-secondary)); border-color: rgb(var(--color-secondary) / 0.35); }
+.diff-lanjutan.diff-chip--active { background: rgb(var(--color-error) / 0.12); color: rgb(var(--color-error)); border-color: rgb(var(--color-error) / 0.35); }
+
+/* ── Tag chips ── */
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid rgb(var(--color-outline-variant) / 0.5);
+  background: rgb(var(--color-surface-container));
+  color: rgb(var(--color-on-surface-variant));
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tag-chip:hover {
+  background: rgb(var(--color-primary) / 0.08);
+  color: rgb(var(--color-primary));
+  border-color: rgb(var(--color-primary) / 0.3);
+}
+.tag-chip--active {
+  background: rgb(var(--color-secondary-container));
+  color: rgb(var(--color-on-secondary-container));
+  border-color: rgb(var(--color-secondary) / 0.4);
+  font-weight: 700;
+}
 
 /* ── Image badge ── */
 .img-badge {

@@ -118,6 +118,23 @@ body {
 /* ── Dark mode surface overrides for SiteNavbar ── */
 html.dark .bg-surface-container { background-color: #111f33; }
 
+/* ── Workspace stone backgrounds: adapt to theme in light mode ── */
+/* Dark mode keeps dark stone aesthetic; light mode maps to surface tokens */
+html:not(.dark) .pengelola-workspace [class*="bg-stone-8"],
+html:not(.dark) .pengelola-workspace [class*="bg-stone-7"],
+html:not(.dark) .moderator-workspace [class*="bg-stone-8"],
+html:not(.dark) .moderator-workspace [class*="bg-stone-7"] {
+  background-color: rgb(var(--color-surface-container-low)) !important;
+}
+html:not(.dark) .pengelola-workspace [class*="border-stone-"],
+html:not(.dark) .moderator-workspace [class*="border-stone-"] {
+  border-color: rgb(var(--color-outline-variant) / 0.5) !important;
+}
+html:not(.dark) .pengelola-workspace [class*="text-stone-2"],
+html:not(.dark) .moderator-workspace [class*="text-stone-2"] {
+  color: var(--inner-text) !important;
+}
+
 .inner-page {
   position: relative;
   min-height: 100vh;
@@ -129,7 +146,11 @@ html.dark .bg-surface-container { background-color: #111f33; }
 @media (min-width: 768px) {
   .inner-page {
     margin-left: 256px;
-    padding-top: 0;
+    padding-top: 3rem;
+  }
+
+  html[data-sidebar="collapsed"] .inner-page {
+    margin-left: 4rem;
   }
 }
 
@@ -1329,4 +1350,64 @@ html.dark .bg-surface-container { background-color: #111f33; }
   border-radius: 8px;
   background: rgb(var(--color-surface-container-low));
   padding: 1.5rem;
+}
+
+/* ═══════════════════════════════════════════════════════
+   PRINT STYLES — Artikel PDF via window.print()
+═══════════════════════════════════════════════════════ */
+@media print {
+  /* Page layout */
+  @page { margin: 1.5cm 2cm; size: A4; }
+
+  /* ── Force light-mode CSS variables regardless of html.dark class ── */
+  /* This prevents dark-mode token values (near-white text, dark surfaces)
+     from rendering invisibly on the white print page. */
+  html, html.dark {
+    color-scheme: light;
+    --color-background:                248 249 255;
+    --color-on-background:             13 28 46;
+    --color-surface:                   248 249 255;
+    --color-surface-dim:               204 219 243;
+    --color-surface-container-lowest:  255 255 255;
+    --color-surface-container-low:     239 244 255;
+    --color-surface-container:         230 238 255;
+    --color-surface-container-high:    220 233 255;
+    --color-surface-container-highest: 213 227 252;
+    --color-surface-variant:           213 227 252;
+    --color-on-surface:                13 28 46;
+    --color-on-surface-variant:        64 73 68;
+    --color-outline:                   112 121 116;
+    --color-outline-variant:           191 201 195;
+    --color-primary:                   0 53 39;
+    --color-on-primary:                255 255 255;
+    --color-primary-container:         6 78 59;
+    --color-on-primary-container:      128 190 166;
+    --color-secondary:                 148 74 35;
+    --color-on-secondary:              255 255 255;
+    --color-secondary-container:       253 158 112;
+    --color-on-secondary-container:    118 52 14;
+    --color-error:                     186 26 26;
+    --color-on-error:                  255 255 255;
+    --color-error-container:           255 218 214;
+    --color-on-error-container:        147 0 10;
+  }
+
+  /* Hide site chrome */
+  header, nav, footer { display: none !important; }
+
+  /* Remove sidebar-imposed margin/padding on content wrapper */
+  [class*="md:ml-"] { margin-left: 0 !important; }
+  [class*="pt-14"]  { padding-top:  0 !important; }
+
+  /* Hide interactive / UI-only elements */
+  .no-print { display: none !important; }
+
+  /* White background */
+  html, body { background: #fff !important; }
+
+  /* Avoid awkward page breaks */
+  h1, h2, h3, h4, h5, h6 { page-break-after: avoid; }
+  img     { page-break-inside: avoid; max-width: 100% !important; }
+  table   { page-break-inside: avoid; }
+  section { page-break-inside: avoid; }
 }

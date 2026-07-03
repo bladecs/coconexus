@@ -31,6 +31,10 @@ function sanitizeUser(userInstance) {
           job_title: user.profile.job_title,
           department: user.profile.department,
           division: user.profile.division,
+          contributor_status: user.profile.contributor_status ?? 'none',
+          contributor_note: user.profile.contributor_note ?? null,
+          contributor_reviewed_by: user.profile.contributor_reviewed_by ?? null,
+          contributor_reviewed_at: user.profile.contributor_reviewed_at ?? null,
         }
       : null,
   };

@@ -928,11 +928,24 @@ async function listPublishedArticles(req, res, next) {
       distinct: true, // Memastikan jumlah count() akurat meski ada tags & media
     });
 
+    const articleIds = articles.map((a) => a.id);
+    const viewCountMap = {};
+    if (articleIds.length) {
+      const rows = await sequelize.query(
+        `SELECT article_id, COUNT(*) AS view_count FROM \`ArticleView\` WHERE article_id IN (:ids) GROUP BY article_id`,
+        { replacements: { ids: articleIds }, type: sequelize.QueryTypes.SELECT }
+      );
+      rows.forEach((r) => { viewCountMap[r.article_id] = Number(r.view_count); });
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Daftar artikel published berhasil diambil.',
       data: {
-        articles: articles.map((article) => sanitizeArticle(article, { includeComments: false })),
+        articles: articles.map((article) => ({
+          ...sanitizeArticle(article, { includeComments: false }),
+          view_count: viewCountMap[article.id] || 0,
+        })),
         meta: {
           page,
           limit,
@@ -1070,11 +1083,16 @@ async function getPublishedArticleDetail(req, res, next) {
 
     await recordArticleView(req, article.id);
 
+    const viewCount = await ArticleView.count({ where: { article_id: article.id } });
+
     return res.status(200).json({
       success: true,
       message: 'Detail artikel berhasil diambil.',
       data: {
-        article: sanitizeArticle(article),
+        article: {
+          ...sanitizeArticle(article),
+          view_count: viewCount,
+        },
       },
     });
   } catch (error) {
@@ -1182,7 +1200,7 @@ async function getPublishedArticleDetail(req, res, next) {
 async function listAdminArticles(req, res, next) {
   try {
     const page = Math.max(Number(req.query.page || 1), 1);
-    const limit = Math.min(Math.max(Number(req.query.limit || 6), 1), 50);
+    const limit = Math.min(Math.max(Number(req.query.limit || 500), 1), 500);
     const offset = (page - 1) * limit;
 
     const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
@@ -1265,11 +1283,24 @@ async function listAdminArticles(req, res, next) {
       distinct: true,
     });
 
+    const articleIds = articles.map((a) => a.id);
+    const viewCountMap = {};
+    if (articleIds.length) {
+      const rows = await sequelize.query(
+        `SELECT article_id, COUNT(*) AS view_count FROM \`ArticleView\` WHERE article_id IN (:ids) GROUP BY article_id`,
+        { replacements: { ids: articleIds }, type: sequelize.QueryTypes.SELECT }
+      );
+      rows.forEach((r) => { viewCountMap[r.article_id] = Number(r.view_count); });
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Daftar artikel admin berhasil diambil.',
       data: {
-        articles: articles.map((article) => sanitizeArticle(article, { includeComments: false })),
+        articles: articles.map((article) => ({
+          ...sanitizeArticle(article, { includeComments: false }),
+          view_count: viewCountMap[article.id] || 0,
+        })),
         meta: {
           page,
           limit,
@@ -2226,6 +2257,224 @@ async function listMainArticles(req, res, next) {
   }
 }
 
+async function getRelatedArticles(req, res, next) {
+  try {
+    const articleId = Number(req.params.id);
+    if (!Number.isInteger(articleId) || articleId <= 0) throw badRequest('Parameter id tidak valid.');
+
+    const current = await Article.findOne({
+      where: { id: articleId, status: 'published' },
+      attributes: ['id', 'category_id'],
+      include: [{ model: Tag, as: 'tags', through: { attributes: [] }, attributes: ['id'] }],
+    });
+    if (!current) throw notFound('Artikel tidak ditemukan.');
+
+    const tagIds = current.tags.map((t) => t.id);
+    const categoryId = current.category_id;
+
+    const candidates = await Article.findAll({
+      where: { id: { [Op.ne]: articleId }, status: 'published', category_id: categoryId },
+      include: [
+        {
+          model: User,
+          as: 'author',
+          attributes: ['id', 'email', 'role'],
+          include: [{ model: UserProfile, as: 'profile', attributes: ['user_id', 'full_name', 'avatar_url'] }],
+        },
+        { model: Category, as: 'category', attributes: ['id', 'name'] },
+        { model: Tag, as: 'tags', through: { attributes: [] }, attributes: ['id', 'name'] },
+        { model: ArticleDetail, as: 'detail', attributes: ['difficulty_level', 'meta_description'] },
+        { model: ArticleMedia, as: 'media', attributes: ['id', 'file_path', 'media_type'] },
+      ],
+      limit: 20,
+      order: [['created_at', 'DESC']],
+    });
+
+    const tagSet = new Set(tagIds);
+    const scored = candidates
+      .map((a) => ({ article: a, score: a.tags.filter((t) => tagSet.has(t.id)).length }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4)
+      .map(({ article }) => sanitizeArticle(article, { includeComments: false }));
+
+    return res.status(200).json({ success: true, data: { articles: scored } });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function listPublicTags(req, res, next) {
+  try {
+    const tags = await Tag.findAll({
+      include: [
+        {
+          model: Article,
+          as: 'articles',
+          where: { status: 'published' },
+          attributes: [],
+          required: true,
+          through: { attributes: [] },
+        },
+      ],
+      attributes: ['id', 'name'],
+      order: [['name', 'ASC']],
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        tags: tags.map((t) => ({ id: t.id, name: t.name })),
+      },
+    });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function listMyArticles(req, res, next) {
+  try {
+    const page = Math.max(Number(req.query.page || 1), 1);
+    const limit = Math.min(Math.max(Number(req.query.limit || 10), 1), 50);
+    const offset = (page - 1) * limit;
+    const statusFilter = typeof req.query.status === 'string' && req.query.status !== 'all'
+      ? { status: req.query.status }
+      : {};
+
+    const { rows: articles, count } = await Article.findAndCountAll({
+      where: { author_id: req.user.id, ...statusFilter },
+      include: [
+        { model: ArticleDetail, as: 'detail', attributes: ['meta_description'] },
+        { model: Category, as: 'category', attributes: ['id', 'name'] },
+      ],
+      order: [['updated_at', 'DESC']],
+      limit,
+      offset,
+      distinct: true,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Daftar artikel Anda berhasil diambil.',
+      data: {
+        articles: articles.map((a) => ({
+          id: a.id,
+          title: a.title,
+          status: a.status,
+          article_type: a.article_type,
+          category: a.category ? { id: a.category.id, name: a.category.name } : null,
+          meta_description: a.detail?.meta_description || null,
+          created_at: a.created_at,
+          updated_at: a.updated_at,
+        })),
+        meta: { page, limit, total_items: count, total_pages: Math.ceil(count / limit) },
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function submitMyArticle(req, res, next) {
+  try {
+    const articleId = Number(req.params.id);
+
+    if (!Number.isInteger(articleId) || articleId <= 0) {
+      throw badRequest('Parameter article id tidak valid.');
+    }
+
+    const article = await Article.findOne({
+      where: { id: articleId, author_id: req.user.id },
+    });
+
+    if (!article) {
+      throw notFound('Artikel tidak ditemukan atau bukan milik Anda.');
+    }
+
+    if (article.status !== 'draft') {
+      throw badRequest('Hanya artikel berstatus draft yang dapat disubmit untuk ditinjau.');
+    }
+
+    article.status = 'revision';
+    await article.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Artikel berhasil disubmit untuk ditinjau oleh pengelola.',
+      data: { article: { id: article.id, title: article.title, status: article.status } },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function deleteMyArticle(req, res, next) {
+  try {
+    const articleId = Number(req.params.id);
+
+    if (!Number.isInteger(articleId) || articleId <= 0) {
+      throw badRequest('Parameter article id tidak valid.');
+    }
+
+    const article = await Article.findOne({
+      where: { id: articleId, author_id: req.user.id },
+    });
+
+    if (!article) {
+      throw notFound('Artikel tidak ditemukan atau bukan milik Anda.');
+    }
+
+    if (article.status === 'published') {
+      throw forbidden('Artikel yang sudah dipublikasikan tidak dapat dihapus oleh kontributor.');
+    }
+
+    await article.destroy();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Artikel berhasil dihapus.',
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getMyArticleDetail(req, res, next) {
+  try {
+    const articleId = Number(req.params.id);
+
+    if (!Number.isInteger(articleId) || articleId <= 0) {
+      throw badRequest('Parameter article id tidak valid.');
+    }
+
+    const article = await Article.findOne({
+      where: { id: articleId, author_id: req.user.id },
+      include: [
+        { model: User, as: 'author', attributes: ['id', 'email', 'role'],
+          include: [{ model: UserProfile, as: 'profile', attributes: ['user_id', 'full_name', 'bio', 'avatar_url'] }] },
+        { model: Category, as: 'category' },
+        { model: Tag, as: 'tags', through: { attributes: [] }, attributes: ['id', 'name', 'description'] },
+        { model: ArticleDetail, as: 'detail' },
+        { model: ArticleMedia, as: 'media' },
+        { model: Article, as: 'parentArticle', attributes: ['id', 'title', 'category_id', 'status'] },
+        { model: ProductCard, as: 'productCards', separate: true, order: [['created_at', 'ASC']] },
+        { model: ProductCard, as: 'linkedProductCard' },
+      ],
+    });
+
+    if (!article) {
+      throw notFound('Artikel tidak ditemukan atau bukan milik Anda.');
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Detail artikel kontributor berhasil diambil.',
+      data: { article: sanitizeArticle(article) },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   listPublishedArticles,
   getPublishedArticleDetail,
@@ -2233,10 +2482,16 @@ module.exports = {
   getAdminArticleDetail,
   listMainArticles,
   listAvailableProductCards,
+  listPublicTags,
+  getRelatedArticles,
   createArticle,
   updateArticle,
   updateArticleStatus,
   listArticleVersions,
   publishArticleVersion,
   deleteArticle,
+  listMyArticles,
+  getMyArticleDetail,
+  submitMyArticle,
+  deleteMyArticle,
 };
