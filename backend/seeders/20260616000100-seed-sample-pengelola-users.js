@@ -114,7 +114,7 @@ module.exports = {
         full_name: sample.profile.full_name,
         bio: sample.profile.bio,
         avatar_url: null,
-        job_title: sample.profile.job_title,
+        job_title: sample.profile.job_title ?? null,
         department: sample.profile.department,
         division: sample.profile.division,
       };
