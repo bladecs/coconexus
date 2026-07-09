@@ -23,6 +23,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 'main',
       },
+      is_home_featured: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
       wawasan_article_id: {
         type: DataTypes.INTEGER.UNSIGNED,
         allowNull: true,

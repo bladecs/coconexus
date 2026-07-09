@@ -40,7 +40,7 @@ onMounted(() => fetchCategories());
         <div>
           <div class="mb-2 flex items-center gap-2">
             <span class="material-symbols-outlined text-violet-400" style="font-size:15px">sell</span>
-            <p class="text-xs font-bold uppercase tracking-widest text-violet-400/80">Coconexus / Moderator Tag</p>
+            <p class="text-xs font-bold uppercase tracking-widest text-violet-400/80">Coconexus / Penata Taksonomi</p>
           </div>
           <h1 class="text-3xl font-black tracking-tight text-on-surface">Pantau Kategori & Tag</h1>
           <p class="mt-1 text-sm text-on-surface-variant">Tampilan read-only untuk memastikan konsistensi taksonomi konten</p>

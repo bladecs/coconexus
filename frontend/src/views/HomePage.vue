@@ -12,39 +12,6 @@ const router = useRouter();
 
 const searchQuery = ref('');
 
-const CATEGORIES = [
-  {
-    name: 'Batok Kelapa',
-    icon: 'local_fire_department',
-    description: 'Briket, arang aktif, asap cair, tepung tempurung, dan produk energi berbasis komunitas.',
-    accent: '#e85d04',
-    bg: 'bg-orange-50 dark:bg-orange-950/30',
-    border: 'border-orange-200 dark:border-orange-900/50',
-    iconColor: 'text-orange-600 dark:text-orange-400',
-    iconBg: 'bg-orange-100 dark:bg-orange-900/40',
-  },
-  {
-    name: 'Serabut Kelapa',
-    icon: 'eco',
-    description: 'Cocopeat, cocofiber, cocomesh, tali serat, media tanam, dan rehabilitasi lahan.',
-    accent: '#2d6a4f',
-    bg: 'bg-emerald-50 dark:bg-emerald-950/30',
-    border: 'border-emerald-200 dark:border-emerald-900/50',
-    iconColor: 'text-emerald-700 dark:text-emerald-400',
-    iconBg: 'bg-emerald-100 dark:bg-emerald-900/40',
-  },
-  {
-    name: 'Kulit Kelapa',
-    icon: 'palette',
-    description: 'Pewarna alami, mulsa organik, biomassa, pupuk cair, dan bahan kerajinan tangan.',
-    accent: '#6d4c41',
-    bg: 'bg-amber-50 dark:bg-amber-950/30',
-    border: 'border-amber-200 dark:border-amber-900/50',
-    iconColor: 'text-amber-800 dark:text-amber-400',
-    iconBg: 'bg-amber-100 dark:bg-amber-900/40',
-  },
-];
-
 const QUICK_LINKS = [
   {
     label: 'Glosarium Istilah',
@@ -77,11 +44,10 @@ const QUICK_LINKS = [
 ];
 
 const publishedArticles = computed(() => articleStore.publishedArticles || []);
-const hasRealArticles   = computed(() => publishedArticles.value.length > 0);
-const latestArticles    = computed(() => hasRealArticles.value ? publishedArticles.value.slice(0, 6) : sampleArticles);
 const totalArticles     = computed(() =>
   articleStore.publishedMeta.total_items || publishedArticles.value.length || sampleArticles.length
 );
+const featuredMainArticles = computed(() => articleStore.featuredMainArticles || []);
 
 function getImage(article) {
   const m = article?.media?.find(i => i.media_type === 'image') || article?.media?.[0];
@@ -94,9 +60,11 @@ function getExcerpt(article) {
   return clean.length > 110 ? `${clean.slice(0, 110)}…` : clean;
 }
 
-function formatDate(d) {
-  if (!d) return '';
-  return new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+function getProductPreview(article) {
+  const cards = Array.isArray(article?.product_cards) ? article.product_cards : [];
+  const names = cards.slice(0, 3).map((card) => card.title);
+  const extra = cards.length - names.length;
+  return extra > 0 ? `${names.join(', ')}, +${extra} lainnya` : names.join(', ');
 }
 
 function handleSearch() {
@@ -107,6 +75,7 @@ function handleSearch() {
 
 onMounted(() => {
   articleStore.fetchPublishedArticles({ page: 1, limit: 6 });
+  articleStore.fetchFeaturedMainArticles();
 });
 </script>
 
@@ -190,12 +159,12 @@ onMounted(() => {
 
     <div class="px-4 sm:px-6 mt-7 flex-1 flex flex-col gap-8">
 
-      <!-- ── Jelajahi Topik ── -->
+      <!-- ── 3 Artikel Utama ── -->
       <section>
         <div class="flex items-end justify-between mb-4">
           <div>
-            <p class="text-xs font-bold uppercase tracking-widest text-secondary mb-1">Topik Utama</p>
-            <h2 class="text-xl font-black text-on-surface">Jelajahi berdasarkan kategori limbah</h2>
+            <p class="text-xs font-bold uppercase tracking-widest text-secondary mb-1">Pengetahuan Dasar</p>
+            <h2 class="text-xl font-black text-on-surface">3 Artikel Utama Limbah Kelapa</h2>
           </div>
           <RouterLink to="/articles" class="text-sm font-semibold text-primary hover:underline hidden sm:flex items-center gap-1">
             Lihat semua
@@ -203,47 +172,9 @@ onMounted(() => {
           </RouterLink>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <RouterLink
-            v-for="cat in CATEGORIES"
-            :key="cat.name"
-            :to="`/articles?category=${encodeURIComponent(cat.name)}`"
-            class="group flex flex-col gap-3 p-5 rounded-2xl border transition-all hover:-translate-y-1 hover:shadow-lg"
-            :class="[cat.bg, cat.border]"
-          >
-            <div class="flex items-center gap-3">
-              <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
-                :class="cat.iconBg">
-                <span class="material-symbols-outlined text-2xl" :class="cat.iconColor"
-                  style="font-variation-settings:'FILL' 1,'wght' 500">{{ cat.icon }}</span>
-              </div>
-              <h3 class="font-bold text-on-surface text-base leading-tight">{{ cat.name }}</h3>
-            </div>
-            <p class="text-xs text-on-surface-variant leading-relaxed flex-1">{{ cat.description }}</p>
-            <span class="inline-flex items-center gap-1 text-xs font-bold" :class="cat.iconColor">
-              Lihat artikel
-              <span class="material-symbols-outlined" style="font-size:13px">arrow_forward</span>
-            </span>
-          </RouterLink>
-        </div>
-      </section>
-
-      <!-- ── Artikel Terbaru ── -->
-      <section>
-        <div class="flex items-end justify-between mb-4">
-          <div>
-            <p class="text-xs font-bold uppercase tracking-widest text-secondary mb-1">Konten Terbaru</p>
-            <h2 class="text-xl font-black text-on-surface">Artikel terbaru</h2>
-          </div>
-          <RouterLink to="/articles" class="text-sm font-semibold text-primary hover:underline flex items-center gap-1">
-            Lihat semua
-            <span class="material-symbols-outlined" style="font-size:15px">arrow_forward</span>
-          </RouterLink>
-        </div>
-
         <!-- Loading -->
-        <div v-if="articleStore.isLoading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div v-for="i in 6" :key="i" class="rounded-2xl overflow-hidden border border-outline-variant/20 bg-surface-container-lowest animate-pulse">
+        <div v-if="articleStore.isLoading && !featuredMainArticles.length" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div v-for="i in 3" :key="i" class="rounded-2xl overflow-hidden border border-outline-variant/20 bg-surface-container-lowest animate-pulse">
             <div class="aspect-video bg-outline-variant/20"></div>
             <div class="p-4 space-y-2">
               <div class="h-3 bg-outline-variant/20 rounded w-1/3"></div>
@@ -253,12 +184,15 @@ onMounted(() => {
           </div>
         </div>
 
-        <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <component
-            :is="hasRealArticles ? RouterLink : 'div'"
-            v-for="article in latestArticles"
+        <p v-else-if="!featuredMainArticles.length" class="text-sm text-on-surface-variant">
+          Belum ada artikel utama yang ditampilkan.
+        </p>
+
+        <div v-else class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <RouterLink
+            v-for="article in featuredMainArticles"
             :key="article.id"
-            :to="hasRealArticles ? `/articles/${article.id}` : undefined"
+            :to="`/articles/${article.id}`"
             class="group flex flex-col rounded-2xl overflow-hidden border border-outline-variant/20 bg-surface-container-lowest shadow-sm transition-all hover:-translate-y-1 hover:shadow-md hover:border-primary/20"
           >
             <!-- Thumbnail -->
@@ -274,12 +208,9 @@ onMounted(() => {
               </div>
               <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
               <div class="absolute bottom-2 left-2">
-                <span v-if="article.category?.name || article.category" class="inline-flex text-xs font-bold px-2 py-0.5 rounded-full bg-secondary/90 text-on-secondary">
-                  {{ article.category?.name || article.category }}
+                <span v-if="article.category?.name" class="inline-flex text-xs font-bold px-2 py-0.5 rounded-full bg-secondary/90 text-on-secondary">
+                  {{ article.category.name }}
                 </span>
-              </div>
-              <div v-if="!hasRealArticles" class="absolute top-2 right-2">
-                <span class="inline-flex text-xs font-bold px-2 py-0.5 rounded-full" style="background:rgba(255,255,255,0.15);color:#fff">Contoh</span>
               </div>
             </div>
 
@@ -291,30 +222,13 @@ onMounted(() => {
               <p class="text-xs text-on-surface-variant leading-relaxed line-clamp-2 flex-1">
                 {{ getExcerpt(article) }}
               </p>
-              <div class="flex items-center justify-between mt-3 pt-3 border-t border-outline-variant/20 text-xs text-on-surface-variant">
+              <div v-if="getProductPreview(article)" class="mt-3 pt-3 border-t border-outline-variant/20 text-xs text-on-surface-variant">
                 <span class="flex items-center gap-1">
-                  <span class="material-symbols-outlined" style="font-size:12px">person</span>
-                  <span class="truncate max-w-[100px]">
-                    {{ article.author?.name || article.author?.username || article.author || 'Tim COCONEXUS' }}
-                  </span>
-                </span>
-                <span class="flex items-center gap-1 flex-shrink-0">
-                  <span class="material-symbols-outlined" style="font-size:12px">calendar_today</span>
-                  {{ formatDate(article.published_at || article.created_at) || article.date || '' }}
+                  <span class="material-symbols-outlined" style="font-size:12px">eco</span>
+                  <span class="truncate">{{ getProductPreview(article) }}</span>
                 </span>
               </div>
             </div>
-          </component>
-        </div>
-
-        <div class="mt-5 text-center">
-          <RouterLink
-            to="/articles"
-            class="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-outline-variant/40 bg-surface-container-lowest text-sm font-semibold text-on-surface hover:border-primary hover:text-primary transition-all"
-          >
-            <span class="material-symbols-outlined" style="font-size:16px">inventory_2</span>
-            Lihat semua artikel
-            <span class="material-symbols-outlined" style="font-size:16px">arrow_forward</span>
           </RouterLink>
         </div>
       </section>

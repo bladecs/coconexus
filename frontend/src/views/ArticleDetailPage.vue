@@ -14,6 +14,7 @@ import { useBookmarkStore } from '@/stores/bookmark';
 import { useReadingHistoryStore } from '@/stores/readingHistory';
 import { useStepProgressStore } from '@/stores/stepProgress';
 import { resolveAssetUrl } from '@/lib/assets';
+import api from '@/lib/api';
 
 const route = useRoute();
 const articleStore        = useArticleStore();
@@ -23,6 +24,8 @@ const readingHistoryStore = useReadingHistoryStore();
 const stepProgressStore   = useStepProgressStore();
 const commentNotice   = ref('');
 const bookmarkLoading = ref(false);
+const downloadingPdf  = ref(false);
+const pdfError        = ref('');
 
 // Step guide state (technical articles only)
 const activeStep = ref(0);
@@ -112,6 +115,28 @@ const articleSources = computed(() => article.value?.detail?.sources || []);
 const productCards   = computed(() => article.value?.product_cards || []);
 const tags           = computed(() => article.value?.tags || []);
 
+const AUTHOR_ROLE_LABELS = { pengelola: 'Pengelola', admin: 'Admin', moderator: 'Moderator' };
+const authorName = computed(() => article.value?.author?.profile?.full_name || 'Tim COCONEXUS');
+const authorRoleLabel = computed(() => {
+  const role = article.value?.author?.role;
+  return AUTHOR_ROLE_LABELS[role] || article.value?.author?.profile?.job_title || 'Kontributor';
+});
+
+// Untuk artikel utama, produk turunan dikelompokkan sebagai "pohon turunan limbah"
+// berdasarkan cara pengelolaannya (dibakar, dihancurkan, dst).
+const productCardGroups = computed(() => {
+  if (article.value?.article_type !== 'main') return null;
+
+  const groups = new Map();
+  productCards.value.forEach((pc) => {
+    const method = pc.processing_method?.trim() || 'Lainnya';
+    if (!groups.has(method)) groups.set(method, []);
+    groups.get(method).push(pc);
+  });
+
+  return Array.from(groups.entries()).map(([method, items]) => ({ method, items }));
+});
+
 const formattedDate = computed(() => {
   if (!article.value?.created_at) return '';
   return new Date(article.value.created_at).toLocaleDateString('id-ID', {
@@ -139,16 +164,27 @@ function ytEmbed(url) {
 
 function toolIcon(name = '') {
   const n = name.toLowerCase();
-  if (/drum|tungku|kiln/.test(n))           return '🔥';
-  if (/furnace|muffle|oven|reaktor/.test(n)) return '🔶';
-  if (/timbang|neraca|scale/.test(n))        return '⚖️';
-  if (/termometer|suhu/.test(n))             return '🌡️';
-  if (/blender|mill|penggiling/.test(n))     return '⚙️';
-  if (/saringan|sieve|filter/.test(n))       return '🕸️';
-  if (/pipet|buret|labu/.test(n))            return '🧪';
-  if (/ph meter|meter/.test(n))              return '📊';
-  if (/gelas|beaker|tabung/.test(n))         return '🧫';
-  return '🔧';
+  if (/drum|tungku|kiln|karbonisasi|bakar|api|oven|pengering|furnace|muffle|reaktor/.test(n)) return 'local_fire_department';
+  if (/press|cetak|pencetak|kempa/.test(n))                    return 'compress';
+  if (/timbang|neraca|scale/.test(n))                          return 'scale';
+  if (/termometer|suhu|thermocouple/.test(n))                  return 'thermostat';
+  if (/blender|giling|grind|mill|penggiling|crusher|hancur/.test(n)) return 'settings';
+  if (/saring|sieve|filter|ayak/.test(n))                      return 'filter_alt';
+  if (/pipet|buret|erlenmeyer|labu|kimia/.test(n))             return 'science';
+  if (/ph meter|conductivity|meter/.test(n))                   return 'speed';
+  if (/gelas|beaker|tabung|wadah/.test(n))                     return 'water_drop';
+  if (/spatula|pengaduk|stirrer/.test(n))                      return 'blender';
+  if (/gergaji|potong|pisau/.test(n))                          return 'content_cut';
+  if (/amplas|ukir/.test(n))                                   return 'brush';
+  return 'build';
+}
+
+function materialIcon(name = '') {
+  const n = name.toLowerCase();
+  if (/air|cair|larutan/.test(n))         return 'water_drop';
+  if (/perekat|resin|lem|lateks/.test(n)) return 'water_drop';
+  if (/arang|karbon|batok|tempurung/.test(n)) return 'eco';
+  return 'inventory_2';
 }
 
 function getStepState(index) {
@@ -226,8 +262,30 @@ async function handleDeleteComment(id) {
   await articleStore.deleteComment(id, articleId.value);
 }
 
-function printArticle() {
-  window.print();
+async function printArticle() {
+  if (downloadingPdf.value || !articleId.value) return;
+
+  downloadingPdf.value = true;
+  pdfError.value = '';
+
+  try {
+    const response = await api.get(`/articles/published/${articleId.value}/pdf`, {
+      responseType: 'blob',
+    });
+
+    const blobUrl = URL.createObjectURL(response.data);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `${(article.value?.title || 'artikel').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(blobUrl);
+  } catch (error) {
+    pdfError.value = error.message || 'Gagal mengunduh PDF.';
+  } finally {
+    downloadingPdf.value = false;
+  }
 }
 
 watch(() => route.params.id, loadArticle);
@@ -318,7 +376,7 @@ onMounted(loadArticle);
                 <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-on-surface-variant border-t border-b border-outline-variant/40 py-3 mb-6">
                   <span class="flex items-center gap-1.5">
                     <span class="material-symbols-outlined" style="font-size:15px">person</span>
-                    {{ article.author?.name || article.author?.username || 'Tim COCONEXUS' }}
+                    {{ authorName }}
                   </span>
                   <span class="flex items-center gap-1.5">
                     <span class="material-symbols-outlined" style="font-size:15px">calendar_today</span>
@@ -416,6 +474,12 @@ onMounted(loadArticle);
                     v-if="i > 0 || sections.length > 1"
                     class="font-display text-xl font-bold text-on-surface mb-4 pb-2.5 border-b-2 border-primary/20"
                   >{{ s.title }}</h2>
+                  <img
+                    v-if="s.image_path"
+                    :src="resolveAssetUrl(s.image_path)"
+                    :alt="s.title"
+                    class="w-full rounded-xl mb-4 border border-outline-variant/40 object-cover aspect-video"
+                  />
                   <template v-if="s.video_path">
                     <iframe
                       v-if="isYT(s.video_path)"
@@ -444,13 +508,15 @@ onMounted(loadArticle);
               </div>
 
               <!-- Action Buttons -->
-              <div class="no-print flex flex-wrap gap-3 mb-10">
+              <div class="no-print flex flex-col gap-2 mb-10">
+                <div class="flex flex-wrap gap-3">
                 <button
-                  class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm"
+                  class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm disabled:opacity-60"
+                  :disabled="downloadingPdf"
                   @click="printArticle"
                 >
                   <span class="material-symbols-outlined" style="font-size:17px">download</span>
-                  Unduh PDF
+                  {{ downloadingPdf ? 'Menyiapkan PDF…' : 'Unduh PDF' }}
                 </button>
                 <button
                   class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-surface-container text-on-surface text-sm font-semibold border border-outline-variant hover:bg-surface-container-high transition-colors"
@@ -466,6 +532,8 @@ onMounted(loadArticle);
                   <span class="material-symbols-outlined" style="font-size:17px">forum</span>
                   Forum Diskusi
                 </RouterLink>
+                </div>
+                <p v-if="pdfError" class="text-sm text-red-500">{{ pdfError }}</p>
               </div>
 
               <!-- References -->
@@ -492,8 +560,58 @@ onMounted(loadArticle);
                 </ol>
               </section>
 
-              <!-- Related Articles -->
-              <div class="no-print"><RelatedArticles :article-id="articleId" /></div>
+              <!-- Pohon Turunan Limbah (artikel utama) — menggantikan Artikel Terkait -->
+              <section v-if="productCardGroups" class="no-print mb-10">
+                <h3 class="flex items-center gap-2 text-lg font-bold text-on-surface mb-5">
+                  <span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1">device_hub</span>
+                  Pohon Turunan Limbah
+                </h3>
+
+                <p v-if="!productCardGroups.length" class="text-sm text-on-surface-variant">
+                  Belum ada produk turunan untuk artikel ini.
+                </p>
+
+                <div v-else class="grid gap-5" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                  <div v-for="group in productCardGroups" :key="group.method" class="flex flex-col gap-3">
+                    <p class="text-xs font-bold text-primary uppercase tracking-wide text-center pb-2 border-b-2 border-primary/25">
+                      {{ group.method }}
+                    </p>
+                    <div
+                      v-for="pc in group.items"
+                      :key="pc.id"
+                      class="rounded-xl border border-outline-variant/40 bg-surface-container-lowest overflow-hidden"
+                    >
+                      <div class="aspect-video bg-surface-container overflow-hidden">
+                        <img
+                          v-if="pc.image"
+                          :src="resolveAssetUrl(pc.image)"
+                          :alt="pc.title"
+                          class="w-full h-full object-cover"
+                        />
+                        <div v-else class="w-full h-full flex items-center justify-center">
+                          <span class="material-symbols-outlined text-outline-variant" style="font-size:28px">eco</span>
+                        </div>
+                      </div>
+                      <div class="p-3">
+                        <p class="text-sm font-semibold text-on-surface mb-1 leading-snug">{{ pc.title }}</p>
+                        <p class="text-xs text-on-surface-variant mb-2 leading-relaxed line-clamp-2">{{ pc.description }}</p>
+                        <RouterLink
+                          v-if="pc.linked_article?.id && pc.linked_article?.status === 'published'"
+                          :to="`/articles/${pc.linked_article.id}`"
+                          class="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                        >
+                          Buka artikel
+                          <span class="material-symbols-outlined" style="font-size:12px">arrow_forward</span>
+                        </RouterLink>
+                        <span v-else class="text-xs text-on-surface-variant italic">Segera tersedia</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Related Articles (artikel non-utama) -->
+              <div v-else class="no-print"><RelatedArticles :article-id="articleId" /></div>
 
               <!-- Rating -->
               <div class="no-print mt-10 mb-8">
@@ -656,18 +774,18 @@ onMounted(loadArticle);
                 </RouterLink>
               </div>
 
-              <!-- Contributor -->
+              <!-- Penulis -->
               <div v-if="article.author" class="rounded-2xl bg-surface-container-lowest border border-outline-variant/40 p-4">
-                <p class="text-xs font-bold tracking-widest uppercase text-on-surface-variant mb-3">Kontributor</p>
+                <p class="text-xs font-bold tracking-widest uppercase text-on-surface-variant mb-3">Penulis</p>
                 <div class="flex items-center gap-3">
                   <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0 border border-primary/20">
-                    {{ (article.author?.name || article.author?.username || 'T')[0].toUpperCase() }}
+                    {{ authorName[0].toUpperCase() }}
                   </div>
                   <div>
                     <p class="text-sm font-semibold text-on-surface">
-                      {{ article.author?.name || article.author?.username }}
+                      {{ authorName }}
                     </p>
-                    <p class="text-xs text-on-surface-variant">{{ article.author?.job_title || 'Kontributor' }}</p>
+                    <p class="text-xs text-on-surface-variant">{{ authorRoleLabel }}</p>
                   </div>
                 </div>
               </div>
@@ -829,34 +947,43 @@ onMounted(loadArticle);
 
                   <!-- Materials -->
                   <div v-if="meta.materials?.filter(m => m.name).length">
-                    <p class="text-xs font-bold tracking-wider uppercase text-on-surface-variant mb-3">
+                    <p class="flex items-center gap-2 text-xs font-bold tracking-wider uppercase text-emerald-700 dark:text-emerald-400 mb-3">
+                      <span class="material-symbols-outlined" style="font-size:16px">eco</span>
                       Bahan yang Dibutuhkan
                     </p>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       <div
                         v-for="m in meta.materials.filter(m => m.name)" :key="m.name"
-                        class="flex flex-col gap-1 p-3 rounded-xl bg-surface-container border border-outline-variant/30"
+                        class="flex items-start gap-3 p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40 hover:-translate-y-0.5 hover:shadow-sm transition-all"
                       >
-                        <span v-if="m.quantity" class="text-xs font-bold text-secondary">{{ m.quantity }} {{ m.unit }}</span>
-                        <span class="text-sm font-semibold text-on-surface">{{ m.name }}</span>
-                        <span v-if="m.note" class="text-xs text-on-surface-variant italic">{{ m.note }}</span>
+                        <div class="w-9 h-9 flex items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 flex-shrink-0">
+                          <span class="material-symbols-outlined" style="font-size:18px">{{ materialIcon(m.name) }}</span>
+                        </div>
+                        <div class="min-w-0">
+                          <span v-if="m.quantity" class="text-xs font-bold text-emerald-700 dark:text-emerald-400 block">{{ m.quantity }} {{ m.unit }}</span>
+                          <span class="text-sm font-semibold text-on-surface block leading-snug">{{ m.name }}</span>
+                          <span v-if="m.note" class="text-xs text-on-surface-variant italic">{{ m.note }}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   <!-- Tools -->
                   <div v-if="meta.tools?.filter(t => t.name).length">
-                    <p class="text-xs font-bold tracking-wider uppercase text-on-surface-variant mb-3">
+                    <p class="flex items-center gap-2 text-xs font-bold tracking-wider uppercase text-secondary mb-3">
+                      <span class="material-symbols-outlined" style="font-size:16px">build</span>
                       Alat yang Diperlukan
                     </p>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       <div
                         v-for="t in meta.tools.filter(t => t.name)" :key="t.name"
-                        class="flex items-start gap-2.5 p-3 rounded-xl bg-surface-container border border-outline-variant/30"
+                        class="flex items-start gap-3 p-3 rounded-xl bg-surface-container border border-outline-variant/30 hover:border-secondary/30 hover:-translate-y-0.5 hover:shadow-sm transition-all"
                       >
-                        <span class="text-xl flex-shrink-0">{{ toolIcon(t.name) }}</span>
-                        <div>
-                          <p class="text-sm font-semibold text-on-surface">{{ t.name }}</p>
+                        <div class="w-9 h-9 flex items-center justify-center rounded-lg bg-secondary/10 text-secondary flex-shrink-0">
+                          <span class="material-symbols-outlined" style="font-size:18px">{{ toolIcon(t.name) }}</span>
+                        </div>
+                        <div class="min-w-0">
+                          <p class="text-sm font-semibold text-on-surface leading-snug">{{ t.name }}</p>
                           <p v-if="t.spec" class="text-xs font-mono text-secondary">{{ t.spec }}</p>
                           <p v-if="t.purpose" class="text-xs text-on-surface-variant mt-0.5">{{ t.purpose }}</p>
                         </div>
@@ -981,20 +1108,28 @@ onMounted(loadArticle);
                     Selesaikan langkah {{ i }} terlebih dahulu untuk membuka langkah ini.
                   </div>
 
-                  <!-- Video (only visible for non-upcoming) -->
-                  <template v-if="s.video_path && getStepState(i) !== 'upcoming'">
-                    <iframe
-                      v-if="isYT(s.video_path)"
-                      class="w-full aspect-video rounded-xl mb-4 border border-outline-variant/40"
-                      :src="ytEmbed(s.video_path)"
-                      frameborder="0" allowfullscreen
+                  <!-- Photo/video (only visible for non-upcoming) -->
+                  <template v-if="getStepState(i) !== 'upcoming'">
+                    <img
+                      v-if="s.image_path"
+                      :src="resolveAssetUrl(s.image_path)"
+                      :alt="s.title"
+                      class="w-full rounded-xl mb-4 border border-outline-variant/40 object-cover aspect-video"
                     />
-                    <video
-                      v-else
-                      class="w-full rounded-xl mb-4 border border-outline-variant/40"
-                      :src="resolveAssetUrl(s.video_path)"
-                      controls
-                    />
+                    <template v-if="s.video_path">
+                      <iframe
+                        v-if="isYT(s.video_path)"
+                        class="w-full aspect-video rounded-xl mb-4 border border-outline-variant/40"
+                        :src="ytEmbed(s.video_path)"
+                        frameborder="0" allowfullscreen
+                      />
+                      <video
+                        v-else
+                        class="w-full rounded-xl mb-4 border border-outline-variant/40"
+                        :src="resolveAssetUrl(s.video_path)"
+                        controls
+                      />
+                    </template>
                   </template>
 
                   <!-- Section content (dimmed for upcoming) -->
@@ -1098,12 +1233,14 @@ onMounted(loadArticle);
 
               <!-- Download CTA -->
               <button
-                class="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-primary text-on-primary font-semibold text-sm hover:opacity-90 transition-opacity shadow-md shadow-primary/20"
+                class="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-primary text-on-primary font-semibold text-sm hover:opacity-90 transition-opacity shadow-md shadow-primary/20 disabled:opacity-60"
+                :disabled="downloadingPdf"
                 @click="printArticle"
               >
                 <span class="material-symbols-outlined" style="font-size:19px">download</span>
-                Unduh Panduan PDF
+                {{ downloadingPdf ? 'Menyiapkan PDF…' : 'Unduh Panduan PDF' }}
               </button>
+              <p v-if="pdfError" class="text-xs text-red-500 text-center">{{ pdfError }}</p>
 
               <!-- Progress Summary -->
               <div class="rounded-2xl bg-surface-container-lowest border border-outline-variant/40 p-4">
@@ -1207,16 +1344,16 @@ onMounted(loadArticle);
                     <div>
                       <p class="text-xs text-on-surface-variant mb-0.5">Penulis</p>
                       <p class="text-sm font-semibold text-on-surface">
-                        {{ article.author?.name || article.author?.username || 'Tim COCONEXUS' }}
+                        {{ authorName }}
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <!-- Related product cards -->
+              <!-- Lanjutkan Belajar (produk turunan artikel non-utama) -->
               <div
-                v-if="productCards.length"
+                v-if="!productCardGroups && productCards.length"
                 class="rounded-2xl bg-surface-container-lowest border border-outline-variant/40 overflow-hidden"
               >
                 <div class="px-4 py-3 border-b border-outline-variant/40">

@@ -1,78 +1,35 @@
 'use strict';
 
+/**
+ * Seeds one sample pengelola account with realistic profile data for demos.
+ *
+ * Moderator accounts (moderator.konten@, moderator.publikasi@, moderator.forum@,
+ * moderator.tag@coconexus.local) are owned exclusively by
+ * 20260625000100-seed-role-accounts.js — do not add them here too. Both seeders
+ * previously targeted the same 4 emails, so whichever ran last silently overwrote
+ * the other's profile data (full_name/job_title) on every fresh seed.
+ */
+
 const bcrypt = require('bcryptjs');
+
+const sampleUsers = [
+  {
+    email: 'pengelola.editor@coconexus.local',
+    password: 'Pengelola12345',
+    role: 'pengelola',
+    profile: {
+      full_name: 'Fitria Susanti',
+      bio: 'Editor konten yang fokus pada kurasi artikel dan proses review editorial.',
+      department: 'Editorial',
+      division: 'Konten',
+    },
+  },
+];
 
 module.exports = {
   async up(queryInterface) {
-    const sampleUsers = [
-      {
-        email: 'pengelola.editor@coconexus.local',
-        password: 'Pengelola12345',
-        role: 'pengelola',
-        profile: {
-          full_name: 'Fitria Susanti',
-          bio: 'Editor konten yang fokus pada kurasi artikel dan proses review editorial.',
-          department: 'Editorial',
-          division: 'Konten',
-        },
-      },
-      {
-        email: 'moderator.konten@coconexus.local',
-        password: 'Moderator12345',
-        role: 'moderator',
-        moderator_type: 'content',
-        profile: {
-          full_name: 'Dimas Prakoso',
-          bio: 'Moderator konten yang fokus pada review kualitas dan kepatuhan naskah.',
-          job_title: 'Moderator Konten',
-          department: 'Editorial',
-          division: 'Moderasi Konten',
-        },
-      },
-      {
-        email: 'moderator.publikasi@coconexus.local',
-        password: 'Moderator12345',
-        role: 'moderator',
-        moderator_type: 'publication',
-        profile: {
-          full_name: 'Nadia Maharani',
-          bio: 'Moderator publikasi yang memeriksa kesiapan artikel sebelum tayang.',
-          job_title: 'Moderator Publikasi',
-          department: 'Komunikasi',
-          division: 'Moderasi Publikasi',
-        },
-      },
-      {
-        email: 'moderator.forum@coconexus.local',
-        password: 'Moderator12345',
-        role: 'moderator',
-        moderator_type: 'forum',
-        profile: {
-          full_name: 'Rama Saputra',
-          bio: 'Moderator forum yang menjaga diskusi tetap aman dan relevan.',
-          job_title: 'Moderator Forum',
-          department: 'Community',
-          division: 'Moderasi Forum',
-        },
-      },
-      {
-        email: 'moderator.tag@coconexus.local',
-        password: 'Moderator12345',
-        role: 'moderator',
-        moderator_type: 'tag',
-        profile: {
-          full_name: 'Salsa Wibowo',
-          bio: 'Moderator tag yang memastikan taksonomi konten tetap rapi dan konsisten.',
-          job_title: 'Moderator Tag',
-          department: 'Taxonomy',
-          division: 'Moderasi Tag',
-        },
-      },
-    ];
-
     const now = new Date();
     const userRecords = [];
-    const moderatorAssignmentTable = await queryInterface.describeTable('ModeratorAssignment').catch(() => null);
 
     for (const user of sampleUsers) {
       const [existing] = await queryInterface.sequelize.query(
@@ -144,60 +101,10 @@ module.exports = {
         { user_id: profile.user_id }
       );
     }
-
-    if (moderatorAssignmentTable) {
-      for (const row of insertedUsers) {
-        const sample = sampleUsers.find((item) => item.email === row.email);
-        if (sample.role !== 'moderator' || !sample.moderator_type) {
-          continue;
-        }
-
-        const [existingAssignment] = await queryInterface.sequelize.query(
-          'SELECT user_id FROM `ModeratorAssignment` WHERE user_id = :user_id LIMIT 1',
-          { replacements: { user_id: row.id } }
-        );
-
-        const assignmentPayload = {
-          moderator_type: sample.moderator_type,
-          assigned_by: null,
-          created_at: now,
-          updated_at: now,
-        };
-
-        if (existingAssignment.length === 0) {
-          await queryInterface.bulkInsert('ModeratorAssignment', [
-            {
-              user_id: row.id,
-              ...assignmentPayload,
-            },
-          ]);
-          continue;
-        }
-
-        await queryInterface.bulkUpdate(
-          'ModeratorAssignment',
-          {
-            moderator_type: assignmentPayload.moderator_type,
-            assigned_by: assignmentPayload.assigned_by,
-            updated_at: assignmentPayload.updated_at,
-          },
-          { user_id: row.id }
-        );
-      }
-    }
   },
 
   async down(queryInterface) {
-    const emails = [
-      'pengelola.editor@coconexus.local',
-      'pengelola.publikasi@coconexus.local',
-      'pengelola.komunitas@coconexus.local',
-      'pengelola.data@coconexus.local',
-      'moderator.konten@coconexus.local',
-      'moderator.publikasi@coconexus.local',
-      'moderator.forum@coconexus.local',
-      'moderator.tag@coconexus.local',
-    ];
+    const emails = sampleUsers.map((user) => user.email);
 
     const [users] = await queryInterface.sequelize.query(
       'SELECT id FROM `User` WHERE email IN (:emails)',
@@ -208,9 +115,6 @@ module.exports = {
 
     if (users.length > 0) {
       const ids = users.map((row) => row.id);
-      await queryInterface.bulkDelete('ModeratorAssignment', {
-        user_id: ids,
-      });
       await queryInterface.bulkDelete('UserProfile', {
         user_id: ids,
       });

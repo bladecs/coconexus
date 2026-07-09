@@ -12,6 +12,7 @@ const {
   createArticle,
   updateArticle,
   updateArticleStatus,
+  setArticleHomeFeature,
   deleteArticle,
 } = require('../controllers/articleController');
 const {
@@ -39,6 +40,7 @@ router.get('/articles/:id/versions', authenticate, authorizePengelola(), listArt
 router.post('/articles', authenticate, authorizePengelola(), createArticle);
 router.put('/articles/:id', authenticate, authorizePengelola(), updateArticle);
 router.patch('/articles/:id/status', authenticate, authorizePengelola(), updateArticleStatus);
+router.patch('/articles/:id/feature', authenticate, authorizePengelola(), setArticleHomeFeature);
 router.post('/articles/:id/versions/:version/publish', authenticate, authorizePengelola(), publishArticleVersion);
 router.delete('/articles/:id', authenticate, authorizePengelola(), deleteArticle);
 

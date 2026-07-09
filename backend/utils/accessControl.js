@@ -30,6 +30,12 @@ const MODERATOR_MODULES = {
   forum: ['review_comment', 'approve_comment', 'reject_comment', 'delete_comment'],
   tag: ['review_tag_and_category_changes'],
 };
+const MODERATOR_TYPE_LABELS = {
+  content: 'Kurator Konten',
+  publication: 'Redaktur Publikasi',
+  forum: 'Fasilitator Diskusi',
+  tag: 'Penata Taksonomi',
+};
 
 function normalizeRole(role) {
   return typeof role === 'string' ? role.trim().toLowerCase() : '';
@@ -75,6 +81,7 @@ module.exports = {
   PENGELOLA_MODULES,
   MODERATOR_TYPES,
   MODERATOR_MODULES,
+  MODERATOR_TYPE_LABELS,
   normalizeRole,
   isValidRole,
   normalizeModeratorType,

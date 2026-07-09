@@ -13,9 +13,17 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  canFeatureOnHome: {
+    type: Boolean,
+    default: false,
+  },
+  allowMainArticle: {
+    type: Boolean,
+    default: true,
+  },
 });
 
-const emit = defineEmits(['create', 'update', 'publish', 'request-revision', 'publish-version', 'delete']);
+const emit = defineEmits(['create', 'update', 'publish', 'request-revision', 'publish-version', 'delete', 'toggle-feature']);
 const articleStore = useArticleStore();
 const formError = ref('');
 const sectionTextareaRefs = ref([]);
@@ -44,12 +52,13 @@ const categoryOptions = [
 
 function emptyForm() {
   return {
-    articleMode: 'main',
+    articleMode: props.allowMainArticle ? 'main' : 'detail',
     parentArticleId: '',
     linkedProductCardId: '',
     wawasanArticleId: '',
     title: '',
     categoryName: '',
+    isHomeFeatured: false,
     tagsText: '',
     metaDescription: '',
     bodyContent: '',
@@ -67,6 +76,7 @@ function emptyForm() {
         title: 'Ringkasan',
         body_content: '',
         video_path: '',
+        image_path: '',
       },
     ],
     sources: [
@@ -82,6 +92,7 @@ function emptyForm() {
         title: '',
         description: '',
         image: '',
+        processingMethod: '',
       },
     ],
     media: [
@@ -109,6 +120,7 @@ const articleTypeOptions = [
 
 const isEditing = computed(() => Boolean(props.selectedArticle?.id));
 const isDetailArticle = computed(() => form.articleMode === 'detail');
+const isMainArticle = computed(() => form.articleMode === 'main');
 const isTechnicalArticle = computed(() => TECHNICAL_TYPES.includes(form.articleMode));
 const articleFamily = computed(() => {
   if (['main', 'detail'].includes(form.articleMode)) return 'wawasan';
@@ -121,6 +133,10 @@ const wawasanTypeOptions = [
   { value: 'detail', label: 'Artikel Detail',  icon: 'description', desc: 'Artikel penjelasan mendalam yang terhubung ke artikel utama via product card' },
 ];
 
+const visibleWawasanTypeOptions = computed(() =>
+  props.allowMainArticle ? wawasanTypeOptions : wawasanTypeOptions.filter((opt) => opt.value !== 'main')
+);
+
 const technicalTypeOptions = [
   { value: 'prosedur',       label: 'Prosedur',       icon: 'list_alt',     desc: 'SOP langkah-langkah pelaksanaan teknis' },
   { value: 'panduan',        label: 'Panduan',         icon: 'menu_book',    desc: 'Panduan teknis pengoperasian alat/bahan' },
@@ -130,7 +146,11 @@ const technicalTypeOptions = [
 ];
 
 function selectFamily(family) {
-  form.articleMode = family === 'wawasan' ? 'main' : 'prosedur';
+  if (family === 'wawasan') {
+    form.articleMode = props.allowMainArticle ? 'main' : 'detail';
+    return;
+  }
+  form.articleMode = 'prosedur';
 }
 const currentLinkedProductCard = computed(() => props.selectedArticle?.linked_product_card || null);
 const productCardOptions = computed(() => {
@@ -172,6 +192,9 @@ watch(
     if (!article) {
       Object.assign(form, emptyForm());
       selectedVersionToPublish.value = '';
+      if (form.articleMode === 'main') {
+        ensureMainArticleSections();
+      }
       return;
     }
 
@@ -182,6 +205,7 @@ watch(
       wawasanArticleId: article.wawasan_article_id || '',
       title: article.title || '',
       categoryName: article.category?.name || '',
+      isHomeFeatured: Boolean(article.is_home_featured),
       tagsText: Array.isArray(article.tags) ? article.tags.join(', ') : '',
       metaDescription: article.detail?.meta_description || '',
       bodyContent: article.detail?.body_content || '',
@@ -200,6 +224,7 @@ watch(
               title: item.title || '',
               body_content: item.body_content || '',
               video_path: item.video_path || '',
+              image_path: item.image_path || '',
             }))
           : [
               {
@@ -207,6 +232,7 @@ watch(
                 title: 'Ringkasan',
                 body_content: article.detail?.body_content || '',
                 video_path: '',
+                image_path: '',
               },
             ],
       sources:
@@ -233,12 +259,14 @@ watch(
               title: item.title || '',
               description: item.description || '',
               image: item.image || '',
+              processingMethod: item.processing_method || '',
               }))
           : [
               {
                 title: '',
                 description: '',
                 image: '',
+                processingMethod: '',
               },
             ],
       media:
@@ -254,6 +282,10 @@ watch(
               },
             ],
     });
+
+    if (form.articleMode === 'main') {
+      ensureMainArticleSections();
+    }
   },
   { immediate: true }
 );
@@ -274,11 +306,21 @@ watch(
       form.linkedProductCardId = '';
       form.wawasanArticleId = '';
       articleStore.availableProductCards = [];
+      ensureMainArticleSections();
       return;
     }
 
     if (!articleStore.mainArticles.length) {
       await refreshMainArticleOptions();
+    }
+  }
+);
+
+watch(
+  () => form.categoryName,
+  () => {
+    if (form.articleMode === 'main') {
+      ensureMainArticleSections();
     }
   }
 );
@@ -331,7 +373,30 @@ function addProductCardRow() {
     title: '',
     description: '',
     image: '',
+    processingMethod: '',
   });
+}
+
+function mainArticleSectionTitles(categoryName) {
+  const label = categoryName || 'Limbah Ini';
+  return [
+    `Apa Itu ${label}?`,
+    `Manfaat ${label}`,
+    `Mengapa ${label} Menjadi Limbah Bernilai Tinggi?`,
+    `Ragam Cara Pengelolaan ${label}`,
+  ];
+}
+
+function ensureMainArticleSections() {
+  const titles = mainArticleSectionTitles(form.categoryName);
+  const next = titles.map((title, index) => ({
+    section_type: 'info',
+    title,
+    body_content: form.sections[index]?.body_content || '',
+    video_path: form.sections[index]?.video_path || '',
+    image_path: form.sections[index]?.image_path || '',
+  }));
+  form.sections.splice(0, form.sections.length, ...next);
 }
 
 function addSectionRow() {
@@ -340,6 +405,7 @@ function addSectionRow() {
     title: '',
     body_content: '',
     video_path: '',
+    image_path: '',
   });
 }
 
@@ -349,6 +415,7 @@ function removeSectionRow(index) {
     form.sections[0].title = 'Ringkasan';
     form.sections[0].body_content = '';
     form.sections[0].video_path = '';
+    form.sections[0].image_path = '';
     return;
   }
 
@@ -437,6 +504,7 @@ function removeProductCardRow(index) {
     form.productCards[0].title = '';
     form.productCards[0].description = '';
     form.productCards[0].image = '';
+    form.productCards[0].processingMethod = '';
     return;
   }
   form.productCards.splice(index, 1);
@@ -492,6 +560,14 @@ async function handleSectionVideoSelection(event, index) {
   form.sections[index].video_path = uploadedMedia.file_path;
 }
 
+async function handleSectionImageSelection(event, index) {
+  const selectedFile = event.target.files?.[0];
+  if (!selectedFile) return;
+
+  const uploadedMedia = await articleStore.uploadArticleMedia(selectedFile);
+  form.sections[index].image_path = uploadedMedia.file_path;
+}
+
 async function handleSourceFileSelection(event, index) {
   const selectedFile = event.target.files?.[0];
   if (!selectedFile) return;
@@ -503,12 +579,13 @@ async function handleSourceFileSelection(event, index) {
 
 function buildPayload() {
   const sections = form.sections
-    .filter((item) => item.title.trim() || item.body_content.trim() || item.video_path.trim())
+    .filter((item) => item.title.trim() || item.body_content.trim() || item.video_path.trim() || item.image_path.trim())
     .map((item) => ({
       section_type: item.section_type || 'info',
       title: item.title,
       body_content: item.body_content,
       video_path: item.video_path || null,
+      image_path: item.image_path || null,
     }));
   const sources = form.sources
     .filter((item) => item.title.trim() || item.url.trim() || item.file_path.trim())
@@ -563,6 +640,7 @@ function buildPayload() {
             title: item.title,
             description: item.description,
             image: item.image || null,
+            processing_method: item.processingMethod?.trim() || null,
           })),
     media: form.media.filter((item) => item.file_path.trim()),
     ...technicalPayload,
@@ -636,6 +714,14 @@ function submitForm() {
     return;
   }
   emit('create', buildPayload());
+}
+
+function handleToggleHomeFeature() {
+  if (!props.selectedArticle?.id) return;
+  emit('toggle-feature', {
+    id: props.selectedArticle.id,
+    isHomeFeatured: form.isHomeFeatured,
+  });
 }
 
 function publishSelectedVersion() {
@@ -726,7 +812,7 @@ function publishSelectedVersion() {
           <p class="editor-label mb-3">SUB-JENIS WAWASAN</p>
           <div class="grid gap-3 sm:grid-cols-2">
             <button
-              v-for="opt in wawasanTypeOptions"
+              v-for="opt in visibleWawasanTypeOptions"
               :key="opt.value"
               type="button"
               class="subtype-card"
@@ -808,6 +894,27 @@ function publishSelectedVersion() {
           <label class="editor-field-label">Meta Description</label>
           <textarea v-model="form.metaDescription" rows="2" class="form-input" placeholder="Ringkasan singkat untuk SEO dan preview card..."></textarea>
         </div>
+      </div>
+
+      <!-- Tandai sebagai artikel utama homepage -->
+      <div
+        v-if="canFeatureOnHome && isEditing && form.articleMode === 'main'"
+        class="rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-5 flex items-start gap-3"
+      >
+        <input
+          id="is-home-featured"
+          v-model="form.isHomeFeatured"
+          type="checkbox"
+          class="mt-1"
+          @change="handleToggleHomeFeature"
+        />
+        <label for="is-home-featured" class="text-sm">
+          <span class="font-semibold text-on-surface block">Tampilkan sebagai artikel utama di homepage</span>
+          <span class="text-xs text-on-surface-variant leading-relaxed block mt-0.5">
+            Homepage hanya menampilkan 1 artikel utama per kategori limbah. Mengaktifkan ini akan otomatis
+            melepas tanda dari artikel utama lain di kategori "{{ form.categoryName || '—' }}".
+          </span>
+        </label>
       </div>
 
       <!-- Koneksi: Detail → Utama -->
@@ -927,10 +1034,16 @@ function publishSelectedVersion() {
       <div class="editor-panel-header mb-6">
         <div>
           <p class="editor-label">LANGKAH {{ isTechnicalArticle ? 4 : 3 }} — ISI ARTIKEL</p>
-          <h3 class="editor-panel-title">Konten Artikel</h3>
-          <p class="text-sm text-on-surface-variant mt-1">Pecah artikel menjadi sub-bab agar mudah dibaca.</p>
+          <h3 class="editor-panel-title">{{ isMainArticle ? 'Pengetahuan Dasar' : 'Konten Artikel' }}</h3>
+          <p class="text-sm text-on-surface-variant mt-1">
+            {{ isMainArticle
+              ? 'Artikel utama memakai format tetap: definisi, manfaat, alasan bernilai tinggi, dan ragam cara pengelolaan.'
+              : form.articleMode === 'prosedur'
+                ? 'Pecah menjadi section bertipe Prosedur per tahapan. Setiap section prosedur wajib disertai foto/video langkah tersebut.'
+                : 'Pecah artikel menjadi sub-bab agar mudah dibaca.' }}
+          </p>
         </div>
-        <button type="button" class="btn-add" @click="addSectionRow">
+        <button v-if="!isMainArticle" type="button" class="btn-add" @click="addSectionRow">
           <span class="material-symbols-outlined text-[16px]">add</span> Tambah Section
         </button>
       </div>
@@ -939,7 +1052,11 @@ function publishSelectedVersion() {
         <div v-for="(section, index) in form.sections" :key="`section-${index}`" class="editor-sub-panel">
           <div class="grid gap-6 xl:grid-cols-[1fr_360px]">
             <div class="space-y-4">
-              <div class="grid gap-3" :class="isTechnicalArticle ? 'md:grid-cols-[auto_1fr]' : ''">
+              <div v-if="isMainArticle">
+                <label class="editor-field-label">Bagian {{ index + 1 }}</label>
+                <p class="font-bold text-on-surface">{{ section.title }}</p>
+              </div>
+              <div v-else class="grid gap-3" :class="isTechnicalArticle ? 'md:grid-cols-[auto_1fr]' : ''">
                 <div v-if="isTechnicalArticle">
                   <label class="editor-field-label">Tipe Section</label>
                   <select v-model="section.section_type" class="form-input text-sm">
@@ -970,13 +1087,25 @@ function publishSelectedVersion() {
 
               <textarea :ref="(el) => setSectionTextareaRef(el, index)" v-model="section.body_content" rows="8" class="form-input font-mono text-sm leading-relaxed" placeholder="Tulis isi paragraf di sini..."></textarea>
 
+              <div v-if="form.articleMode === 'prosedur' && section.section_type === 'procedure'" class="text-xs font-semibold text-secondary">
+                Section prosedur wajib memiliki foto atau video langkah ini sebelum dipublikasikan.
+              </div>
+
+              <div class="flex flex-col sm:flex-row gap-3">
+                <input v-model="section.image_path" type="text" class="form-input flex-1" placeholder="URL Gambar Langkah (Opsional)" />
+                <label class="btn-secondary cursor-pointer whitespace-nowrap text-xs text-center flex items-center justify-center gap-1.5">
+                  <span class="material-symbols-outlined text-[15px]">upload</span> Upload Foto
+                  <input type="file" class="hidden" accept="image/*" @change="handleSectionImageSelection($event, index)" />
+                </label>
+              </div>
+
               <div class="flex flex-col sm:flex-row gap-3">
                 <input v-model="section.video_path" type="text" class="form-input flex-1" placeholder="URL Video (Opsional)" />
                 <label class="btn-secondary cursor-pointer whitespace-nowrap text-xs text-center flex items-center justify-center gap-1.5">
                   <span class="material-symbols-outlined text-[15px]">upload</span> Upload MP4
                   <input type="file" class="hidden" accept=".mp4" @change="handleSectionVideoSelection($event, index)" />
                 </label>
-                <button type="button" class="btn-danger text-xs whitespace-nowrap" @click="removeSectionRow(index)">Hapus</button>
+                <button v-if="!isMainArticle" type="button" class="btn-danger text-xs whitespace-nowrap" @click="removeSectionRow(index)">Hapus</button>
               </div>
             </div>
 
@@ -993,9 +1122,13 @@ function publishSelectedVersion() {
     <div v-if="!isDetailArticle" class="editor-panel">
       <div class="editor-panel-header mb-6">
         <div>
-          <p class="editor-label">PRODUK TURUNAN</p>
+          <p class="editor-label">POHON TURUNAN LIMBAH</p>
           <h3 class="editor-panel-title">Product Cards</h3>
-          <p class="text-sm text-on-surface-variant mt-1">Daftar produk yang dipromosikan di artikel ini.</p>
+          <p class="text-sm text-on-surface-variant mt-1">
+            {{ form.articleMode === 'main'
+              ? 'Produk turunan limbah ini, dikelompokkan berdasarkan cara pengelolaan.'
+              : 'Daftar produk yang dipromosikan di artikel ini.' }}
+          </p>
         </div>
         <button type="button" class="btn-add" @click="addProductCardRow">
           <span class="material-symbols-outlined text-[16px]">add</span> Tambah Card
@@ -1007,6 +1140,11 @@ function publishSelectedVersion() {
             <div>
               <label class="editor-field-label">Nama Produk</label>
               <input v-model="item.title" type="text" class="form-input" placeholder="Arang Tempurung" />
+            </div>
+            <div v-if="form.articleMode === 'main'">
+              <label class="editor-field-label">Cara Pengelolaan</label>
+              <input v-model="item.processingMethod" type="text" class="form-input" placeholder="Contoh: Dibakar (Karbonisasi)" />
+              <p class="mt-1.5 text-xs text-on-surface-variant">Dipakai untuk mengelompokkan produk turunan di halaman artikel.</p>
             </div>
             <div>
               <label class="editor-field-label">Gambar Produk</label>
@@ -1036,7 +1174,10 @@ function publishSelectedVersion() {
         <div>
           <p class="editor-label">REFERENSI</p>
           <h3 class="editor-panel-title">Sumber Referensi</h3>
-          <p class="text-sm text-on-surface-variant mt-1">Daftar jurnal atau artikel terkait.</p>
+          <p class="text-sm text-on-surface-variant mt-1">
+            Daftar jurnal atau artikel terkait.
+            <span v-if="articleFamily === 'wawasan'" class="font-semibold text-primary">Wajib diisi minimal 1 sebelum artikel wawasan dipublikasikan.</span>
+          </p>
         </div>
         <button type="button" class="btn-add" @click="addSourceRow">
           <span class="material-symbols-outlined text-[16px]">add</span> Tambah Sumber
@@ -1057,7 +1198,10 @@ function publishSelectedVersion() {
         <div>
           <p class="editor-label">MEDIA</p>
           <h3 class="editor-panel-title">Media Galeri</h3>
-          <p class="text-sm text-on-surface-variant mt-1">Gambar atau lampiran global untuk artikel.</p>
+          <p class="text-sm text-on-surface-variant mt-1">
+            Gambar atau lampiran global untuk artikel.
+            <span v-if="articleFamily === 'wawasan'" class="font-semibold text-primary">Wajib menyertakan minimal 1 foto sebelum artikel wawasan dipublikasikan.</span>
+          </p>
         </div>
         <button type="button" class="btn-add" @click="addMediaRow">
           <span class="material-symbols-outlined text-[16px]">add</span> Tambah Media

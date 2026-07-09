@@ -4,6 +4,7 @@ import api from '@/lib/api';
 
 export const useArticleStore = defineStore('articles', () => {
   const publishedArticles = ref([]);
+  const featuredMainArticles = ref([]);
   const adminArticles = ref([]);
   const mainArticles = ref([]);
   const availableProductCards = ref([]);
@@ -81,6 +82,14 @@ export const useArticleStore = defineStore('articles', () => {
       publishedArticles.value = data.data.articles;
       publishedMeta.value = data.data.meta || publishedMeta.value;
       return data.data.articles;
+    });
+  }
+
+  async function fetchFeaturedMainArticles() {
+    return withLoading(async () => {
+      const { data } = await api.get('/articles/published/featured-main');
+      featuredMainArticles.value = data.data.articles;
+      return featuredMainArticles.value;
     });
   }
 
@@ -195,6 +204,17 @@ export const useArticleStore = defineStore('articles', () => {
   async function updateArticleStatus(articleId, status) {
     return withSubmitting(async () => {
       const { data } = await api.patch(`/pengelola/articles/${articleId}/status`, { status });
+      await fetchAdminArticles();
+      currentArticle.value = data.data.article;
+      return data.data.article;
+    });
+  }
+
+  async function setArticleHomeFeature(articleId, isHomeFeatured) {
+    return withSubmitting(async () => {
+      const { data } = await api.patch(`/pengelola/articles/${articleId}/feature`, {
+        is_home_featured: isHomeFeatured,
+      });
       await fetchAdminArticles();
       currentArticle.value = data.data.article;
       return data.data.article;
@@ -321,6 +341,7 @@ export const useArticleStore = defineStore('articles', () => {
 
   return {
     publishedArticles,
+    featuredMainArticles,
     adminArticles,
     mainArticles,
     availableProductCards,
@@ -338,6 +359,7 @@ export const useArticleStore = defineStore('articles', () => {
     revisionCount,
     draftCount,
     fetchPublishedArticles,
+    fetchFeaturedMainArticles,
     fetchPublishedArticleDetail,
     fetchActiveForum,
     fetchArticleComments,
@@ -350,6 +372,7 @@ export const useArticleStore = defineStore('articles', () => {
     createArticle,
     updateArticle,
     updateArticleStatus,
+    setArticleHomeFeature,
     publishArticleVersion,
     deleteArticle,
     postComment,

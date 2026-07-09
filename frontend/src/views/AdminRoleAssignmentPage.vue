@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import { useAuthStore } from '@/stores/auth';
 import api from '@/lib/api';
+import { getModeratorTypeLabel } from '@/lib/moderatorLabels';
 
 const authStore = useAuthStore();
 const users = ref([]);
@@ -124,7 +125,7 @@ onMounted(() => {
                     {{ user.role }}
                   </span>
                   <span v-if="user.role === 'moderator' && user.moderator_assignment?.moderator_type" class="text-xs text-on-surface-variant">
-                    {{ user.moderator_assignment.moderator_type }}
+                    {{ getModeratorTypeLabel(user.moderator_assignment.moderator_type) }}
                   </span>
                 </div>
               </td>

@@ -28,6 +28,10 @@ module.exports = (sequelize, DataTypes) => {
           notEmpty: true,
         },
       },
+      processing_method: {
+        type: DataTypes.STRING(150),
+        allowNull: true,
+      },
       image: {
         type: DataTypes.STRING(255),
         allowNull: true,

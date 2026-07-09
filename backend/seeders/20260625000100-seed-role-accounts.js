@@ -9,6 +9,7 @@
  */
 
 const bcrypt = require('bcryptjs');
+const { MODERATOR_TYPE_LABELS } = require('../utils/accessControl');
 
 const ACCOUNTS = [
   {
@@ -29,9 +30,9 @@ const ACCOUNTS = [
     role: 'moderator',
     moderator_type: 'content',
     profile: {
-      full_name: 'Moderator Konten',
+      full_name: `${MODERATOR_TYPE_LABELS.content} COCONEXUS`,
       bio: 'Bertugas meninjau kualitas dan kepatuhan naskah artikel sebelum publikasi.',
-      job_title: 'Peninjau Konten Artikel',
+      job_title: MODERATOR_TYPE_LABELS.content,
       department: 'Redaksi',
       division: 'Artikel Utama',
     },
@@ -42,9 +43,9 @@ const ACCOUNTS = [
     role: 'moderator',
     moderator_type: 'publication',
     profile: {
-      full_name: 'Moderator Publikasi',
+      full_name: `${MODERATOR_TYPE_LABELS.publication} COCONEXUS`,
       bio: 'Bertugas memvalidasi versi artikel dan menerbitkannya ke publik.',
-      job_title: 'Penerbit Artikel',
+      job_title: MODERATOR_TYPE_LABELS.publication,
       department: 'Validasi & Publikasi',
       division: 'Artikel Detail',
     },
@@ -55,9 +56,9 @@ const ACCOUNTS = [
     role: 'moderator',
     moderator_type: 'forum',
     profile: {
-      full_name: 'Moderator Forum',
+      full_name: `${MODERATOR_TYPE_LABELS.forum} COCONEXUS`,
       bio: 'Bertugas mengelola komentar dan forum diskusi agar tetap relevan dan aman.',
-      job_title: 'Moderator Forum Diskusi',
+      job_title: MODERATOR_TYPE_LABELS.forum,
       department: 'Produksi Konten',
       division: 'Artikel Utama',
     },
@@ -68,9 +69,9 @@ const ACCOUNTS = [
     role: 'moderator',
     moderator_type: 'tag',
     profile: {
-      full_name: 'Moderator Tag',
+      full_name: `${MODERATOR_TYPE_LABELS.tag} COCONEXUS`,
       bio: 'Bertugas mengawasi konsistensi taksonomi kategori dan tag konten.',
-      job_title: 'Pengawas Kategori & Tag',
+      job_title: MODERATOR_TYPE_LABELS.tag,
       department: 'Kategori & Tag',
       division: 'Kategori',
     },

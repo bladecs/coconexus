@@ -3,6 +3,7 @@
 const express = require('express');
 const {
   listPublishedArticles,
+  listFeaturedMainArticles,
   getPublishedArticleDetail,
   listAdminArticles,
   getAdminArticleDetail,
@@ -20,6 +21,7 @@ const {
   deleteMyArticle,
 } = require('../controllers/articleController');
 const { rateArticle, getArticleRating } = require('../controllers/ratingController');
+const { generateArticlePdf } = require('../controllers/pdfController');
 const { authenticate, optionalAuthenticate } = require('../middlewares/authenticate');
 const { authorize, authorizeModeratorScopes, authorizeContributor } = require('../middlewares/authorize');
 
@@ -27,10 +29,12 @@ const router = express.Router();
 
 // Public routes
 router.get('/published', listPublishedArticles);
+router.get('/published/featured-main', listFeaturedMainArticles);
 router.get('/tags/public', listPublicTags);
 router.get('/published/:id/rating', optionalAuthenticate, getArticleRating);
 router.post('/published/:id/rating', authenticate, rateArticle);
 router.get('/published/:id/related', getRelatedArticles);
+router.get('/published/:id/pdf', generateArticlePdf);
 router.get('/published/:id', optionalAuthenticate, getPublishedArticleDetail);
 
 // Author/Pengelola routes

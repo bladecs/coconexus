@@ -30,6 +30,8 @@ const { sanitizeArticle } = require('../utils/serializers');
 const { writeAuditLog } = require('../utils/auditLogger');
 const { hasModeratorScope } = require('../utils/accessControl');
 
+const WAWASAN_MIN_BODY_LENGTH = 500;
+
 function hashIp(value) {
   if (!value) {
     return null;
@@ -199,6 +201,7 @@ function normalizeProductCardInput(productCardInput) {
     const title = typeof item.title === 'string' ? item.title.trim() : '';
     const description = typeof item.description === 'string' ? item.description.trim() : '';
     const image = typeof item.image === 'string' ? item.image.trim() : null;
+    const processingMethod = typeof item.processing_method === 'string' ? item.processing_method.trim() : null;
 
     if (!title) {
       throw badRequest(`product_cards[${index}].title wajib diisi.`);
@@ -212,6 +215,7 @@ function normalizeProductCardInput(productCardInput) {
       title,
       description,
       image: image || null,
+      processing_method: processingMethod || null,
     };
   });
 }
@@ -242,6 +246,7 @@ function normalizeSectionInput(sectionInput, fallbackBodyContent = '') {
       const title = typeof item.title === 'string' ? item.title.trim() : '';
       const bodyContent = typeof item.body_content === 'string' ? item.body_content.trim() : '';
       const videoPath = typeof item.video_path === 'string' ? item.video_path.trim() : '';
+      const imagePath = typeof item.image_path === 'string' ? item.image_path.trim() : '';
       const validSectionTypes = ['info', 'procedure', 'tools', 'data_table', 'warning', 'formula', 'troubleshooting'];
       const sectionType = validSectionTypes.includes(item.section_type) ? item.section_type : 'info';
 
@@ -257,10 +262,11 @@ function normalizeSectionInput(sectionInput, fallbackBodyContent = '') {
         title,
         body_content: bodyContent,
         video_path: videoPath || null,
+        image_path: imagePath || null,
         section_type: sectionType,
       };
     })
-    .filter((item) => item.title || item.body_content || item.video_path);
+    .filter((item) => item.title || item.body_content || item.video_path || item.image_path);
 }
 
 function normalizeSourceInput(sourceInput) {
@@ -490,6 +496,7 @@ function buildArticleVersionSnapshot(articleInstance) {
             title: productCard.title,
             description: productCard.description,
             image: productCard.image,
+            processing_method: productCard.processing_method,
           }))
       : [],
     linked_product_card_id: article.linkedProductCard?.id || null,
@@ -584,6 +591,7 @@ async function applyArticleVersionSnapshot({
         title: item.title,
         description: item.description,
         image: item.image,
+        processing_method: item.processing_method,
       })),
       { transaction }
     );
@@ -964,6 +972,61 @@ async function listPublishedArticles(req, res, next) {
   }
 }
 
+async function listFeaturedMainArticles(req, res, next) {
+  try {
+    const articles = await Article.findAll({
+      where: {
+        status: 'published',
+        article_type: 'main',
+        is_home_featured: true,
+      },
+      include: [
+        {
+          model: User,
+          as: 'author',
+          attributes: ['id', 'email', 'role'],
+          include: [
+            {
+              model: UserProfile,
+              as: 'profile',
+              attributes: ['user_id', 'full_name', 'bio', 'avatar_url'],
+            },
+          ],
+        },
+        {
+          model: Category,
+          as: 'category',
+        },
+        {
+          model: ArticleDetail,
+          as: 'detail',
+        },
+        {
+          model: ArticleMedia,
+          as: 'media',
+        },
+        {
+          model: ProductCard,
+          as: 'productCards',
+          separate: true,
+          order: [['created_at', 'ASC']],
+        },
+      ],
+      order: [['category_id', 'ASC']],
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Daftar artikel utama homepage berhasil diambil.',
+      data: {
+        articles: articles.map((article) => sanitizeArticle(article, { includeComments: false })),
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function getPublishedArticleDetail(req, res, next) {
   try {
     const articleId = Number(req.params.id);
@@ -1334,6 +1397,11 @@ async function createArticle(req, res, next) {
     const articleType = validArticleTypes.includes(req.body.article_type)
       ? req.body.article_type
       : parentArticleId ? 'detail' : 'main';
+
+    if (articleType === 'main' && req.user.role !== 'pengelola') {
+      throw forbidden('Hanya pengelola yang dapat membuat artikel utama.');
+    }
+
     const mediaItems = normalizeMediaInput(req.body.media);
     const productCardItems = normalizeProductCardInput(req.body.product_cards);
     const sectionItems = normalizeSectionInput(req.body.sections, bodyContent);
@@ -1429,6 +1497,7 @@ async function createArticle(req, res, next) {
           title: item.title,
           description: item.description,
           image: item.image,
+          processing_method: item.processing_method,
         })),
         { transaction }
       );
@@ -1518,6 +1587,10 @@ async function updateArticle(req, res, next) {
       throw notFound('Artikel tidak ditemukan.');
     }
 
+    if (req.user.role !== 'pengelola' && article.author_id !== req.user.id) {
+      throw forbidden('Anda hanya dapat mengubah artikel milik Anda sendiri.');
+    }
+
     if (article.status === 'published') {
       throw badRequest('Artikel published tidak dapat diubah. Ubah status ke revision terlebih dahulu.');
     }
@@ -1551,6 +1624,10 @@ async function updateArticle(req, res, next) {
 
     const validArticleTypes = ['main', 'detail', 'prosedur', 'panduan', 'referensi', 'studi_kasus', 'troubleshooting'];
     if (req.body.article_type !== undefined && validArticleTypes.includes(req.body.article_type)) {
+      if (req.body.article_type === 'main' && req.user.role !== 'pengelola') {
+        throw forbidden('Hanya pengelola yang dapat membuat artikel utama.');
+      }
+
       article.article_type = req.body.article_type;
     }
 
@@ -1682,6 +1759,7 @@ async function updateArticle(req, res, next) {
             title: item.title,
             description: item.description,
             image: item.image,
+            processing_method: item.processing_method,
           })),
           { transaction }
         );
@@ -1811,6 +1889,37 @@ async function updateArticleStatus(req, res, next) {
       throw badRequest('Status artikel tidak valid untuk divalidasi.');
     }
 
+    if (status === 'published' && ['main', 'detail'].includes(article.article_type)) {
+      if (!Array.isArray(article.media) || !article.media.some((m) => m.media_type === 'image')) {
+        throw badRequest('Artikel wawasan wajib memiliki minimal 1 foto sebelum dipublikasikan.');
+      }
+
+      const sources = article.detail?.sources;
+      if (!Array.isArray(sources) || sources.length === 0) {
+        throw badRequest('Artikel wawasan wajib memiliki minimal 1 referensi sebelum dipublikasikan.');
+      }
+
+      const bodyLength = (article.detail?.body_content || '').replace(/\s+/g, ' ').trim().length;
+      if (bodyLength < WAWASAN_MIN_BODY_LENGTH) {
+        throw badRequest(
+          `Konten artikel wawasan masih terlalu singkat. Tambahkan penjelasan lebih detail sebelum dipublikasikan (minimal ${WAWASAN_MIN_BODY_LENGTH} karakter).`
+        );
+      }
+    }
+
+    if (status === 'published' && article.article_type === 'prosedur') {
+      const sections = Array.isArray(article.detail?.sections) ? article.detail.sections : [];
+      const procedureSections = sections.filter((s) => s.section_type === 'procedure');
+
+      if (procedureSections.length === 0) {
+        throw badRequest('Artikel prosedur wajib memiliki minimal 1 section bertipe Prosedur (langkah bernomor).');
+      }
+
+      if (procedureSections.some((s) => !s.image_path && !s.video_path)) {
+        throw badRequest('Setiap section prosedur wajib memiliki foto atau video yang menggambarkan langkah tersebut.');
+      }
+    }
+
     article.status = status;
     article.version += 1;
     await article.save({ transaction });
@@ -1846,6 +1955,72 @@ async function updateArticleStatus(req, res, next) {
         status === 'published'
           ? 'Artikel berhasil dipublish.'
           : 'Artikel dikembalikan ke status revision.',
+      data: {
+        article: sanitizeArticle(updatedArticle, { includeComments: false }),
+      },
+    });
+  } catch (error) {
+    await transaction.rollback();
+    return next(error);
+  }
+}
+
+async function setArticleHomeFeature(req, res, next) {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const articleId = Number(req.params.id);
+
+    if (!Number.isInteger(articleId) || articleId <= 0) {
+      throw badRequest('Parameter article id tidak valid.');
+    }
+
+    const isHomeFeatured = Boolean(req.body.is_home_featured);
+
+    const article = await Article.findByPk(articleId, { transaction, lock: transaction.LOCK.UPDATE });
+
+    if (!article) {
+      throw notFound('Artikel tidak ditemukan.');
+    }
+
+    if (isHomeFeatured && article.article_type !== 'main') {
+      throw badRequest('Hanya artikel utama (main) yang dapat ditampilkan sebagai artikel utama homepage.');
+    }
+
+    if (isHomeFeatured) {
+      await Article.update(
+        { is_home_featured: false },
+        {
+          where: {
+            category_id: article.category_id,
+            is_home_featured: true,
+            id: { [Op.ne]: article.id },
+          },
+          transaction,
+        }
+      );
+    }
+
+    article.is_home_featured = isHomeFeatured;
+    await article.save({ transaction });
+
+    const updatedArticle = await getArticleByIdOrThrow(article.id, { transaction });
+
+    await transaction.commit();
+
+    await writeAuditLog({
+      actorId: req.user.id,
+      action: isHomeFeatured ? 'pengelola.feature_article_on_home' : 'pengelola.unfeature_article_on_home',
+      entityType: 'article',
+      entityId: article.id,
+      metadata: { is_home_featured: isHomeFeatured },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: isHomeFeatured
+        ? 'Artikel ditandai sebagai artikel utama homepage.'
+        : 'Artikel dilepas dari artikel utama homepage.',
       data: {
         article: sanitizeArticle(updatedArticle, { includeComments: false }),
       },
@@ -2190,6 +2365,7 @@ async function listAvailableProductCards(req, res, next) {
           title: productCard.title,
           description: productCard.description,
           image: productCard.image,
+          processing_method: productCard.processing_method,
           linked_article_id: productCard.linked_article_id,
           created_at: productCard.created_at,
           updated_at: productCard.updated_at,
@@ -2477,6 +2653,7 @@ async function getMyArticleDetail(req, res, next) {
 
 module.exports = {
   listPublishedArticles,
+  listFeaturedMainArticles,
   getPublishedArticleDetail,
   listAdminArticles,
   getAdminArticleDetail,
@@ -2487,6 +2664,7 @@ module.exports = {
   createArticle,
   updateArticle,
   updateArticleStatus,
+  setArticleHomeFeature,
   listArticleVersions,
   publishArticleVersion,
   deleteArticle,

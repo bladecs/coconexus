@@ -44,21 +44,41 @@ const warningConfig = computed(() => {
   return cfg[props.section.warning_level] || cfg.info;
 });
 
-/* ── Tool icon mapping ── */
+/* ── Icon mapping (Material Symbols names, not emoji) ── */
 function toolIcon(name = '') {
   const n = name.toLowerCase();
-  if (/drum|tungku|kiln|karbonisasi/.test(n))  return '🔥';
-  if (/furnace|muffle|oven|reaktor/.test(n))    return '🔶';
-  if (/timbang|neraca|scale/.test(n))           return '⚖️';
-  if (/termometer|suhu|thermocouple/.test(n))   return '🌡️';
-  if (/blender|grind|mill|penggiling/.test(n))  return '⚙️';
-  if (/saringan|sieve|filter/.test(n))          return '🕸️';
-  if (/pipet|buret|erlenmeyer|labu/.test(n))    return '🧪';
-  if (/ph meter|conductivity|meter/.test(n))    return '📊';
-  if (/gelas|beaker|tabung/.test(n))            return '🧫';
-  if (/spatula|pengaduk|stirrer/.test(n))       return '🥄';
-  return '🔧';
+  if (/drum|tungku|kiln|karbonisasi|bakar|api|oven|pengering|furnace|muffle|reaktor/.test(n)) return 'local_fire_department';
+  if (/press|cetak|pencetak|kempa/.test(n))                    return 'compress';
+  if (/timbang|neraca|scale/.test(n))                          return 'scale';
+  if (/termometer|suhu|thermocouple/.test(n))                  return 'thermostat';
+  if (/blender|giling|grind|mill|penggiling|crusher|hancur/.test(n)) return 'settings';
+  if (/saring|sieve|filter|ayak/.test(n))                      return 'filter_alt';
+  if (/pipet|buret|erlenmeyer|labu|kimia/.test(n))             return 'science';
+  if (/ph meter|conductivity|meter/.test(n))                   return 'speed';
+  if (/gelas|beaker|tabung|wadah/.test(n))                     return 'water_drop';
+  if (/spatula|pengaduk|stirrer/.test(n))                      return 'blender';
+  if (/gergaji|potong|pisau/.test(n))                          return 'content_cut';
+  if (/amplas|ukir/.test(n))                                   return 'brush';
+  return 'build';
 }
+
+function materialIcon(name = '') {
+  const n = name.toLowerCase();
+  if (/air|cair|larutan/.test(n))     return 'water_drop';
+  if (/perekat|resin|lem|lateks/.test(n)) return 'water_drop';
+  if (/arang|karbon|batok|tempurung/.test(n)) return 'eco';
+  return 'inventory_2';
+}
+
+/* ── Tools section: group items into Bahan / Alat / lainnya ── */
+const toolItems = computed(() =>
+  Array.isArray(props.section.type_data?.items) ? props.section.type_data.items : []
+);
+const materialItems = computed(() => toolItems.value.filter((item) => item.group === 'bahan'));
+const equipmentItems = computed(() => toolItems.value.filter((item) => item.group === 'alat'));
+const ungroupedItems = computed(() =>
+  toolItems.value.filter((item) => item.group !== 'bahan' && item.group !== 'alat')
+);
 </script>
 
 <template>
@@ -75,8 +95,8 @@ function toolIcon(name = '') {
   ───────────────────────────────── -->
   <div v-else-if="sectionType === 'procedure'">
 
-    <!-- Intro text -->
-    <div v-if="section.body_content" class="mb-5">
+    <!-- Intro text (only shown alongside structured step cards; otherwise body_content renders once below) -->
+    <div v-if="section.body_content && steps.length" class="mb-5">
       <RichTextPreview :content="section.body_content" />
     </div>
 
@@ -163,7 +183,10 @@ function toolIcon(name = '') {
               <span
                 v-for="(tool, ti) in step.tools" :key="ti"
                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-secondary/8 border border-secondary/15 text-secondary text-xs font-medium"
-              >{{ toolIcon(tool) }} {{ tool }}</span>
+              >
+                <span class="material-symbols-outlined" style="font-size:13px">{{ toolIcon(tool) }}</span>
+                {{ tool }}
+              </span>
             </div>
 
             <!-- Footer: duration + action button / upcoming notice -->
@@ -215,31 +238,75 @@ function toolIcon(name = '') {
   </div>
 
   <!-- ─────────────────────────────
-       TOOLS — grid cards
+       TOOLS — Bahan & Alat, grouped grid cards
   ───────────────────────────────── -->
   <div v-else-if="sectionType === 'tools'">
-    <div v-if="section.body_content" class="mb-4">
-      <RichTextPreview :content="section.body_content" />
-    </div>
-    <div
-      v-if="Array.isArray(section.type_data?.items) && section.type_data.items.length"
-      class="grid grid-cols-2 sm:grid-cols-3 gap-3"
-    >
-      <div
-        v-for="(item, idx) in section.type_data.items" :key="idx"
-        class="flex items-start gap-3 p-3 rounded-xl bg-surface-container border border-outline-variant/30 hover:border-secondary/30 transition-colors"
-      >
-        <div class="w-10 h-10 flex items-center justify-center rounded-lg bg-secondary/10 text-xl flex-shrink-0">
-          {{ toolIcon(item.name) }}
+    <div v-if="toolItems.length">
+      <div v-if="section.body_content" class="mb-5">
+        <RichTextPreview :content="section.body_content" />
+      </div>
+
+      <div v-if="materialItems.length" class="mb-5">
+        <p class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400 mb-3">
+          <span class="material-symbols-outlined" style="font-size:16px">eco</span>
+          Bahan
+        </p>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div
+            v-for="(item, idx) in materialItems" :key="`bahan-${idx}`"
+            class="flex items-start gap-3 p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40 hover:-translate-y-0.5 hover:shadow-sm transition-all"
+          >
+            <div class="w-10 h-10 flex items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 flex-shrink-0">
+              <span class="material-symbols-outlined" style="font-size:20px">{{ materialIcon(item.name) }}</span>
+            </div>
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-on-surface leading-snug">{{ item.name }}</p>
+              <p v-if="item.quantity" class="text-xs font-mono text-emerald-700 dark:text-emerald-400 mt-0.5">{{ item.quantity }} {{ item.unit }}</p>
+              <p v-if="item.note" class="text-xs text-on-surface-variant mt-0.5 leading-snug">{{ item.note }}</p>
+            </div>
+          </div>
         </div>
-        <div class="min-w-0">
-          <p class="text-sm font-semibold text-on-surface leading-snug">{{ item.name }}</p>
-          <p v-if="item.spec" class="text-xs font-mono text-secondary mt-0.5">{{ item.spec }}</p>
-          <p v-if="item.purpose" class="text-xs text-on-surface-variant mt-0.5 leading-snug">{{ item.purpose }}</p>
+      </div>
+
+      <div v-if="equipmentItems.length">
+        <p class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-secondary mb-3">
+          <span class="material-symbols-outlined" style="font-size:16px">build</span>
+          Alat
+        </p>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div
+            v-for="(item, idx) in equipmentItems" :key="`alat-${idx}`"
+            class="flex items-start gap-3 p-3 rounded-xl bg-surface-container border border-outline-variant/30 hover:border-secondary/30 hover:-translate-y-0.5 hover:shadow-sm transition-all"
+          >
+            <div class="w-10 h-10 flex items-center justify-center rounded-lg bg-secondary/10 text-secondary flex-shrink-0">
+              <span class="material-symbols-outlined" style="font-size:20px">{{ toolIcon(item.name) }}</span>
+            </div>
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-on-surface leading-snug">{{ item.name }}</p>
+              <p v-if="item.spec" class="text-xs font-mono text-secondary mt-0.5">{{ item.spec }}</p>
+              <p v-if="item.purpose" class="text-xs text-on-surface-variant mt-0.5 leading-snug">{{ item.purpose }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="ungroupedItems.length" class="grid grid-cols-2 sm:grid-cols-3 gap-3" :class="{ 'mt-5': materialItems.length || equipmentItems.length }">
+        <div
+          v-for="(item, idx) in ungroupedItems" :key="`item-${idx}`"
+          class="flex items-start gap-3 p-3 rounded-xl bg-surface-container border border-outline-variant/30 hover:border-secondary/30 transition-colors"
+        >
+          <div class="w-10 h-10 flex items-center justify-center rounded-lg bg-secondary/10 text-secondary flex-shrink-0">
+            <span class="material-symbols-outlined" style="font-size:20px">{{ toolIcon(item.name) }}</span>
+          </div>
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-on-surface leading-snug">{{ item.name }}</p>
+            <p v-if="item.spec" class="text-xs font-mono text-secondary mt-0.5">{{ item.spec }}</p>
+            <p v-if="item.purpose" class="text-xs text-on-surface-variant mt-0.5 leading-snug">{{ item.purpose }}</p>
+          </div>
         </div>
       </div>
     </div>
-    <div v-else-if="section.body_content && !section.type_data">
+    <div v-else-if="section.body_content">
       <RichTextPreview :content="section.body_content" />
     </div>
   </div>
@@ -327,7 +394,7 @@ function toolIcon(name = '') {
        TROUBLESHOOTING — accordion
   ───────────────────────────────── -->
   <div v-else-if="sectionType === 'troubleshooting'">
-    <div v-if="section.body_content" class="mb-4">
+    <div v-if="section.body_content && Array.isArray(section.type_data?.pairs) && section.type_data.pairs.length" class="mb-4">
       <RichTextPreview :content="section.body_content" />
     </div>
     <div

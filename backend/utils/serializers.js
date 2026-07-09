@@ -127,6 +127,7 @@ function sanitizeArticle(articleInstance, options = {}) {
     parent_article_id: article.parent_article_id,
     wawasan_article_id: article.wawasan_article_id || null,
     article_type: article.article_type || (article.parent_article_id ? 'detail' : 'main'),
+    is_home_featured: Boolean(article.is_home_featured),
     title: article.title,
     version: article.version,
     status: article.status,
@@ -222,6 +223,7 @@ function sanitizeArticle(articleInstance, options = {}) {
           title: productCard.title,
           description: productCard.description,
           image: productCard.image,
+          processing_method: productCard.processing_method,
           linked_article_id: productCard.linked_article_id,
           linked_article: productCard.linkedArticle
             ? {

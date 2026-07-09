@@ -113,13 +113,12 @@ function formatDate(d) {
   return new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-function authorInitial(article) {
-  const name = article.author?.name || article.author?.username || article.user?.name || article.user?.username || 'T';
-  return name[0].toUpperCase();
+function authorName(article) {
+  return article.author?.profile?.full_name || 'Tim COCONEXUS';
 }
 
-function authorName(article) {
-  return article.author?.name || article.author?.username || article.user?.name || article.user?.username || 'Tim COCONEXUS';
+function authorInitial(article) {
+  return authorName(article)[0].toUpperCase();
 }
 
 async function load() {

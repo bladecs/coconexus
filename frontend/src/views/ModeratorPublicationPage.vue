@@ -96,7 +96,7 @@ onMounted(() => fetchArticles());
         <div>
           <div class="mb-2 flex items-center gap-2">
             <span class="material-symbols-outlined text-emerald-400" style="font-size:15px">publish</span>
-            <p class="text-xs font-bold uppercase tracking-widest text-emerald-400/80">Coconexus / Moderator Publikasi</p>
+            <p class="text-xs font-bold uppercase tracking-widest text-emerald-400/80">Coconexus / Redaktur Publikasi</p>
           </div>
           <h1 class="text-3xl font-black tracking-tight text-on-surface">Publikasi Artikel</h1>
           <p class="mt-1 text-sm text-on-surface-variant">Validasi versi artikel dan terbitkan ke publik</p>

@@ -65,7 +65,7 @@ onMounted(() => fetchArticles());
         <div>
           <div class="mb-2 flex items-center gap-2">
             <span class="material-symbols-outlined text-sky-400" style="font-size:15px">rate_review</span>
-            <p class="text-xs font-bold uppercase tracking-widest text-sky-400/80">Coconexus / Moderator Konten</p>
+            <p class="text-xs font-bold uppercase tracking-widest text-sky-400/80">Coconexus / Kurator Konten</p>
           </div>
           <h1 class="text-3xl font-black tracking-tight text-on-surface">Review Konten Artikel</h1>
           <p class="mt-1 text-sm text-on-surface-variant">Tinjau kualitas naskah sebelum lanjut ke tahap publikasi</p>

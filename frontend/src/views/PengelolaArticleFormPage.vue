@@ -63,6 +63,20 @@ async function handleUpdate({ id, payload }) {
   }
 }
 
+async function handleToggleFeature({ id, isHomeFeatured }) {
+  feedback.value = '';
+
+  try {
+    await articleStore.setArticleHomeFeature(id, isHomeFeatured);
+    await articleStore.fetchAdminArticleDetail(id);
+    feedback.value = isHomeFeatured
+      ? 'Artikel ditandai sebagai artikel utama homepage.'
+      : 'Artikel dilepas dari artikel utama homepage.';
+  } catch (error) {
+    feedback.value = error.message;
+  }
+}
+
 async function handlePublish(id) {
   feedback.value = '';
 
@@ -152,12 +166,14 @@ watch(
       <AdminArticleEditor
         :selected-article="editorArticle"
         :loading="articleStore.isSubmitting"
+        :can-feature-on-home="true"
         @create="handleCreate"
         @update="handleUpdate"
       @publish="handlePublish"
       @request-revision="handleRevision"
       @publish-version="handlePublishVersion"
       @delete="handleDelete"
+      @toggle-feature="handleToggleFeature"
     />
     </section>
   </main>

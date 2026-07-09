@@ -113,6 +113,7 @@ watch(() => route.params.id, loadArticle);
         <AdminArticleEditor
           :selected-article="editorArticle"
           :loading="false"
+          :allow-main-article="false"
           @create="handleCreate"
           @update="handleUpdate"
           @delete="handleDelete"
