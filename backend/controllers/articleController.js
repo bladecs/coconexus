@@ -1398,8 +1398,8 @@ async function createArticle(req, res, next) {
       ? req.body.article_type
       : parentArticleId ? 'detail' : 'main';
 
-    if (articleType === 'main' && req.user.role !== 'pengelola') {
-      throw forbidden('Hanya pengelola yang dapat membuat artikel utama.');
+    if (articleType === 'main' && !hasModeratorScope(req.user, 'content')) {
+      throw forbidden('Hanya Kurator Konten yang dapat membuat artikel utama.');
     }
 
     const mediaItems = normalizeMediaInput(req.body.media);
@@ -1519,7 +1519,7 @@ async function createArticle(req, res, next) {
 
     await writeAuditLog({
       actorId: req.user.id,
-      action: 'pengelola.create_article',
+      action: 'content.create_article',
       entityType: 'article',
       entityId: article.id,
       metadata: {
@@ -1587,7 +1587,7 @@ async function updateArticle(req, res, next) {
       throw notFound('Artikel tidak ditemukan.');
     }
 
-    if (req.user.role !== 'pengelola' && article.author_id !== req.user.id) {
+    if (!hasModeratorScope(req.user, 'content') && article.author_id !== req.user.id) {
       throw forbidden('Anda hanya dapat mengubah artikel milik Anda sendiri.');
     }
 
@@ -1624,8 +1624,8 @@ async function updateArticle(req, res, next) {
 
     const validArticleTypes = ['main', 'detail', 'prosedur', 'panduan', 'referensi', 'studi_kasus', 'troubleshooting'];
     if (req.body.article_type !== undefined && validArticleTypes.includes(req.body.article_type)) {
-      if (req.body.article_type === 'main' && req.user.role !== 'pengelola') {
-        throw forbidden('Hanya pengelola yang dapat membuat artikel utama.');
+      if (req.body.article_type === 'main' && !hasModeratorScope(req.user, 'content')) {
+        throw forbidden('Hanya Kurator Konten yang dapat membuat artikel utama.');
       }
 
       article.article_type = req.body.article_type;
@@ -1792,7 +1792,7 @@ async function updateArticle(req, res, next) {
 
     await writeAuditLog({
       actorId: req.user.id,
-      action: 'pengelola.update_article',
+      action: 'content.update_article',
       entityType: 'article',
       entityId: article.id,
       metadata: {
@@ -1865,20 +1865,11 @@ async function updateArticleStatus(req, res, next) {
       throw notFound('Artikel tidak ditemukan.');
     }
 
-    if (
-      status === 'revision' &&
-      req.user.role !== 'pengelola' &&
-      !hasModeratorScope(req.user, 'content', 'publication')
-    ) {
-      throw forbidden('Akun Anda tidak memiliki akses untuk mengubah artikel ke revision.');
-    }
-
-    if (
-      status === 'published' &&
-      req.user.role !== 'pengelola' &&
-      !hasModeratorScope(req.user, 'publication')
-    ) {
-      throw forbidden('Akun Anda tidak memiliki akses untuk mempublish artikel.');
+    // Mandatory review gate: hanya Redaktur Publikasi (moderator, sub-tipe publikasi) yang
+    // boleh mengubah status artikel (baik mempublikasikan maupun mengembalikan ke revision).
+    // Tidak ada jalur self-publish — Kurator Konten yang membuat artikel tidak memiliki akses ke endpoint ini.
+    if (!hasModeratorScope(req.user, 'publication')) {
+      throw forbidden('Hanya Redaktur Publikasi yang memiliki akses untuk mengubah status artikel.');
     }
 
     if (article.status === 'published' && status !== 'revision') {
@@ -1940,7 +1931,7 @@ async function updateArticleStatus(req, res, next) {
 
     await writeAuditLog({
       actorId: req.user.id,
-      action: status === 'published' ? 'publication.publish_article' : 'content.return_article_to_revision',
+      action: status === 'published' ? 'publication.publish_article' : 'publication.return_article_to_revision',
       entityType: 'article',
       entityId: article.id,
       metadata: {
@@ -2010,7 +2001,7 @@ async function setArticleHomeFeature(req, res, next) {
 
     await writeAuditLog({
       actorId: req.user.id,
-      action: isHomeFeatured ? 'pengelola.feature_article_on_home' : 'pengelola.unfeature_article_on_home',
+      action: isHomeFeatured ? 'publication.feature_article_on_home' : 'publication.unfeature_article_on_home',
       entityType: 'article',
       entityId: article.id,
       metadata: { is_home_featured: isHomeFeatured },
@@ -2201,7 +2192,7 @@ async function deleteArticle(req, res, next) {
       throw notFound('Artikel tidak ditemukan.');
     }
 
-    if (req.user.role !== 'pengelola' && article.author_id !== req.user.id) {
+    if (!hasModeratorScope(req.user, 'content') && article.author_id !== req.user.id) {
       throw forbidden('Anda hanya dapat menghapus artikel milik Anda sendiri.');
     }
 
@@ -2209,7 +2200,7 @@ async function deleteArticle(req, res, next) {
 
     await writeAuditLog({
       actorId: req.user.id,
-      action: 'pengelola.delete_article',
+      action: 'content.delete_article',
       entityType: 'article',
       entityId: articleId,
       metadata: {
@@ -2575,7 +2566,7 @@ async function submitMyArticle(req, res, next) {
 
     return res.status(200).json({
       success: true,
-      message: 'Artikel berhasil disubmit untuk ditinjau oleh pengelola.',
+      message: 'Artikel berhasil disubmit untuk ditinjau oleh Redaktur Publikasi.',
       data: { article: { id: article.id, title: article.title, status: article.status } },
     });
   } catch (error) {

@@ -21,6 +21,10 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  canPublish: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 const emit = defineEmits(['create', 'update', 'publish', 'request-revision', 'publish-version', 'delete', 'toggle-feature']);
@@ -1232,17 +1236,17 @@ function publishSelectedVersion() {
         {{ loading ? 'Menyimpan...' : isEditing ? 'Simpan Perubahan' : 'Simpan Draft Baru' }}
       </button>
 
-      <button v-if="selectedArticle && selectedArticle.status !== 'published'" type="button" :disabled="loading" class="btn-publish" @click="$emit('publish', selectedArticle.id)">
+      <button v-if="canPublish && selectedArticle && selectedArticle.status !== 'published'" type="button" :disabled="loading" class="btn-publish" @click="$emit('publish', selectedArticle.id)">
         <span class="material-symbols-outlined text-[16px]">publish</span>
         Publish Artikel
       </button>
 
-      <button v-if="selectedArticle && selectedArticle.status !== 'revision'" type="button" :disabled="loading" class="btn-revision" @click="$emit('request-revision', selectedArticle.id)">
+      <button v-if="canPublish && selectedArticle && selectedArticle.status !== 'revision'" type="button" :disabled="loading" class="btn-revision" @click="$emit('request-revision', selectedArticle.id)">
         <span class="material-symbols-outlined text-[16px]">rate_review</span>
         Tandai Revisi
       </button>
 
-      <div v-if="selectedArticle && articleStore.articleVersions.length > 0" class="flex min-w-[280px] flex-1 items-center gap-3 rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-3">
+      <div v-if="canPublish && selectedArticle && articleStore.articleVersions.length > 0" class="flex min-w-[280px] flex-1 items-center gap-3 rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-3">
         <div class="min-w-0 flex-1">
           <p class="editor-label mb-2">Publish Versi Spesifik</p>
           <select v-model="selectedVersionToPublish" class="form-input">

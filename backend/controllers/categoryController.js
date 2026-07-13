@@ -73,7 +73,7 @@ async function createCategory(req, res, next) {
 
     await writeAuditLog({
       actorId: req.user.id,
-      action: 'pengelola.create_category',
+      action: 'tag.create_category',
       entityType: 'category',
       entityId: category.id,
       metadata: { name },
@@ -130,7 +130,7 @@ async function updateCategory(req, res, next) {
 
     await writeAuditLog({
       actorId: req.user.id,
-      action: 'pengelola.update_category',
+      action: 'tag.update_category',
       entityType: 'category',
       entityId: category.id,
       metadata: { name },
@@ -178,7 +178,7 @@ async function deleteCategory(req, res, next) {
 
     await writeAuditLog({
       actorId: req.user.id,
-      action: 'pengelola.delete_category',
+      action: 'tag.delete_category',
       entityType: 'category',
       entityId: categoryId,
       metadata: { name: category.name },

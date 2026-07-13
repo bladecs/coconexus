@@ -10,7 +10,7 @@ const assert = require('node:assert/strict');
 const request = require('supertest');
 const app = require('../app');
 const { sequelize, Category, Article, ArticleDetail } = require('../models');
-const { resetTestDatabase, createAdminUser, createPengelolaUser } = require('./helpers/testDb');
+const { resetTestDatabase, createAdminUser, createPengelolaUser, createModeratorUser } = require('./helpers/testDb');
 
 async function loginWith(email, password) {
   const res = await request(app)
@@ -28,17 +28,68 @@ async function registerAndLogin(email = 'user.kms@coconexus.local') {
   return loginWith(email, 'User12345');
 }
 
-async function createAndPublishArticle(token, payload) {
+async function createContentModerator(email) {
+  const { user, plainPassword } = await createModeratorUser({ email, moderator_type: 'content' });
+  const token = await loginWith(user.email, plainPassword);
+  return { user, token };
+}
+
+let publisherCounter = 0;
+
+// Kurator Konten membuat draf, lalu Redaktur Publikasi (aktor moderator terpisah, sesuai
+// pemisahan wewenang wajib) yang mempublikasikannya — tidak ada lagi jalur self-publish.
+// Melengkapi payload dengan field yang diwajibkan gerbang validasi publish
+// (media+sumber untuk artikel wawasan/main, section prosedur untuk artikel prosedur)
+// bila belum disediakan oleh pemanggil, supaya alur create->publish di helper ini realistis.
+function withPublishReadyDefaults(payload) {
+  const articleType = payload.article_type || (payload.parent_article_id ? 'detail' : 'main');
+  const filled = { ...payload };
+
+  if (['main', 'detail'].includes(articleType)) {
+    if (!Array.isArray(filled.media) || filled.media.length === 0) {
+      filled.media = [{ file_path: '/uploads/articles/default-kms.jpg', media_type: 'image' }];
+    }
+    if (!Array.isArray(filled.sources) || filled.sources.length === 0) {
+      filled.sources = [{ title: 'Sumber Rujukan KMS', source_type: 'link', url: 'https://example.org/rujukan-kms' }];
+    }
+    if (typeof filled.body_content === 'string' && filled.body_content.replace(/\s+/g, ' ').trim().length < 500) {
+      filled.body_content = `${filled.body_content} ${'Penjelasan tambahan untuk memenuhi panjang minimum konten wawasan. '.repeat(15)}`.trim();
+    }
+  }
+
+  if (articleType === 'prosedur' && (!Array.isArray(filled.sections) || !filled.sections.some((s) => s.section_type === 'procedure'))) {
+    filled.sections = [
+      ...(Array.isArray(filled.sections) ? filled.sections : []),
+      {
+        title: 'Langkah Prosedur',
+        body_content: 'Langkah 1: siapkan alat dan bahan. Langkah 2: lakukan proses sesuai parameter.',
+        section_type: 'procedure',
+        image_path: '/uploads/articles/default-prosedur.jpg',
+      },
+    ];
+  }
+
+  return filled;
+}
+
+async function createAndPublishArticle(contentToken, payload) {
   const createRes = await request(app)
-    .post('/api/pengelola/articles')
-    .set('Authorization', `Bearer ${token}`)
-    .send(payload);
+    .post('/api/moderator/content/articles')
+    .set('Authorization', `Bearer ${contentToken}`)
+    .send(withPublishReadyDefaults(payload));
   assert.equal(createRes.status, 201, `createArticle: ${JSON.stringify(createRes.body)}`);
   const id = createRes.body.data.article.id;
 
+  publisherCounter += 1;
+  const { user: publisher, plainPassword: publisherPassword } = await createModeratorUser({
+    email: `publisher.helper.${publisherCounter}@coconexus.local`,
+    moderator_type: 'publication',
+  });
+  const publisherToken = await loginWith(publisher.email, publisherPassword);
+
   const publishRes = await request(app)
-    .patch(`/api/pengelola/articles/${id}/status`)
-    .set('Authorization', `Bearer ${token}`)
+    .patch(`/api/moderator/publication/articles/${id}/status`)
+    .set('Authorization', `Bearer ${publisherToken}`)
     .send({ status: 'published' });
   assert.equal(publishRes.status, 200, `publishArticle: ${JSON.stringify(publishRes.body)}`);
   return createRes.body.data.article;
@@ -56,12 +107,11 @@ test.after(async () => {
 // GRUP 1 — Article Type Baru
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('pengelola can create prosedur article and article_type is stored correctly', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.type@coconexus.local', job_title: 'Penulis Artikel' });
-  const token = await loginWith(user.email, plainPassword);
+test('kurator konten can create prosedur article and article_type is stored correctly', async () => {
+  const { token } = await createContentModerator('m.type@coconexus.local');
 
   const res = await request(app)
-    .post('/api/pengelola/articles')
+    .post('/api/moderator/content/articles')
     .set('Authorization', `Bearer ${token}`)
     .send({
       title: 'Prosedur Karbonisasi Batok Kelapa',
@@ -77,16 +127,15 @@ test('pengelola can create prosedur article and article_type is stored correctly
   assert.equal(dbArticle.article_type, 'prosedur');
 });
 
-test('pengelola can create all teknis article types without error', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.types@coconexus.local', job_title: 'Penulis Artikel' });
-  const token = await loginWith(user.email, plainPassword);
+test('kurator konten can create all teknis article types without error', async () => {
+  const { token } = await createContentModerator('m.types@coconexus.local');
 
   const types = ['panduan', 'referensi', 'studi_kasus', 'troubleshooting'];
   let idx = 0;
 
   for (const articleType of types) {
     const res = await request(app)
-      .post('/api/pengelola/articles')
+      .post('/api/moderator/content/articles')
       .set('Authorization', `Bearer ${token}`)
       .send({
         title: `Artikel Tipe ${articleType}`,
@@ -101,11 +150,10 @@ test('pengelola can create all teknis article types without error', async () => 
 });
 
 test('wawasan article defaults to main type when article_type not specified', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.default@coconexus.local', job_title: 'Penulis Artikel' });
-  const token = await loginWith(user.email, plainPassword);
+  const { token } = await createContentModerator('m.default@coconexus.local');
 
   const res = await request(app)
-    .post('/api/pengelola/articles')
+    .post('/api/moderator/content/articles')
     .set('Authorization', `Bearer ${token}`)
     .send({
       title: 'Mengenal Arang Aktif dari Batok Kelapa',
@@ -122,11 +170,10 @@ test('wawasan article defaults to main type when article_type not specified', as
 // ─────────────────────────────────────────────────────────────────────────────
 
 test('teknis article can be linked to wawasan article via wawasan_article_id', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.link@coconexus.local', job_title: 'Penulis Artikel' });
-  const token = await loginWith(user.email, plainPassword);
+  const { token } = await createContentModerator('m.link@coconexus.local');
 
   const wawasanRes = await request(app)
-    .post('/api/pengelola/articles')
+    .post('/api/moderator/content/articles')
     .set('Authorization', `Bearer ${token}`)
     .send({
       title: 'Mengenal Arang Aktif dari Batok Kelapa',
@@ -138,7 +185,7 @@ test('teknis article can be linked to wawasan article via wawasan_article_id', a
   const wawasanId = wawasanRes.body.data.article.id;
 
   const teknisRes = await request(app)
-    .post('/api/pengelola/articles')
+    .post('/api/moderator/content/articles')
     .set('Authorization', `Bearer ${token}`)
     .send({
       title: 'Prosedur Pembuatan Arang Aktif dari Batok Kelapa',
@@ -154,8 +201,7 @@ test('teknis article can be linked to wawasan article via wawasan_article_id', a
 });
 
 test('published wawasan article shows technical_articles panel with linked teknis articles', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.bidir@coconexus.local', job_title: 'Penulis Artikel' });
-  const token = await loginWith(user.email, plainPassword);
+  const { token } = await createContentModerator('m.bidir@coconexus.local');
 
   const wawasan = await createAndPublishArticle(token, {
     title: 'Mengenal Arang Aktif dari Batok Kelapa',
@@ -198,8 +244,7 @@ test('published wawasan article shows technical_articles panel with linked tekni
 });
 
 test('published teknis article shows wawasan_article panel pointing back to wawasan', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.backlink@coconexus.local', job_title: 'Penulis Artikel' });
-  const token = await loginWith(user.email, plainPassword);
+  const { token } = await createContentModerator('m.backlink@coconexus.local');
 
   const wawasan = await createAndPublishArticle(token, {
     title: 'Mengenal Arang Aktif',
@@ -226,8 +271,7 @@ test('published teknis article shows wawasan_article panel pointing back to wawa
 });
 
 test('teknis article without wawasan link has null wawasan_article', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.nolink@coconexus.local', job_title: 'Penulis Artikel' });
-  const token = await loginWith(user.email, plainPassword);
+  const { token } = await createContentModerator('m.nolink@coconexus.local');
 
   const teknis = await createAndPublishArticle(token, {
     title: 'Prosedur Tanpa Link Wawasan',
@@ -247,8 +291,7 @@ test('teknis article without wawasan link has null wawasan_article', async () =>
 // ─────────────────────────────────────────────────────────────────────────────
 
 test('prosedur article stores all technical metadata fields correctly', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.meta@coconexus.local', job_title: 'Penulis Artikel' });
-  const token = await loginWith(user.email, plainPassword);
+  const { token } = await createContentModerator('m.meta@coconexus.local');
 
   const payload = {
     title: 'Prosedur Pembuatan Arang Aktif Batok Kelapa',
@@ -278,7 +321,7 @@ test('prosedur article stores all technical metadata fields correctly', async ()
   };
 
   const res = await request(app)
-    .post('/api/pengelola/articles')
+    .post('/api/moderator/content/articles')
     .set('Authorization', `Bearer ${token}`)
     .send(payload);
 
@@ -306,8 +349,7 @@ test('prosedur article stores all technical metadata fields correctly', async ()
 });
 
 test('wawasan article (main) has null technical metadata fields — backward compatible', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.compat@coconexus.local', job_title: 'Penulis Artikel' });
-  const token = await loginWith(user.email, plainPassword);
+  const { token } = await createContentModerator('m.compat@coconexus.local');
 
   const wawasan = await createAndPublishArticle(token, {
     title: 'Mengenal Sabut Kelapa',
@@ -331,11 +373,10 @@ test('wawasan article (main) has null technical metadata fields — backward com
 });
 
 test('technical fields can be updated via PUT and persisted', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.update@coconexus.local', job_title: 'Penulis Artikel' });
-  const token = await loginWith(user.email, plainPassword);
+  const { token } = await createContentModerator('m.update@coconexus.local');
 
   const createRes = await request(app)
-    .post('/api/pengelola/articles')
+    .post('/api/moderator/content/articles')
     .set('Authorization', `Bearer ${token}`)
     .send({
       title: 'Prosedur Awal',
@@ -347,7 +388,7 @@ test('technical fields can be updated via PUT and persisted', async () => {
   const articleId = createRes.body.data.article.id;
 
   const updateRes = await request(app)
-    .put(`/api/pengelola/articles/${articleId}`)
+    .put(`/api/moderator/content/articles/${articleId}`)
     .set('Authorization', `Bearer ${token}`)
     .send({
       title: 'Prosedur Karbonisasi Diperbarui',
@@ -370,11 +411,10 @@ test('technical fields can be updated via PUT and persisted', async () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test('sections with section_type are stored and returned correctly', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.sections@coconexus.local', job_title: 'Penulis Artikel' });
-  const token = await loginWith(user.email, plainPassword);
+  const { token } = await createContentModerator('m.sections@coconexus.local');
 
   const res = await request(app)
-    .post('/api/pengelola/articles')
+    .post('/api/moderator/content/articles')
     .set('Authorization', `Bearer ${token}`)
     .send({
       title: 'Prosedur dengan Typed Sections',
@@ -398,11 +438,10 @@ test('sections with section_type are stored and returned correctly', async () =>
 });
 
 test('sections without section_type default to info for backward compatibility', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.seccompat@coconexus.local', job_title: 'Penulis Artikel' });
-  const token = await loginWith(user.email, plainPassword);
+  const { token } = await createContentModerator('m.seccompat@coconexus.local');
 
   const res = await request(app)
-    .post('/api/pengelola/articles')
+    .post('/api/moderator/content/articles')
     .set('Authorization', `Bearer ${token}`)
     .send({
       title: 'Artikel Wawasan Lama',
@@ -426,8 +465,7 @@ test('sections without section_type default to info for backward compatibility',
 // ─────────────────────────────────────────────────────────────────────────────
 
 test('published article list can be filtered by article_type', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.filter@coconexus.local', job_title: 'Penulis Artikel' });
-  const token = await loginWith(user.email, plainPassword);
+  const { token } = await createContentModerator('m.filter@coconexus.local');
 
   await createAndPublishArticle(token, {
     title: 'Artikel Wawasan Batok',
@@ -469,8 +507,7 @@ test('published article list can be filtered by article_type', async () => {
 });
 
 test('published article list can be filtered by difficulty_level', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.difficulty@coconexus.local', job_title: 'Penulis Artikel' });
-  const token = await loginWith(user.email, plainPassword);
+  const { token } = await createContentModerator('m.difficulty@coconexus.local');
 
   await createAndPublishArticle(token, {
     title: 'Prosedur Pemula',
@@ -508,8 +545,7 @@ test('published article list can be filtered by difficulty_level', async () => {
 });
 
 test('filter meta is returned in published article list response', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.filtermeta@coconexus.local', job_title: 'Penulis Artikel' });
-  const token = await loginWith(user.email, plainPassword);
+  const { token } = await createContentModerator('m.filtermeta@coconexus.local');
 
   await createAndPublishArticle(token, {
     title: 'Prosedur Meta Test',
@@ -526,7 +562,7 @@ test('filter meta is returned in published article list response', async () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GRUP 6 — Glosarium CRUD
+// GRUP 6 — Glosarium CRUD (tetap wewenang Pengelola — tidak termasuk cakupan redesain ini)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test('glossary terms are publicly accessible without authentication', async () => {
@@ -537,7 +573,7 @@ test('glossary terms are publicly accessible without authentication', async () =
 });
 
 test('pengelola can create glossary term with all fields', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.glos@coconexus.local', job_title: 'Penulis Artikel' });
+  const { user, plainPassword } = await createPengelolaUser({ email: 'p.glos@coconexus.local' });
   const token = await loginWith(user.email, plainPassword);
 
   const res = await request(app)
@@ -559,7 +595,7 @@ test('pengelola can create glossary term with all fields', async () => {
 });
 
 test('glossary term can be fetched by id publicly', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.glos2@coconexus.local', job_title: 'Penulis Artikel' });
+  const { user, plainPassword } = await createPengelolaUser({ email: 'p.glos2@coconexus.local' });
   const token = await loginWith(user.email, plainPassword);
 
   const createRes = await request(app)
@@ -582,7 +618,7 @@ test('glossary returns 404 for non-existent term', async () => {
 });
 
 test('glossary rejects duplicate term name', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.glosdup@coconexus.local', job_title: 'Penulis Artikel' });
+  const { user, plainPassword } = await createPengelolaUser({ email: 'p.glosdup@coconexus.local' });
   const token = await loginWith(user.email, plainPassword);
 
   await request(app)
@@ -600,7 +636,7 @@ test('glossary rejects duplicate term name', async () => {
 });
 
 test('glossary rejects creation without required fields', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.glosval@coconexus.local', job_title: 'Penulis Artikel' });
+  const { user, plainPassword } = await createPengelolaUser({ email: 'p.glosval@coconexus.local' });
   const token = await loginWith(user.email, plainPassword);
 
   const noTerm = await request(app)
@@ -637,7 +673,7 @@ test('unauthenticated request cannot create glossary term', async () => {
 });
 
 test('glossary terms can be searched by keyword', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.glossearch@coconexus.local', job_title: 'Penulis Artikel' });
+  const { user, plainPassword } = await createPengelolaUser({ email: 'p.glossearch@coconexus.local' });
   const token = await loginWith(user.email, plainPassword);
 
   await request(app).post('/api/glossary').set('Authorization', `Bearer ${token}`)
@@ -656,7 +692,7 @@ test('glossary terms can be searched by keyword', async () => {
 });
 
 test('glossary terms can be filtered by category', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.gloscat@coconexus.local', job_title: 'Penulis Artikel' });
+  const { user, plainPassword } = await createPengelolaUser({ email: 'p.gloscat@coconexus.local' });
   const token = await loginWith(user.email, plainPassword);
 
   await request(app).post('/api/glossary').set('Authorization', `Bearer ${token}`)
@@ -677,7 +713,7 @@ test('glossary terms can be filtered by category', async () => {
 });
 
 test('pengelola can update glossary term', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.glosupd@coconexus.local', job_title: 'Penulis Artikel' });
+  const { user, plainPassword } = await createPengelolaUser({ email: 'p.glosupd@coconexus.local' });
   const token = await loginWith(user.email, plainPassword);
 
   const createRes = await request(app)
@@ -702,7 +738,7 @@ test('pengelola can update glossary term', async () => {
 });
 
 test('pengelola can delete glossary term', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.glosdel@coconexus.local', job_title: 'Penulis Artikel' });
+  const { user, plainPassword } = await createPengelolaUser({ email: 'p.glosdel@coconexus.local' });
   const token = await loginWith(user.email, plainPassword);
 
   const createRes = await request(app)
@@ -722,7 +758,7 @@ test('pengelola can delete glossary term', async () => {
 });
 
 test('glossary list has correct pagination meta', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.glospag@coconexus.local', job_title: 'Penulis Artikel' });
+  const { user, plainPassword } = await createPengelolaUser({ email: 'p.glospag@coconexus.local' });
   const token = await loginWith(user.email, plainPassword);
 
   const terms = ['Karbonisasi', 'Pirolisis', 'Aktivasi', 'Bilangan Iod', 'Kadar Air'];
@@ -748,9 +784,7 @@ test('glossary list has correct pagination meta', async () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test('full KMS flow: wawasan article with linked prosedur and panduan including technical metadata', async () => {
-  const { user, plainPassword } = await createPengelolaUser({ email: 'p.e2e@coconexus.local', job_title: 'Penulis Artikel' });
-  const { user: pengelola2, plainPassword: pp2 } = await createPengelolaUser({ email: 'p.e2e2@coconexus.local', job_title: 'Penulis Artikel' });
-  const token = await loginWith(user.email, plainPassword);
+  const { token } = await createContentModerator('m.e2e@coconexus.local');
 
   // 1. Buat dan publish artikel wawasan
   const wawasan = await createAndPublishArticle(token, {
@@ -783,7 +817,7 @@ test('full KMS flow: wawasan article with linked prosedur and panduan including 
     safety_notes: 'Gunakan masker debu saat menangani serbuk arang.',
     category: { name: 'Batok Kelapa' },
     sections: [
-      { title: 'Persiapan Bahan', body_content: '1. Giling arang menjadi serbuk halus\n2. Ayak 60 mesh', section_type: 'procedure' },
+      { title: 'Persiapan Bahan', body_content: '1. Giling arang menjadi serbuk halus\n2. Ayak 60 mesh', section_type: 'procedure', image_path: '/uploads/articles/persiapan-bahan.jpg' },
       { title: 'Alat yang Dibutuhkan', body_content: 'Mesin cetak dan pengering.', section_type: 'tools' },
       { title: 'Peringatan', body_content: 'Hindari kontak serbuk arang dengan mata.', section_type: 'warning' },
     ],
@@ -799,8 +833,8 @@ test('full KMS flow: wawasan article with linked prosedur and panduan including 
     category: { name: 'Batok Kelapa' },
   });
 
-  // 4. Tambah glossary terms terkait topik ini
-  const { user: pengelolaGlos, plainPassword: pgPass } = await createPengelolaUser({ email: 'p.e2eglos@coconexus.local', job_title: 'Penulis Artikel' });
+  // 4. Tambah glossary terms terkait topik ini (glosarium tetap wewenang Pengelola)
+  const { user: pengelolaGlos, plainPassword: pgPass } = await createPengelolaUser({ email: 'p.e2eglos@coconexus.local' });
   const glosToken = await loginWith(pengelolaGlos.email, pgPass);
 
   await request(app).post('/api/glossary').set('Authorization', `Bearer ${glosToken}`)

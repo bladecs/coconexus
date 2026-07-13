@@ -25,7 +25,7 @@ const filteredArticles = computed(() => {
 
 const stats = computed(() => ({
   total: articles.value.length,
-  under_review: articles.value.filter((a) => a.status === 'under_review').length,
+  ready: articles.value.filter((a) => a.status === 'draft' || a.status === 'revision').length,
   published: articles.value.filter((a) => a.status === 'published').length,
   revision: articles.value.filter((a) => a.status === 'revision').length,
 }));
@@ -125,7 +125,7 @@ onMounted(() => fetchArticles());
         <div class="pub-stat-card">
           <span class="material-symbols-outlined pub-stat-icon text-sky-400">pending</span>
           <p class="pub-stat-label">Siap Publikasi</p>
-          <strong class="pub-stat-value text-sky-400">{{ stats.under_review }}</strong>
+          <strong class="pub-stat-value text-sky-400">{{ stats.ready }}</strong>
         </div>
         <div class="pub-stat-card">
           <span class="material-symbols-outlined pub-stat-icon text-emerald-400">verified</span>
@@ -146,10 +146,9 @@ onMounted(() => fetchArticles());
             <span class="material-symbols-outlined text-on-surface-variant" style="font-size:16px">filter_list</span>
             <select v-model="filters.status" class="flex-1 bg-transparent text-sm text-on-surface outline-none">
               <option value="all">Semua Status</option>
-              <option value="under_review">Siap Publikasi</option>
-              <option value="published">Published</option>
-              <option value="revision">Revision</option>
               <option value="draft">Draft</option>
+              <option value="revision">Revision</option>
+              <option value="published">Published</option>
             </select>
           </div>
           <div class="flex flex-1 items-center gap-2 rounded-lg border border-outline-variant/30 bg-surface-container px-3 py-2">
@@ -183,12 +182,11 @@ onMounted(() => fetchArticles());
                   'pub-status--published': article.status === 'published',
                   'pub-status--draft': article.status === 'draft',
                   'pub-status--revision': article.status === 'revision',
-                  'pub-status--review': article.status === 'under_review',
                 }">
                   <span class="material-symbols-outlined" style="font-size:10px;font-variation-settings:'FILL' 1">
-                    {{ article.status === 'published' ? 'check_circle' : article.status === 'under_review' ? 'pending' : article.status === 'revision' ? 'undo' : 'edit_note' }}
+                    {{ article.status === 'published' ? 'check_circle' : article.status === 'revision' ? 'undo' : 'edit_note' }}
                   </span>
-                  {{ article.status === 'under_review' ? 'Siap Publikasi' : article.status === 'revision' ? 'Dikembalikan' : article.status === 'draft' ? 'Draft' : 'Published' }}
+                  {{ article.status === 'revision' ? 'Revisi' : article.status === 'draft' ? 'Draft' : 'Published' }}
                 </span>
               </div>
               <h2 class="text-lg font-bold text-on-surface">{{ article.title }}</h2>
@@ -204,7 +202,11 @@ onMounted(() => fetchArticles());
                 <span class="material-symbols-outlined" style="font-size:14px">open_in_new</span>
                 Pratinjau
               </button>
-              <button v-if="article.status === 'under_review'" @click="updateStatus(article.id, 'revision')" class="pub-action-btn pub-action--revision">
+              <button v-if="article.status === 'draft' || article.status === 'revision'" @click="updateStatus(article.id, 'published')" class="pub-action-btn pub-action--publish">
+                <span class="material-symbols-outlined" style="font-size:14px">publish</span>
+                Publikasikan
+              </button>
+              <button v-if="article.status === 'published'" @click="updateStatus(article.id, 'revision')" class="pub-action-btn pub-action--revision">
                 <span class="material-symbols-outlined" style="font-size:14px">undo</span>
                 Kembalikan
               </button>
@@ -267,7 +269,6 @@ onMounted(() => fetchArticles());
 .pub-status--published { background: rgb(16 185 129 / 0.12); color: rgb(52 211 153); border-color: rgb(16 185 129 / 0.25); }
 .pub-status--draft     { background: rgb(245 158 11 / 0.12); color: rgb(251 191 36); border-color: rgb(245 158 11 / 0.25); }
 .pub-status--revision  { background: rgb(249 115 22 / 0.12); color: rgb(251 146 60); border-color: rgb(249 115 22 / 0.25); }
-.pub-status--review    { background: rgb(14 165 233 / 0.12); color: rgb(56 189 248); border-color: rgb(14 165 233 / 0.25); }
 
 .pub-action-btn {
   display: inline-flex; align-items: center; gap: 0.4rem;
@@ -278,6 +279,8 @@ onMounted(() => fetchArticles());
 .pub-action--view:hover { background: rgb(59 130 246 / 0.2); }
 .pub-action--revision { background: rgb(249 115 22 / 0.1); color: rgb(251 146 60); border-color: rgb(249 115 22 / 0.2); }
 .pub-action--revision:hover { background: rgb(249 115 22 / 0.2); }
+.pub-action--publish  { background: rgb(16 185 129 / 0.15); color: rgb(52 211 153); border-color: rgb(16 185 129 / 0.3); }
+.pub-action--publish:hover { background: rgb(16 185 129 / 0.25); }
 .pub-action--versions { background: rgb(16 185 129 / 0.1); color: rgb(52 211 153); border-color: rgb(16 185 129 / 0.2); }
 .pub-action--versions:hover { background: rgb(16 185 129 / 0.2); }
 </style>

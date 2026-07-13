@@ -58,6 +58,130 @@
       ]
     },
     {
+      "name": "02b Login Pengelola Berhasil",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{pengelola_email}}\",\n  \"password\": \"{{pengelola_password}}\"\n}"
+        },
+        "url": "{{base_url}}/api/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const json = pm.response.json();",
+              "pm.test('Token pengelola tersedia', function () { pm.expect(json.data.token).to.be.a('string').and.not.empty; });",
+              "pm.environment.set('pengelola_token', json.data.token);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02c Login Kurator Konten Berhasil",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{content_email}}\",\n  \"password\": \"{{content_password}}\"\n}"
+        },
+        "url": "{{base_url}}/api/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const json = pm.response.json();",
+              "pm.test('Token kurator konten tersedia', function () { pm.expect(json.data.token).to.be.a('string').and.not.empty; });",
+              "pm.environment.set('content_token', json.data.token);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02d Login Redaktur Publikasi Berhasil",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{publication_email}}\",\n  \"password\": \"{{publication_password}}\"\n}"
+        },
+        "url": "{{base_url}}/api/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const json = pm.response.json();",
+              "pm.test('Token redaktur publikasi tersedia', function () { pm.expect(json.data.token).to.be.a('string').and.not.empty; });",
+              "pm.environment.set('publication_token', json.data.token);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02e Login Penata Taksonomi Berhasil",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{tag_email}}\",\n  \"password\": \"{{tag_password}}\"\n}"
+        },
+        "url": "{{base_url}}/api/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const json = pm.response.json();",
+              "pm.test('Token penata taksonomi tersedia', function () { pm.expect(json.data.token).to.be.a('string').and.not.empty; });",
+              "pm.environment.set('tag_token', json.data.token);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
       "name": "03 Registrasi Publik Mengabaikan Role Admin",
       "request": {
         "method": "POST",
@@ -259,7 +383,7 @@
       "request": {
         "method": "GET",
         "header": [],
-        "url": "{{base_url}}/api/articles/admin"
+        "url": "{{base_url}}/api/articles"
       },
       "event": [
         {
@@ -283,7 +407,7 @@
             "value": "Bearer token-tidak-valid"
           }
         ],
-        "url": "{{base_url}}/api/articles/admin"
+        "url": "{{base_url}}/api/articles"
       },
       "event": [
         {
@@ -298,13 +422,13 @@
       ]
     },
     {
-      "name": "12 Admin Membuat Kategori",
+      "name": "12 Penata Taksonomi Membuat Kategori",
       "request": {
         "method": "POST",
         "header": [
           {
             "key": "Authorization",
-            "value": "Bearer {{admin_token}}"
+            "value": "Bearer {{tag_token}}"
           },
           {
             "key": "Content-Type",
@@ -315,7 +439,7 @@
           "mode": "raw",
           "raw": "{\n  \"name\": \"Kategori Newman Sabut\",\n  \"description\": \"Kategori untuk pengujian API Newman.\"\n}"
         },
-        "url": "{{base_url}}/api/categories/admin"
+        "url": "{{base_url}}/api/categories"
       },
       "event": [
         {
@@ -333,13 +457,13 @@
       ]
     },
     {
-      "name": "13 Kategori Duplikat Ditolak",
+      "name": "13 Kategori Duplikat Ditolak (Penata Taksonomi)",
       "request": {
         "method": "POST",
         "header": [
           {
             "key": "Authorization",
-            "value": "Bearer {{admin_token}}"
+            "value": "Bearer {{tag_token}}"
           },
           {
             "key": "Content-Type",
@@ -350,7 +474,7 @@
           "mode": "raw",
           "raw": "{\n  \"name\": \"Kategori Newman Sabut\",\n  \"description\": \"Duplikat kategori.\"\n}"
         },
-        "url": "{{base_url}}/api/categories/admin"
+        "url": "{{base_url}}/api/categories"
       },
       "event": [
         {
@@ -365,13 +489,13 @@
       ]
     },
     {
-      "name": "14 Admin Membuat Artikel Draft",
+      "name": "14 Kurator Konten Membuat Artikel Draft",
       "request": {
         "method": "POST",
         "header": [
           {
             "key": "Authorization",
-            "value": "Bearer {{admin_token}}"
+            "value": "Bearer {{content_token}}"
           },
           {
             "key": "Content-Type",
@@ -380,9 +504,9 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"title\": \"Artikel Uji Newman\",\n  \"body_content\": \"Konten artikel untuk pengujian API menggunakan Newman.\",\n  \"meta_description\": \"Artikel uji Newman\",\n  \"category\": {\n    \"id\": {{category_id}}\n  },\n  \"product_cards\": [\n    {\n      \"title\": \"Briket Sabut\",\n      \"description\": \"Produk hasil olahan sabut kelapa.\",\n      \"image\": \"/uploads/articles/briket-sabut.jpg\"\n    }\n  ]\n}"
+          "raw": "{\n  \"title\": \"Artikel Uji Newman\",\n  \"body_content\": \"Konten artikel untuk pengujian API menggunakan Newman.\",\n  \"meta_description\": \"Artikel uji Newman\",\n  \"article_type\": \"panduan\",\n  \"category\": {\n    \"id\": {{category_id}}\n  },\n  \"product_cards\": [\n    {\n      \"title\": \"Briket Sabut\",\n      \"description\": \"Produk hasil olahan sabut kelapa.\",\n      \"image\": \"/uploads/articles/briket-sabut.jpg\"\n    }\n  ]\n}"
         },
-        "url": "{{base_url}}/api/articles/admin"
+        "url": "{{base_url}}/api/articles"
       },
       "event": [
         {
@@ -400,13 +524,13 @@
       ]
     },
     {
-      "name": "15 Artikel Tanpa Konten Ditolak",
+      "name": "15 Artikel Tanpa Konten Ditolak (Kurator Konten)",
       "request": {
         "method": "POST",
         "header": [
           {
             "key": "Authorization",
-            "value": "Bearer {{admin_token}}"
+            "value": "Bearer {{content_token}}"
           },
           {
             "key": "Content-Type",
@@ -417,7 +541,7 @@
           "mode": "raw",
           "raw": "{\n  \"title\": \"Artikel Tanpa Konten\",\n  \"category\": {\n    \"id\": {{category_id}}\n  }\n}"
         },
-        "url": "{{base_url}}/api/articles/admin"
+        "url": "{{base_url}}/api/articles"
       },
       "event": [
         {
@@ -432,13 +556,13 @@
       ]
     },
     {
-      "name": "16 Publish Artikel Draft",
+      "name": "15b Kurator Konten Tidak Dapat Mempublish Artikel Sendiri",
       "request": {
         "method": "PATCH",
         "header": [
           {
             "key": "Authorization",
-            "value": "Bearer {{admin_token}}"
+            "value": "Bearer {{content_token}}"
           },
           {
             "key": "Content-Type",
@@ -449,7 +573,39 @@
           "mode": "raw",
           "raw": "{\n  \"status\": \"published\"\n}"
         },
-        "url": "{{base_url}}/api/articles/admin/{{article_id}}/status"
+        "url": "{{base_url}}/api/articles/{{article_id}}/status"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 403 — kurator konten tidak boleh publish sendiri', function () { pm.response.to.have.status(403); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 Redaktur Publikasi Mempublish Artikel",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{publication_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"published\"\n}"
+        },
+        "url": "{{base_url}}/api/articles/{{article_id}}/status"
       },
       "event": [
         {
@@ -616,10 +772,10 @@
         "header": [
           {
             "key": "Authorization",
-            "value": "Bearer {{admin_token}}"
+            "value": "Bearer {{tag_token}}"
           }
         ],
-        "url": "{{base_url}}/api/categories/admin/{{category_id}}"
+        "url": "{{base_url}}/api/categories/{{category_id}}"
       },
       "event": [
         {

@@ -113,44 +113,46 @@ async function createDiscussionForumDraft(req, res, next) {
       throw badRequest('title forum wajib diisi.');
     }
 
-    if (commentIds.length === 0) {
-      throw badRequest('comment_ids wajib berisi minimal satu komentar.');
-    }
-
+    // comment_ids bersifat opsional — Fasilitator Diskusi dapat membuat topik forum baru
+    // dari nol (tanpa mengurasi komentar yang sudah ada), atau tetap mengaitkannya ke
+    // komentar-komentar tertentu bila diisi.
     const article = await Article.findByPk(articleId, { transaction });
     if (!article) {
       throw notFound('Artikel tidak ditemukan.');
     }
 
-    const comments = await Comment.findAll({
-      where: {
-        id: commentIds,
-        article_id: articleId,
-      },
-      include: [
-        {
-          model: User,
-          as: 'user',
-          attributes: ['id', 'email', 'role'],
-          include: [
-            {
-              model: UserProfile,
-              as: 'profile',
-              attributes: ['user_id', 'full_name', 'job_title'],
-            },
-          ],
+    let comments = [];
+    if (commentIds.length > 0) {
+      comments = await Comment.findAll({
+        where: {
+          id: commentIds,
+          article_id: articleId,
         },
-      ],
-      transaction,
-    });
+        include: [
+          {
+            model: User,
+            as: 'user',
+            attributes: ['id', 'email', 'role'],
+            include: [
+              {
+                model: UserProfile,
+                as: 'profile',
+                attributes: ['user_id', 'full_name', 'job_title'],
+              },
+            ],
+          },
+        ],
+        transaction,
+      });
 
-    if (comments.length !== commentIds.length) {
-      throw badRequest('Sebagian komentar tidak ditemukan pada artikel yang sama.');
-    }
+      if (comments.length !== commentIds.length) {
+        throw badRequest('Sebagian komentar tidak ditemukan pada artikel yang sama.');
+      }
 
-    const invalidComment = comments.find((comment) => comment.status === 'rejected');
-    if (invalidComment) {
-      throw forbidden('Komentar yang ditolak tidak dapat dijadikan sumber forum.');
+      const invalidComment = comments.find((comment) => comment.status === 'rejected');
+      if (invalidComment) {
+        throw forbidden('Komentar yang ditolak tidak dapat dijadikan sumber forum.');
+      }
     }
 
     const forum = await DiscussionForum.create(

@@ -4,6 +4,7 @@ import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import api from '@/lib/api';
 
 const forums = ref([]);
+const publishedArticles = ref([]);
 const isLoading = ref(false);
 const error = ref(null);
 const feedback = ref('');
@@ -11,6 +12,12 @@ const filters = reactive({
   status: 'all',
   search: '',
 });
+const newTopicForm = reactive({
+  articleId: '',
+  title: '',
+  summary: '',
+});
+const isCreatingTopic = ref(false);
 
 const summary = computed(() => ({
   total: forums.value.length,
@@ -56,6 +63,47 @@ async function fetchForums() {
   }
 }
 
+async function fetchPublishedArticles() {
+  try {
+    const { data } = await api.get('/articles/published', { params: { limit: 100 } });
+    publishedArticles.value = data.data.articles || [];
+  } catch (err) {
+    publishedArticles.value = [];
+  }
+}
+
+async function createTopicFromScratch() {
+  feedback.value = '';
+
+  if (!newTopicForm.articleId) {
+    feedback.value = 'Pilih artikel sebagai dasar topik forum.';
+    return;
+  }
+  if (!newTopicForm.title.trim()) {
+    feedback.value = 'Judul topik forum wajib diisi.';
+    return;
+  }
+
+  isCreatingTopic.value = true;
+  try {
+    await api.post('/moderator/forum/discussion-forums', {
+      article_id: Number(newTopicForm.articleId),
+      title: newTopicForm.title.trim(),
+      summary: newTopicForm.summary.trim(),
+      comment_ids: [],
+    });
+    feedback.value = 'Topik forum baru berhasil dibuat.';
+    newTopicForm.articleId = '';
+    newTopicForm.title = '';
+    newTopicForm.summary = '';
+    await fetchForums();
+  } catch (err) {
+    feedback.value = err.response?.data?.message || err.message;
+  } finally {
+    isCreatingTopic.value = false;
+  }
+}
+
 async function validateForum(id) {
   feedback.value = '';
 
@@ -91,6 +139,7 @@ watch(
 
 onMounted(() => {
   fetchForums();
+  fetchPublishedArticles();
 });
 </script>
 
@@ -122,6 +171,35 @@ onMounted(() => {
           {{ feedback }}
         </div>
       </Transition>
+
+      <!-- ── Buat Topik Forum Baru ── -->
+      <section class="mb-8 overflow-hidden rounded-2xl border border-outline-variant/30">
+        <div class="flex items-center gap-2 border-b border-outline-variant/30 bg-surface-container px-5 py-3.5">
+          <span class="material-symbols-outlined text-indigo-400" style="font-size:16px">add_circle</span>
+          <h2 class="text-sm font-bold text-on-surface">Buat Topik Forum Baru</h2>
+        </div>
+        <p class="mx-5 mt-4 text-xs text-on-surface-variant">Membuka topik forum langsung tanpa perlu mengurasi komentar yang sudah ada.</p>
+        <form @submit.prevent="createTopicFromScratch" class="grid gap-3 p-5 sm:grid-cols-2">
+          <div class="flex items-center gap-2 rounded-lg border border-outline-variant/30 bg-surface-container px-3 py-2">
+            <span class="material-symbols-outlined text-on-surface-variant shrink-0" style="font-size:15px">article</span>
+            <select v-model="newTopicForm.articleId" class="flex-1 bg-transparent text-sm text-on-surface outline-none">
+              <option value="" disabled>Pilih artikel...</option>
+              <option v-for="article in publishedArticles" :key="article.id" :value="article.id">{{ article.title }}</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2 rounded-lg border border-outline-variant/30 bg-surface-container px-3 py-2">
+            <span class="material-symbols-outlined text-on-surface-variant shrink-0" style="font-size:15px">title</span>
+            <input v-model="newTopicForm.title" type="text" class="flex-1 bg-transparent text-sm text-on-surface outline-none placeholder:text-on-surface-variant/50" placeholder="Judul topik forum" />
+          </div>
+          <div class="rounded-lg border border-outline-variant/30 bg-surface-container px-3 py-2 sm:col-span-2">
+            <textarea v-model="newTopicForm.summary" rows="2" class="w-full bg-transparent text-sm text-on-surface outline-none placeholder:text-on-surface-variant/50" placeholder="Ringkasan topik (opsional)"></textarea>
+          </div>
+          <button type="submit" :disabled="isCreatingTopic" class="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40 sm:col-span-2 sm:w-fit">
+            <span class="material-symbols-outlined" style="font-size:16px">{{ isCreatingTopic ? 'progress_activity' : 'add_circle' }}</span>
+            {{ isCreatingTopic ? 'Membuat...' : 'Buat Topik Forum' }}
+          </button>
+        </form>
+      </section>
 
       <!-- ── Stats ── -->
       <section class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-5">

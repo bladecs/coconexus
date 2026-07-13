@@ -35,6 +35,12 @@ async function loginWith(email, password) {
     .send({ email, password });
 }
 
+async function createModerator(email, moderatorType, overrides = {}) {
+  const { user, plainPassword } = await createModeratorUser({ email, moderator_type: moderatorType, ...overrides });
+  const loginResponse = await loginWith(user.email, plainPassword);
+  return { user, token: loginResponse.body.data.token };
+}
+
 test.beforeEach(async () => {
   await resetTestDatabase();
 });
@@ -42,6 +48,10 @@ test.beforeEach(async () => {
 test.after(async () => {
   await sequelize.close();
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auth dasar (tidak terpengaruh redesain role)
+// ─────────────────────────────────────────────────────────────────────────────
 
 test('public register ignores requested admin role and creates regular user', async () => {
   const response = await request(app)
@@ -86,7 +96,7 @@ test('regular user cannot access admin dashboard stats', async () => {
   assert.equal(statsResponse.status, 403);
 });
 
-test('regular user cannot create article from pengelola workspace route', async () => {
+test('regular user cannot create article', async () => {
   await request(app)
     .post('/api/auth/register')
     .send({
@@ -117,91 +127,309 @@ test('regular user cannot create article from pengelola workspace route', async 
   assert.equal(createResponse.body.success, false);
 });
 
-test('pengelola can create and fetch article from workspace route', async () => {
-  const { user: pengelolaUser, plainPassword } = await createPengelolaUser({
-    email: 'pengelola.konten@coconexus.local',
-    full_name: 'Pengelola Konten',
-    bio: 'Mengelola alur artikel.',
-  });
+// ─────────────────────────────────────────────────────────────────────────────
+// Kurator Konten (moderator, sub-tipe content) — authoring
+// ─────────────────────────────────────────────────────────────────────────────
 
-  const loginResponse = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: pengelolaUser.email,
-      password: plainPassword,
-    });
+test('kurator konten can create and fetch article', async () => {
+  const { token } = await createModerator('kurator.konten@coconexus.local', 'content');
 
   const createResponse = await request(app)
     .post('/api/articles')
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .set('Authorization', `Bearer ${token}`)
     .send({
-      title: 'Artikel Pengelola',
-      body_content: 'Konten artikel dari pengelola.',
-      meta_description: 'Ringkasan artikel pengelola.',
+      title: 'Artikel Kurator Konten',
+      body_content: 'Konten artikel dari kurator konten.',
+      meta_description: 'Ringkasan artikel kurator konten.',
       status: 'draft',
       category: {
-        name: 'Alur Pengelola',
+        name: 'Alur Kurator',
       },
     });
 
   const detailResponse = await request(app)
-    .get(`/api/articles/${createResponse.body.data.article.id}`)
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`);
+    .get(`/api/moderator/content/articles/${createResponse.body.data.article.id}`)
+    .set('Authorization', `Bearer ${token}`);
 
   assert.equal(createResponse.status, 201);
   assert.equal(detailResponse.status, 200);
-  assert.equal(detailResponse.body.data.article.title, 'Artikel Pengelola');
+  assert.equal(detailResponse.body.data.article.title, 'Artikel Kurator Konten');
 });
 
-test('pengelola publisher can publish draft article to published', async () => {
-  const { user: writerUser, plainPassword: writerPassword } = await createPengelolaUser({
-    email: 'penulis.publish.flow@coconexus.local',
-    full_name: 'Penulis Publish Flow',
-    job_title: 'Penulis Artikel',
-    department: 'Produksi Konten',
-    division: 'Artikel Utama',
-    bio: 'Menyiapkan draft untuk publish.',
-  });
+test('kurator konten cannot create article without body content', async () => {
+  const { token } = await createModerator('kurator.validasi@coconexus.local', 'content');
 
-  const { user: publisherUser, plainPassword: publisherPassword } = await createPengelolaUser({
-    email: 'publisher.flow@coconexus.local',
-    full_name: 'Publisher Flow',
-    job_title: 'Publisher Artikel',
-    department: 'Validasi & Publikasi',
-    division: 'Artikel Utama',
-    bio: 'Menangani publikasi artikel.',
-  });
-
-  const writerLogin = await request(app)
-    .post('/api/auth/login')
+  const createResponse = await request(app)
+    .post('/api/moderator/content/articles')
+    .set('Authorization', `Bearer ${token}`)
     .send({
-      email: writerUser.email,
-      password: writerPassword,
+      title: 'Artikel Tanpa Konten',
+      category: {
+        name: 'Validasi Konten',
+      },
     });
+
+  assert.equal(createResponse.status, 400);
+});
+
+test('kurator konten can upload article media file', async () => {
+  const { token } = await createModerator('kurator.upload.file@coconexus.local', 'content');
+
+  const uploadResponse = await request(app)
+    .post('/api/uploads/articles')
+    .set('Authorization', `Bearer ${token}`)
+    .attach('file', Buffer.from('fake image data'), 'integration-image.png');
+
+  assert.equal(uploadResponse.status, 201);
+  assert.equal(uploadResponse.body.data.media.media_type, 'image');
+  assert.match(uploadResponse.body.data.media.file_path, /^\/uploads\/articles\//);
+});
+
+test('kurator konten cannot upload unsupported article media type', async () => {
+  const { token } = await createModerator('kurator.upload@coconexus.local', 'content');
+
+  const uploadResponse = await request(app)
+    .post('/api/uploads/articles')
+    .set('Authorization', `Bearer ${token}`)
+    .attach('file', Buffer.from('fake executable data'), {
+      filename: 'malware.exe',
+      contentType: 'application/x-msdownload',
+    });
+
+  assert.equal(uploadResponse.status, 400);
+  assert.equal(uploadResponse.body.success, false);
+});
+
+test('kurator konten can login and create draft article with auto-created category', async () => {
+  const { token } = await createModerator('kurator.integrasi@coconexus.local', 'content');
+
+  const createResponse = await request(app)
+    .post('/api/moderator/content/articles')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      title: 'Artikel Uji Integrasi',
+      body_content: 'Isi artikel untuk pengujian backend end-to-end.',
+      meta_description: 'Ringkasan artikel uji.',
+      status: 'draft',
+      category: {
+        name: 'Pengolahan Sabut',
+        description: 'Kategori untuk pengujian otomatis.',
+      },
+      media: [
+        {
+          file_path: '/uploads/articles/sample-image.jpg',
+          media_type: 'image',
+        },
+      ],
+    });
+
+  assert.equal(createResponse.status, 201);
+  assert.equal(createResponse.body.data.article.status, 'draft');
+  assert.equal(createResponse.body.data.article.category.name, 'Pengolahan Sabut');
+
+  const category = await Category.findOne({ where: { name: 'Pengolahan Sabut' } });
+  const article = await Article.findByPk(createResponse.body.data.article.id);
+  const detail = await ArticleDetail.findOne({ where: { article_id: article.id } });
+  const media = await ArticleMedia.findAll({ where: { article_id: article.id } });
+
+  assert.ok(category);
+  assert.ok(article);
+  assert.ok(detail);
+  assert.equal(media.length, 1);
+});
+
+test('kurator konten can create article with dynamic product cards', async () => {
+  const { token } = await createModerator('kurator.product.card@coconexus.local', 'content');
+
+  const createResponse = await request(app)
+    .post('/api/moderator/content/articles')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      title: 'Batok Kelapa',
+      body_content: 'Artikel utama batok kelapa.',
+      meta_description: 'Batok kelapa dan produk turunannya.',
+      status: 'draft',
+      category: {
+        name: 'Limbah Kelapa',
+      },
+      product_cards: [
+        {
+          title: 'Arang',
+          description: 'Produk arang tempurung kelapa.',
+          image: '/uploads/articles/arang-card.jpg',
+        },
+        {
+          title: 'Filter Air',
+          description: 'Media filter berbasis karbon aktif.',
+          image: '/uploads/articles/filter-card.jpg',
+        },
+      ],
+    });
+
+  assert.equal(createResponse.status, 201);
+  assert.deepEqual(
+    createResponse.body.data.article.product_cards.map((item) => item.title),
+    ['Arang', 'Filter Air']
+  );
+
+  const createdCards = await ProductCard.findAll({
+    where: { article_id: createResponse.body.data.article.id },
+    order: [['created_at', 'ASC']],
+  });
+
+  assert.equal(createdCards.length, 2);
+  assert.equal(createdCards[0].title, 'Arang');
+  assert.equal(createdCards[1].title, 'Filter Air');
+});
+
+test('kurator konten can create detail article linked to selected product card', async () => {
+  const { user, token } = await createModerator('kurator.detail.link@coconexus.local', 'content');
+
+  const category = await Category.create({
+    name: 'Kategori Linking',
+    description: 'Kategori linking',
+  });
+
+  const mainArticle = await Article.create({
+    author_id: user.id,
+    category_id: category.id,
+    title: 'Batok Kelapa',
+    status: 'published',
+  });
+
+  await ArticleDetail.create({
+    article_id: mainArticle.id,
+    body_content: 'Konten utama.',
+    meta_description: 'Konten utama.',
+  });
+
+  const productCard = await ProductCard.create({
+    article_id: mainArticle.id,
+    title: 'Arang',
+    description: 'Card arang',
+    image: '/uploads/articles/arang.jpg',
+  });
+
+  const response = await request(app)
+    .post('/api/moderator/content/articles')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      title: 'Arang Tempurung Kelapa',
+      body_content: 'Konten detail arang.',
+      meta_description: 'Detail arang.',
+      status: 'draft',
+      parent_article_id: mainArticle.id,
+      linked_product_card_id: productCard.id,
+      category: {
+        id: category.id,
+      },
+      product_cards: [],
+      media: [],
+    });
+
+  assert.equal(response.status, 201);
+  assert.equal(response.body.data.article.parent_article_id, mainArticle.id);
+  assert.equal(response.body.data.article.article_type, 'detail');
+  assert.equal(response.body.data.article.linked_product_card.id, productCard.id);
+
+  const linkedCard = await ProductCard.findByPk(productCard.id);
+  assert.equal(linkedCard.linked_article_id, response.body.data.article.id);
+});
+
+test('kurator konten can update unlinked product cards from article editor', async () => {
+  const { user, token } = await createModerator('kurator.update.cards@coconexus.local', 'content');
+
+  const category = await Category.create({
+    name: 'Kategori Update Card',
+    description: 'Kategori update',
+  });
+
+  const article = await Article.create({
+    author_id: user.id,
+    category_id: category.id,
+    title: 'Artikel Produk Turunan',
+    status: 'draft',
+  });
+
+  await ArticleDetail.create({
+    article_id: article.id,
+    body_content: 'Konten awal.',
+    meta_description: 'Meta awal.',
+  });
+
+  await ProductCard.bulkCreate([
+    {
+      article_id: article.id,
+      title: 'Arang Lama',
+      description: 'Deskripsi lama.',
+      image: '/uploads/articles/arang-lama.jpg',
+    },
+    {
+      article_id: article.id,
+      title: 'Briket Lama',
+      description: 'Briket lama.',
+      image: '/uploads/articles/briket-lama.jpg',
+    },
+  ]);
+
+  const updateResponse = await request(app)
+    .put(`/api/moderator/content/articles/${article.id}`)
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      title: 'Artikel Produk Turunan',
+      body_content: 'Konten awal.',
+      meta_description: 'Meta awal.',
+      category: {
+        id: category.id,
+      },
+      product_cards: [
+        {
+          title: 'Arang Baru',
+          description: 'Deskripsi arang baru.',
+          image: '/uploads/articles/arang-baru.jpg',
+        },
+      ],
+    });
+
+  assert.equal(updateResponse.status, 200);
+  assert.deepEqual(
+    updateResponse.body.data.article.product_cards.map((item) => item.title),
+    ['Arang Baru']
+  );
+
+  const updatedCards = await ProductCard.findAll({
+    where: { article_id: article.id },
+  });
+
+  assert.equal(updatedCards.length, 1);
+  assert.equal(updatedCards[0].title, 'Arang Baru');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Redaktur Publikasi (moderator, sub-tipe publication) — satu-satunya gerbang publish
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('redaktur publikasi can publish draft article created by kurator konten', async () => {
+  const { token: contentToken } = await createModerator('kurator.publish.flow@coconexus.local', 'content');
+  const { token: publisherToken } = await createModerator('redaktur.publish.flow@coconexus.local', 'publication');
 
   const createResponse = await request(app)
     .post('/api/articles')
-    .set('Authorization', `Bearer ${writerLogin.body.data.token}`)
+    .set('Authorization', `Bearer ${contentToken}`)
     .send({
       title: 'Artikel Publish Flow',
       body_content: 'Konten artikel publish flow.',
       meta_description: 'Ringkasan publish flow.',
       status: 'draft',
+      article_type: 'panduan',
       category: {
         name: 'Publish Flow',
       },
     });
 
-  const publisherLogin = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: publisherUser.email,
-      password: publisherPassword,
-    });
-
   const publishResponse = await request(app)
     .patch(`/api/articles/${createResponse.body.data.article.id}/status`)
-    .set('Authorization', `Bearer ${publisherLogin.body.data.token}`)
+    .set('Authorization', `Bearer ${publisherToken}`)
     .send({
       status: 'published',
     });
@@ -217,94 +445,123 @@ test('pengelola publisher can publish draft article to published', async () => {
   assert.equal(publishedDetailResponse.body.data.article.status, 'published');
 });
 
-test('pengelola dapat mempublish artikelnya sendiri tanpa pembatasan job title', async () => {
-  const { user: writerUser, plainPassword } = await createPengelolaUser({
-    email: 'penulis.uji@coconexus.local',
-    full_name: 'Penulis Uji',
-    job_title: 'Penulis Artikel',
-    department: 'Produksi Konten',
-    division: 'Artikel Utama',
-  });
-
-  const loginResponse = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: writerUser.email,
-      password: plainPassword,
-    });
+test('kurator konten cannot publish artikelnya sendiri — wajib lewat redaktur publikasi', async () => {
+  const { token } = await createModerator('kurator.selfpublish@coconexus.local', 'content');
 
   const createResponse = await request(app)
     .post('/api/articles')
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .set('Authorization', `Bearer ${token}`)
     .send({
-      title: 'Draft Penulis',
-      body_content: 'Konten penulis.',
-      meta_description: 'Meta penulis.',
+      title: 'Draft Kurator',
+      body_content: 'Konten kurator.',
+      meta_description: 'Meta kurator.',
       status: 'draft',
       category: {
-        name: 'Penulis Uji',
+        name: 'Kurator Uji',
       },
     });
 
   const publishResponse = await request(app)
     .patch(`/api/articles/${createResponse.body.data.article.id}/status`)
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .set('Authorization', `Bearer ${token}`)
     .send({
       status: 'published',
     });
 
   assert.equal(createResponse.status, 201);
-  assert.equal(publishResponse.status, 200);
-  assert.equal(publishResponse.body.success, true);
-  assert.equal(publishResponse.body.data.article.status, 'published');
+  assert.equal(publishResponse.status, 403, 'kurator konten tidak boleh mempublikasikan artikel sendiri');
 });
 
-test('pengelola can return published article to revision and continue versioned edits', async () => {
-  const { user: writerUser, plainPassword } = await createPengelolaUser({
-    email: 'pengelola.revision.flow@coconexus.local',
-    full_name: 'Revision Flow Writer',
-    job_title: 'Penulis Artikel',
-    department: 'Produksi Konten',
-    division: 'Artikel Utama',
-  });
-
-  const loginResponse = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: writerUser.email,
-      password: plainPassword,
-    });
+test('redaktur publikasi cannot create article — wajib lewat kurator konten', async () => {
+  const { token } = await createModerator('redaktur.nocreate@coconexus.local', 'publication');
 
   const createResponse = await request(app)
-    .post('/api/pengelola/articles')
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .post('/api/articles')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      title: 'Artikel dari Redaktur',
+      body_content: 'Redaktur publikasi tidak semestinya bisa membuat artikel.',
+      category: {
+        name: 'Redaktur Uji',
+      },
+    });
+
+  assert.equal(createResponse.status, 403);
+});
+
+test('pengelola cannot publish or create article — peran monitoring saja', async () => {
+  const { user: pengelolaUser, plainPassword } = await createPengelolaUser({
+    email: 'pengelola.monitoring@coconexus.local',
+  });
+  const loginResponse = await loginWith(pengelolaUser.email, plainPassword);
+  const token = loginResponse.body.data.token;
+
+  const createResponse = await request(app)
+    .post('/api/articles')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      title: 'Artikel dari Pengelola',
+      body_content: 'Pengelola tidak lagi bisa membuat artikel.',
+      category: { name: 'Pengelola Uji' },
+    });
+  assert.equal(createResponse.status, 403, 'pengelola tidak boleh membuat artikel');
+
+  const category = await Category.create({ name: 'Monitoring Only', description: 'Uji akses' });
+  const article = await Article.create({
+    author_id: pengelolaUser.id,
+    category_id: category.id,
+    title: 'Draft Untuk Uji Monitoring',
+    status: 'draft',
+  });
+  await ArticleDetail.create({ article_id: article.id, body_content: 'Konten.', meta_description: 'Meta.' });
+
+  const publishResponse = await request(app)
+    .patch(`/api/articles/${article.id}/status`)
+    .set('Authorization', `Bearer ${token}`)
+    .send({ status: 'published' });
+  assert.equal(publishResponse.status, 403, 'pengelola tidak boleh mempublikasikan artikel');
+
+  const monitoringResponse = await request(app)
+    .get('/api/pengelola/articles')
+    .set('Authorization', `Bearer ${token}`);
+  assert.equal(monitoringResponse.status, 200, 'pengelola tetap bisa memantau (read-only)');
+});
+
+test('redaktur publikasi can return published article to revision, kurator konten continues versioned edits', async () => {
+  const { token: contentToken } = await createModerator('kurator.revision.flow@coconexus.local', 'content');
+  const { token: publisherToken } = await createModerator('redaktur.revision.flow@coconexus.local', 'publication');
+
+  const createResponse = await request(app)
+    .post('/api/moderator/content/articles')
+    .set('Authorization', `Bearer ${contentToken}`)
     .send({
       title: 'Artikel Revision Flow',
       body_content: 'Konten awal artikel revision flow.',
       meta_description: 'Ringkasan revision flow.',
       status: 'draft',
+      article_type: 'panduan',
       category: {
         name: 'Revision Flow',
       },
     });
 
   const publishResponse = await request(app)
-    .patch(`/api/pengelola/articles/${createResponse.body.data.article.id}/status`)
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .patch(`/api/moderator/publication/articles/${createResponse.body.data.article.id}/status`)
+    .set('Authorization', `Bearer ${publisherToken}`)
     .send({
       status: 'published',
     });
 
   const revisionResponse = await request(app)
-    .patch(`/api/pengelola/articles/${createResponse.body.data.article.id}/status`)
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .patch(`/api/moderator/publication/articles/${createResponse.body.data.article.id}/status`)
+    .set('Authorization', `Bearer ${publisherToken}`)
     .send({
       status: 'revision',
     });
 
   const updateResponse = await request(app)
-    .put(`/api/pengelola/articles/${createResponse.body.data.article.id}`)
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .put(`/api/moderator/content/articles/${createResponse.body.data.article.id}`)
+    .set('Authorization', `Bearer ${contentToken}`)
     .send({
       title: 'Artikel Revision Flow Diperbarui',
       body_content: 'Konten yang sudah direvisi.',
@@ -325,25 +582,13 @@ test('pengelola can return published article to revision and continue versioned 
   assert.equal(updateResponse.body.data.article.title, 'Artikel Revision Flow Diperbarui');
 });
 
-test('pengelola can publish a selected historical version', async () => {
-  const { user, plainPassword } = await createPengelolaUser({
-    email: 'pengelola.version.pick@coconexus.local',
-    full_name: 'Pengelola Version Pick',
-    job_title: 'Penulis Artikel',
-    department: 'Produksi Konten',
-    division: 'Artikel Utama',
-  });
-
-  const loginResponse = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: user.email,
-      password: plainPassword,
-    });
+test('redaktur publikasi can publish a selected historical version', async () => {
+  const { token: contentToken } = await createModerator('kurator.version.pick@coconexus.local', 'content');
+  const { token: publisherToken } = await createModerator('redaktur.version.pick@coconexus.local', 'publication');
 
   const createResponse = await request(app)
-    .post('/api/pengelola/articles')
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .post('/api/moderator/content/articles')
+    .set('Authorization', `Bearer ${contentToken}`)
     .send({
       title: 'Versi Awal Dipilih',
       body_content: 'Konten versi awal.',
@@ -353,8 +598,8 @@ test('pengelola can publish a selected historical version', async () => {
     });
 
   const updateResponse = await request(app)
-    .put(`/api/pengelola/articles/${createResponse.body.data.article.id}`)
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .put(`/api/moderator/content/articles/${createResponse.body.data.article.id}`)
+    .set('Authorization', `Bearer ${contentToken}`)
     .send({
       title: 'Versi Revisi',
       body_content: 'Konten versi revisi.',
@@ -362,16 +607,16 @@ test('pengelola can publish a selected historical version', async () => {
     });
 
   const versionsResponse = await request(app)
-    .get(`/api/pengelola/articles/${createResponse.body.data.article.id}/versions`)
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`);
+    .get(`/api/moderator/publication/articles/${createResponse.body.data.article.id}/versions`)
+    .set('Authorization', `Bearer ${publisherToken}`);
 
   const publishSelectedResponse = await request(app)
-    .post(`/api/pengelola/articles/${createResponse.body.data.article.id}/versions/1/publish`)
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`);
+    .post(`/api/moderator/publication/articles/${createResponse.body.data.article.id}/versions/1/publish`)
+    .set('Authorization', `Bearer ${publisherToken}`);
 
   const detailResponse = await request(app)
-    .get(`/api/pengelola/articles/${createResponse.body.data.article.id}`)
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`);
+    .get(`/api/moderator/content/articles/${createResponse.body.data.article.id}`)
+    .set('Authorization', `Bearer ${contentToken}`);
 
   assert.equal(createResponse.status, 201);
   assert.equal(updateResponse.status, 200);
@@ -386,53 +631,27 @@ test('pengelola can publish a selected historical version', async () => {
   assert.equal(detailResponse.body.data.article.version, 3);
 });
 
-test('pengelola publisher can publish draft article written by other pengelola', async () => {
-  const { user: writerUser, plainPassword: writerPassword } = await createPengelolaUser({
-    email: 'penulis.publish@coconexus.local',
-    full_name: 'Penulis Publish',
-    job_title: 'Penulis Artikel',
-    department: 'Produksi Konten',
-    division: 'Artikel Utama',
-  });
-
-  const { user: publisherUser, plainPassword: publisherPassword } = await createPengelolaUser({
-    email: 'publisher.publish@coconexus.local',
-    full_name: 'Publisher Publish',
-    job_title: 'Publisher Artikel',
-    department: 'Validasi & Publikasi',
-    division: 'Artikel Utama',
-  });
-
-  const writerLogin = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: writerUser.email,
-      password: writerPassword,
-    });
+test('redaktur publikasi can publish draft article written by another kurator konten', async () => {
+  const { token: writerToken } = await createModerator('kurator.publish2@coconexus.local', 'content');
+  const { token: publisherToken } = await createModerator('redaktur.publish2@coconexus.local', 'publication');
 
   const createResponse = await request(app)
     .post('/api/articles')
-    .set('Authorization', `Bearer ${writerLogin.body.data.token}`)
+    .set('Authorization', `Bearer ${writerToken}`)
     .send({
       title: 'Draft Untuk Publish',
-      body_content: 'Konten yang akan dipublish publisher.',
+      body_content: 'Konten yang akan dipublish redaktur.',
       meta_description: 'Meta publish.',
       status: 'draft',
+      article_type: 'panduan',
       category: {
-        name: 'Publisher Uji',
+        name: 'Redaktur Uji',
       },
-    });
-
-  const publisherLogin = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: publisherUser.email,
-      password: publisherPassword,
     });
 
   const publishResponse = await request(app)
     .patch(`/api/articles/${createResponse.body.data.article.id}/status`)
-    .set('Authorization', `Bearer ${publisherLogin.body.data.token}`)
+    .set('Authorization', `Bearer ${publisherToken}`)
     .send({
       status: 'published',
     });
@@ -441,160 +660,9 @@ test('pengelola publisher can publish draft article written by other pengelola',
   assert.equal(publishResponse.body.data.article.status, 'published');
 });
 
-test('moderator publication can return published article to revision', async () => {
-  const { user: writerUser, plainPassword: writerPassword } = await createPengelolaUser({
-    email: 'writer.moderator.revision@coconexus.local',
-    full_name: 'Writer Moderator Revision',
-    job_title: 'Penulis Artikel',
-    department: 'Produksi Konten',
-    division: 'Artikel Utama',
-  });
-
-  const { user: moderatorUser, plainPassword: moderatorPassword } = await createModeratorUser({
-    email: 'publication.moderator@coconexus.local',
-    full_name: 'Publication Moderator',
-    moderator_type: 'publication',
-    department: 'Moderasi Publikasi',
-    division: 'Artikel Utama',
-  });
-
-  const writerLoginResponse = await loginWith(writerUser.email, writerPassword);
-
-  const createResponse = await request(app)
-    .post('/api/pengelola/articles')
-    .set('Authorization', `Bearer ${writerLoginResponse.body.data.token}`)
-    .send({
-      title: 'Artikel Moderator Revision',
-      body_content: 'Konten untuk revisi moderator.',
-      category: {
-        name: 'Moderator Revision',
-      },
-    });
-
-  await request(app)
-    .patch(`/api/pengelola/articles/${createResponse.body.data.article.id}/status`)
-    .set('Authorization', `Bearer ${writerLoginResponse.body.data.token}`)
-    .send({
-      status: 'published',
-    });
-
-  const moderatorLoginResponse = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: moderatorUser.email,
-      password: moderatorPassword,
-    });
-
-  const revisionResponse = await request(app)
-    .patch(`/api/moderator/publication/articles/${createResponse.body.data.article.id}/status`)
-    .set('Authorization', `Bearer ${moderatorLoginResponse.body.data.token}`)
-    .send({
-      status: 'revision',
-    });
-
-  assert.equal(revisionResponse.status, 200);
-  assert.equal(revisionResponse.body.data.article.status, 'revision');
-  assert.equal(revisionResponse.body.data.article.version, 3);
-});
-
-test('semua pengelola dapat mengelola kategori tanpa pembatasan job title', async () => {
-  const { user: tagUser, plainPassword: tagPassword } = await createPengelolaUser({
-    email: 'tag.manager@coconexus.local',
-    full_name: 'Tag Manager',
-    job_title: 'Pengelola Tag/Kategori',
-    department: 'Kategori & Tag',
-    division: 'Kategori',
-  });
-
-  const { user: writerUser, plainPassword: writerPassword } = await createPengelolaUser({
-    email: 'category.writer@coconexus.local',
-    full_name: 'Category Writer',
-    job_title: 'Penulis Artikel',
-    department: 'Produksi Konten',
-    division: 'Artikel Utama',
-  });
-
-  const tagLogin = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: tagUser.email,
-      password: tagPassword,
-    });
-
-  const createCategoryResponse = await request(app)
-    .post('/api/categories')
-    .set('Authorization', `Bearer ${tagLogin.body.data.token}`)
-    .send({
-      name: 'Kategori Job Test',
-    });
-
-  const writerLogin = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: writerUser.email,
-      password: writerPassword,
-    });
-
-  const writerCategoryResponse = await request(app)
-    .post('/api/categories')
-    .set('Authorization', `Bearer ${writerLogin.body.data.token}`)
-    .send({
-      name: 'Kategori Dilarang',
-    });
-
-  assert.equal(createCategoryResponse.status, 201);
-  assert.equal(writerCategoryResponse.status, 201);
-});
-
-test('moderator forum can access comment management while writer cannot', async () => {
-  const { user: commentUser, plainPassword: commentPassword } = await createModeratorUser({
-    email: 'comment.moderator@coconexus.local',
-    full_name: 'Comment Moderator',
-    department: 'Moderasi Komentar',
-    division: 'Komentar',
-    moderator_type: 'forum',
-  });
-
-  const { user: writerUser, plainPassword: writerPassword } = await createPengelolaUser({
-    email: 'comment.writer@coconexus.local',
-    full_name: 'Comment Writer',
-    job_title: 'Penulis Artikel',
-    department: 'Produksi Konten',
-    division: 'Artikel Utama',
-  });
-
-  const commentLogin = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: commentUser.email,
-      password: commentPassword,
-    });
-
-  const writerLogin = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: writerUser.email,
-      password: writerPassword,
-    });
-
-  const moderatorResponse = await request(app)
-    .get('/api/comments?status=pending')
-    .set('Authorization', `Bearer ${commentLogin.body.data.token}`);
-
-  const writerResponse = await request(app)
-    .get('/api/comments?status=pending')
-    .set('Authorization', `Bearer ${writerLogin.body.data.token}`);
-
-  assert.equal(moderatorResponse.status, 200);
-  assert.equal(writerResponse.status, 403);
-});
-
-test('pengelola dapat mempublish artikel penulis lain dalam domain alur konten', async () => {
+test('redaktur publikasi can publish draft article regardless of original author', async () => {
   const { user: adminUser } = await createAdminUser();
-  const { user: pengelolaUser, plainPassword } = await createPengelolaUser({
-    email: 'pengelola.lain@coconexus.local',
-    full_name: 'Pengelola Lain',
-  });
+  const { token: publisherToken } = await createModerator('redaktur.lain@coconexus.local', 'publication');
 
   const category = await Category.create({
     name: 'Artikel Milik Admin',
@@ -606,6 +674,7 @@ test('pengelola dapat mempublish artikel penulis lain dalam domain alur konten',
     category_id: category.id,
     title: 'Draft Admin',
     status: 'draft',
+    article_type: 'panduan',
   });
 
   await ArticleDetail.create({
@@ -614,16 +683,9 @@ test('pengelola dapat mempublish artikel penulis lain dalam domain alur konten',
     meta_description: 'Draft admin.',
   });
 
-  const loginResponse = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: pengelolaUser.email,
-      password: plainPassword,
-    });
-
   const publishResponse = await request(app)
     .patch(`/api/articles/${ownedByAdmin.id}/status`)
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .set('Authorization', `Bearer ${publisherToken}`)
     .send({
       status: 'published',
     });
@@ -632,110 +694,130 @@ test('pengelola dapat mempublish artikel penulis lain dalam domain alur konten',
   assert.equal(publishResponse.body.success, true);
 });
 
-test('login rejects invalid password', async () => {
-  const { user } = await createAdminUser();
-
-  const response = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: user.email,
-      password: 'PasswordSalah123',
-    });
-
-  assert.equal(response.status, 401);
-  assert.equal(response.body.success, false);
-});
-
-test('register rejects weak password', async () => {
-  const response = await request(app)
-    .post('/api/auth/register')
-    .send({
-      email: 'password.lemah@coconexus.local',
-      password: 'lemah',
-      full_name: 'Password Lemah',
-    });
-
-  assert.equal(response.status, 400);
-  assert.equal(response.body.success, false);
-});
-
-test('register rejects duplicate active email', async () => {
-  const payload = {
-    email: 'duplikat@coconexus.local',
-    password: 'User12345',
-    full_name: 'User Duplikat',
-  };
-
-  const firstResponse = await request(app).post('/api/auth/register').send(payload);
-  const secondResponse = await request(app).post('/api/auth/register').send(payload);
-
-  assert.equal(firstResponse.status, 201);
-  assert.equal(secondResponse.status, 409);
-  assert.equal(secondResponse.body.success, false);
-});
-
-test('pengelola article list rejects request without token', async () => {
-  const response = await request(app).get('/api/pengelola/articles');
-
-  assert.equal(response.status, 401);
-  assert.equal(response.body.success, false);
-});
-
-test('pengelola article list rejects invalid token', async () => {
-  const response = await request(app)
-    .get('/api/pengelola/articles')
-    .set('Authorization', 'Bearer token-tidak-valid');
-
-  assert.equal(response.status, 401);
-  assert.equal(response.body.success, false);
-});
-
-test('pengelola cannot create article without body content', async () => {
-  const { user, plainPassword } = await createPengelolaUser({
-    email: 'penulis.validasi@coconexus.local',
-    job_title: 'Penulis Artikel',
-  });
-
-  const loginResponse = await loginWith(user.email, plainPassword);
+test('redaktur publikasi can publish draft article from validation endpoint', async () => {
+  const { token: writerToken } = await createModerator('kurator.publish.endpoint@coconexus.local', 'content');
+  const { token: publisherToken } = await createModerator('redaktur.publish.endpoint@coconexus.local', 'publication');
 
   const createResponse = await request(app)
-    .post('/api/pengelola/articles')
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
+    .post('/api/moderator/content/articles')
+    .set('Authorization', `Bearer ${writerToken}`)
     .send({
-      title: 'Artikel Tanpa Konten',
+      title: 'Artikel Publish Test',
+      body_content: 'Konten publish test.',
+      article_type: 'panduan',
       category: {
-        name: 'Validasi Konten',
+        name: 'Tempurung Kelapa',
       },
     });
 
-  assert.equal(createResponse.status, 400);
-});
-
-test('pengelola cannot upload unsupported article media type', async () => {
-  const { user, plainPassword } = await createPengelolaUser({
-    email: 'penulis.upload@coconexus.local',
-    job_title: 'Penulis Artikel',
-  });
-
-  const loginResponse = await loginWith(user.email, plainPassword);
-
-  const uploadResponse = await request(app)
-    .post('/api/uploads/articles')
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
-    .attach('file', Buffer.from('fake executable data'), {
-      filename: 'malware.exe',
-      contentType: 'application/x-msdownload',
+  const publishResponse = await request(app)
+    .patch(`/api/articles/${createResponse.body.data.article.id}/status`)
+    .set('Authorization', `Bearer ${publisherToken}`)
+    .send({
+      status: 'published',
     });
 
-  assert.equal(uploadResponse.status, 400);
-  assert.equal(uploadResponse.body.success, false);
+  assert.equal(publishResponse.status, 200);
+  assert.equal(publishResponse.body.data.article.status, 'published');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Penata Taksonomi (moderator, sub-tipe tag) — CRUD kategori & tag
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('penata taksonomi can manage categories', async () => {
+  const { token } = await createModerator('penata.taksonomi@coconexus.local', 'tag');
+
+  const createCategoryResponse = await request(app)
+    .post('/api/categories')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      name: 'Kategori Job Test',
+    });
+
+  assert.equal(createCategoryResponse.status, 201);
+});
+
+test('kurator konten cannot manage categories — wewenang penata taksonomi', async () => {
+  const { token } = await createModerator('kurator.nocat@coconexus.local', 'content');
+
+  const response = await request(app)
+    .post('/api/categories')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      name: 'Kategori Dilarang',
+    });
+
+  assert.equal(response.status, 403);
+});
+
+test('penata taksonomi can create category and duplicate category is rejected', async () => {
+  const { token } = await createModerator('penata.duplicate@coconexus.local', 'tag');
+
+  const createResponse = await request(app)
+    .post('/api/categories')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      name: 'Kategori Sabut',
+      description: 'Pengolahan limbah sabut kelapa.',
+    });
+
+  const duplicateResponse = await request(app)
+    .post('/api/categories')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      name: 'Kategori Sabut',
+      description: 'Duplikat kategori.',
+    });
+
+  assert.equal(createResponse.status, 201);
+  assert.equal(duplicateResponse.status, 409);
+});
+
+test('penata taksonomi cannot delete category that is still used by article', async () => {
+  const { user, token } = await createModerator('penata.delete@coconexus.local', 'tag');
+
+  const category = await Category.create({
+    name: 'Kategori Terpakai',
+    description: 'Kategori yang masih digunakan artikel.',
+  });
+
+  await Article.create({
+    author_id: user.id,
+    category_id: category.id,
+    title: 'Artikel Pemakai Kategori',
+    status: 'draft',
+  });
+
+  const deleteResponse = await request(app)
+    .delete(`/api/categories/${category.id}`)
+    .set('Authorization', `Bearer ${token}`);
+
+  assert.equal(deleteResponse.status, 409);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fasilitator Diskusi (moderator, sub-tipe forum) & komentar
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('fasilitator diskusi can access comment management while kurator konten cannot', async () => {
+  const { token: forumToken } = await createModerator('fasilitator.comment@coconexus.local', 'forum');
+  const { token: contentToken } = await createModerator('kurator.comment@coconexus.local', 'content');
+
+  const moderatorResponse = await request(app)
+    .get('/api/comments?status=pending')
+    .set('Authorization', `Bearer ${forumToken}`);
+
+  const writerResponse = await request(app)
+    .get('/api/comments?status=pending')
+    .set('Authorization', `Bearer ${contentToken}`);
+
+  assert.equal(moderatorResponse.status, 200);
+  assert.equal(writerResponse.status, 403);
 });
 
 test('user cannot comment on draft article', async () => {
-  const { user: writerUser, plainPassword } = await createPengelolaUser({
-    email: 'penulis.draft.comment@coconexus.local',
-    job_title: 'Penulis Artikel',
-  });
+  const { token: writerToken } = await createModerator('kurator.draft.comment@coconexus.local', 'content');
 
   await request(app)
     .post('/api/auth/register')
@@ -745,8 +827,6 @@ test('user cannot comment on draft article', async () => {
       full_name: 'User Komentator',
     });
 
-  const writerLoginResponse = await loginWith(writerUser.email, plainPassword);
-
   const userLoginResponse = await request(app)
     .post('/api/auth/login')
     .send({
@@ -755,8 +835,8 @@ test('user cannot comment on draft article', async () => {
     });
 
   const createArticleResponse = await request(app)
-    .post('/api/pengelola/articles')
-    .set('Authorization', `Bearer ${writerLoginResponse.body.data.token}`)
+    .post('/api/moderator/content/articles')
+    .set('Authorization', `Bearer ${writerToken}`)
     .send({
       title: 'Artikel Masih Draft',
       body_content: 'Konten belum dipublikasikan.',
@@ -776,14 +856,8 @@ test('user cannot comment on draft article', async () => {
 });
 
 test('user cannot submit empty comment on published article', async () => {
-  const { user: writerUser, plainPassword: writerPassword } = await createPengelolaUser({
-    email: 'penulis.comment.empty@coconexus.local',
-    job_title: 'Penulis Artikel',
-  });
-  const { user: publisherUser, plainPassword: publisherPassword } = await createPengelolaUser({
-    email: 'publisher.comment.empty@coconexus.local',
-    job_title: 'Publisher Artikel',
-  });
+  const { token: writerToken } = await createModerator('kurator.comment.empty@coconexus.local', 'content');
+  const { token: publisherToken } = await createModerator('redaktur.comment.empty@coconexus.local', 'publication');
 
   await request(app)
     .post('/api/auth/register')
@@ -793,9 +867,6 @@ test('user cannot submit empty comment on published article', async () => {
       full_name: 'Komentar Kosong',
     });
 
-  const writerLoginResponse = await loginWith(writerUser.email, writerPassword);
-  const publisherLoginResponse = await loginWith(publisherUser.email, publisherPassword);
-
   const userLoginResponse = await request(app)
     .post('/api/auth/login')
     .send({
@@ -804,22 +875,24 @@ test('user cannot submit empty comment on published article', async () => {
     });
 
   const createArticleResponse = await request(app)
-    .post('/api/pengelola/articles')
-    .set('Authorization', `Bearer ${writerLoginResponse.body.data.token}`)
+    .post('/api/moderator/content/articles')
+    .set('Authorization', `Bearer ${writerToken}`)
     .send({
       title: 'Artikel Untuk Komentar',
       body_content: 'Konten artikel sudah siap dipublikasikan.',
+      article_type: 'panduan',
       category: {
         name: 'Komentar Kosong',
       },
     });
 
-  await request(app)
-    .patch(`/api/pengelola/articles/${createArticleResponse.body.data.article.id}/status`)
-    .set('Authorization', `Bearer ${publisherLoginResponse.body.data.token}`)
+  const publishResponse = await request(app)
+    .patch(`/api/moderator/publication/articles/${createArticleResponse.body.data.article.id}/status`)
+    .set('Authorization', `Bearer ${publisherToken}`)
     .send({
       status: 'published',
     });
+  assert.equal(publishResponse.status, 200);
 
   const commentResponse = await request(app)
     .post(`/api/articles/${createArticleResponse.body.data.article.id}/comments`)
@@ -832,55 +905,33 @@ test('user cannot submit empty comment on published article', async () => {
   assert.equal(commentResponse.body.success, false);
 });
 
-test('pending comments are hidden until moderator approves them', async () => {
-  const { user: writerUser, plainPassword: writerPassword } = await createPengelolaUser({
-    email: 'writer.pending.article@coconexus.local',
-    full_name: 'Writer Pending Article',
-    job_title: 'Penulis Artikel',
-  });
-  const { user: publisherUser, plainPassword: publisherPassword } = await createPengelolaUser({
-    email: 'publisher.pending.article@coconexus.local',
-    full_name: 'Publisher Pending Article',
-    job_title: 'Publisher Artikel',
-  });
-  const { user: commenterUser, plainPassword: commenterPassword } = await createPengelolaUser({
-    email: 'commenter.pending@coconexus.local',
-    full_name: 'Commenter Pending',
-    job_title: 'Penulis Artikel',
-    department: 'Produksi Konten',
-    division: 'Artikel Utama',
-  });
-  const { user: moderatorUser, plainPassword: moderatorPassword } = await createModeratorUser({
-    email: 'comment.moderator.queue@coconexus.local',
-    full_name: 'Comment Moderator Queue',
-    department: 'Moderasi Komentar',
-    division: 'Komentar',
-    moderator_type: 'forum',
-  });
-  const writerLoginResponse = await loginWith(writerUser.email, writerPassword);
-  const publisherLoginResponse = await loginWith(publisherUser.email, publisherPassword);
+test('pending comments are hidden until fasilitator diskusi approves them', async () => {
+  const { token: writerToken } = await createModerator('kurator.pending.article@coconexus.local', 'content');
+  const { token: publisherToken } = await createModerator('redaktur.pending.article@coconexus.local', 'publication');
+  const { token: forumToken } = await createModerator('fasilitator.pending.queue@coconexus.local', 'forum');
 
-  const commenterLoginResponse = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: commenterUser.email,
-      password: commenterPassword,
-    });
+  await request(app).post('/api/auth/register').send({
+    email: 'commenter.pending@coconexus.local',
+    password: 'User12345',
+    full_name: 'Commenter Pending',
+  });
+  const commenterLoginResponse = await loginWith('commenter.pending@coconexus.local', 'User12345');
 
   const createArticleResponse = await request(app)
-    .post('/api/pengelola/articles')
-    .set('Authorization', `Bearer ${writerLoginResponse.body.data.token}`)
+    .post('/api/moderator/content/articles')
+    .set('Authorization', `Bearer ${writerToken}`)
     .send({
       title: 'Artikel Moderasi Komentar',
       body_content: 'Artikel untuk menguji alur moderasi komentar.',
+      article_type: 'panduan',
       category: {
         name: 'Moderasi Komentar',
       },
     });
 
   await request(app)
-    .patch(`/api/pengelola/articles/${createArticleResponse.body.data.article.id}/status`)
-    .set('Authorization', `Bearer ${publisherLoginResponse.body.data.token}`)
+    .patch(`/api/moderator/publication/articles/${createArticleResponse.body.data.article.id}/status`)
+    .set('Authorization', `Bearer ${publisherToken}`)
     .send({
       status: 'published',
     });
@@ -896,20 +947,13 @@ test('pending comments are hidden until moderator approves them', async () => {
     `/api/articles/published/${createArticleResponse.body.data.article.id}`
   );
 
-  const moderatorLoginResponse = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: moderatorUser.email,
-      password: moderatorPassword,
-    });
-
   const queueResponse = await request(app)
     .get('/api/moderator/forum/comments?status=pending')
-    .set('Authorization', `Bearer ${moderatorLoginResponse.body.data.token}`);
+    .set('Authorization', `Bearer ${forumToken}`);
 
   const approveResponse = await request(app)
     .patch(`/api/moderator/forum/comments/${commentResponse.body.data.comment.id}/status`)
-    .set('Authorization', `Bearer ${moderatorLoginResponse.body.data.token}`)
+    .set('Authorization', `Bearer ${forumToken}`)
     .send({
       status: 'approved',
     });
@@ -929,55 +973,33 @@ test('pending comments are hidden until moderator approves them', async () => {
   assert.equal(publicDetailAfterModeration.body.data.article.comments[0].body, 'Komentar yang masih pending moderasi.');
 });
 
-test('moderator can reject comment and it stays hidden publicly', async () => {
-  const { user: writerUser, plainPassword: writerPassword } = await createPengelolaUser({
-    email: 'writer.reject.article@coconexus.local',
-    full_name: 'Writer Reject Article',
-    job_title: 'Penulis Artikel',
-  });
-  const { user: publisherUser, plainPassword: publisherPassword } = await createPengelolaUser({
-    email: 'publisher.reject.article@coconexus.local',
-    full_name: 'Publisher Reject Article',
-    job_title: 'Publisher Artikel',
-  });
-  const { user: commenterUser, plainPassword: commenterPassword } = await createPengelolaUser({
-    email: 'commenter.reject@coconexus.local',
-    full_name: 'Commenter Reject',
-    job_title: 'Penulis Artikel',
-    department: 'Produksi Konten',
-    division: 'Artikel Utama',
-  });
-  const { user: moderatorUser, plainPassword: moderatorPassword } = await createModeratorUser({
-    email: 'comment.moderator.reject@coconexus.local',
-    full_name: 'Comment Moderator Reject',
-    department: 'Moderasi Komentar',
-    division: 'Komentar',
-    moderator_type: 'forum',
-  });
-  const writerLoginResponse = await loginWith(writerUser.email, writerPassword);
-  const publisherLoginResponse = await loginWith(publisherUser.email, publisherPassword);
+test('fasilitator diskusi can reject comment and it stays hidden publicly', async () => {
+  const { token: writerToken } = await createModerator('kurator.reject.article@coconexus.local', 'content');
+  const { token: publisherToken } = await createModerator('redaktur.reject.article@coconexus.local', 'publication');
+  const { token: forumToken } = await createModerator('fasilitator.reject@coconexus.local', 'forum');
 
-  const commenterLoginResponse = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: commenterUser.email,
-      password: commenterPassword,
-    });
+  await request(app).post('/api/auth/register').send({
+    email: 'commenter.reject@coconexus.local',
+    password: 'User12345',
+    full_name: 'Commenter Reject',
+  });
+  const commenterLoginResponse = await loginWith('commenter.reject@coconexus.local', 'User12345');
 
   const createArticleResponse = await request(app)
-    .post('/api/pengelola/articles')
-    .set('Authorization', `Bearer ${writerLoginResponse.body.data.token}`)
+    .post('/api/moderator/content/articles')
+    .set('Authorization', `Bearer ${writerToken}`)
     .send({
       title: 'Artikel Moderasi Tolak',
       body_content: 'Artikel untuk menguji penolakan komentar.',
+      article_type: 'panduan',
       category: {
         name: 'Moderasi Tolak',
       },
     });
 
   await request(app)
-    .patch(`/api/pengelola/articles/${createArticleResponse.body.data.article.id}/status`)
-    .set('Authorization', `Bearer ${publisherLoginResponse.body.data.token}`)
+    .patch(`/api/moderator/publication/articles/${createArticleResponse.body.data.article.id}/status`)
+    .set('Authorization', `Bearer ${publisherToken}`)
     .send({
       status: 'published',
     });
@@ -989,16 +1011,9 @@ test('moderator can reject comment and it stays hidden publicly', async () => {
       body: 'Komentar yang akan ditolak.',
     });
 
-  const moderatorLoginResponse = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: moderatorUser.email,
-      password: moderatorPassword,
-    });
-
   const rejectResponse = await request(app)
     .patch(`/api/moderator/forum/comments/${commentResponse.body.data.comment.id}/status`)
-    .set('Authorization', `Bearer ${moderatorLoginResponse.body.data.token}`)
+    .set('Authorization', `Bearer ${forumToken}`)
     .send({
       status: 'rejected',
     });
@@ -1013,22 +1028,10 @@ test('moderator can reject comment and it stays hidden publicly', async () => {
   assert.equal(publicDetailResponse.body.data.article.comments.length, 0);
 });
 
-test('forum moderator can create validate and activate discussion forum from comments', async () => {
-  const { user: writerUser, plainPassword: writerPassword } = await createPengelolaUser({
-    email: 'forum.writer@coconexus.local',
-    full_name: 'Forum Writer',
-    job_title: 'Penulis Artikel',
-    department: 'Produksi Konten',
-    division: 'Artikel Utama',
-  });
-
-  const { user: forumModeratorUser, plainPassword: forumModeratorPassword } = await createModeratorUser({
-    email: 'forum.moderator@coconexus.local',
-    full_name: 'Forum Moderator',
-    moderator_type: 'forum',
-    department: 'Moderasi Komentar',
-    division: 'Forum',
-  });
+test('fasilitator diskusi can create validate and activate discussion forum from comments', async () => {
+  const { token: writerToken } = await createModerator('kurator.forum@coconexus.local', 'content');
+  const { token: publisherToken } = await createModerator('redaktur.forum@coconexus.local', 'publication');
+  const { token: forumToken } = await createModerator('fasilitator.forum@coconexus.local', 'forum');
 
   await request(app)
     .post('/api/auth/register')
@@ -1037,30 +1040,28 @@ test('forum moderator can create validate and activate discussion forum from com
       password: 'User12345',
       full_name: 'Forum Reader',
     });
-
-  const writerLoginResponse = await loginWith(writerUser.email, writerPassword);
   const readerLoginResponse = await request(app)
     .post('/api/auth/login')
     .send({
       email: 'forum.reader@coconexus.local',
       password: 'User12345',
     });
-  const forumModeratorLoginResponse = await loginWith(forumModeratorUser.email, forumModeratorPassword);
 
   const createArticleResponse = await request(app)
-    .post('/api/pengelola/articles')
-    .set('Authorization', `Bearer ${writerLoginResponse.body.data.token}`)
+    .post('/api/moderator/content/articles')
+    .set('Authorization', `Bearer ${writerToken}`)
     .send({
       title: 'Artikel Pemicu Forum',
       body_content: 'Konten artikel untuk memicu forum diskusi.',
+      article_type: 'panduan',
       category: {
         name: 'Forum Test',
       },
     });
 
   await request(app)
-    .patch(`/api/pengelola/articles/${createArticleResponse.body.data.article.id}/status`)
-    .set('Authorization', `Bearer ${writerLoginResponse.body.data.token}`)
+    .patch(`/api/moderator/publication/articles/${createArticleResponse.body.data.article.id}/status`)
+    .set('Authorization', `Bearer ${publisherToken}`)
     .send({
       status: 'published',
     });
@@ -1074,7 +1075,7 @@ test('forum moderator can create validate and activate discussion forum from com
 
   const createForumResponse = await request(app)
     .post('/api/moderator/forum/discussion-forums')
-    .set('Authorization', `Bearer ${forumModeratorLoginResponse.body.data.token}`)
+    .set('Authorization', `Bearer ${forumToken}`)
     .send({
       article_id: createArticleResponse.body.data.article.id,
       title: 'Forum Diskusi Artikel Pemicu',
@@ -1085,14 +1086,14 @@ test('forum moderator can create validate and activate discussion forum from com
 
   const validateForumResponse = await request(app)
     .patch(`/api/moderator/forum/discussion-forums/${createForumResponse.body.data.forum.id}/validate`)
-    .set('Authorization', `Bearer ${forumModeratorLoginResponse.body.data.token}`)
+    .set('Authorization', `Bearer ${forumToken}`)
     .send({
       notes: 'Sudah sesuai untuk dipublikasikan.',
     });
 
   const activateForumResponse = await request(app)
     .patch(`/api/moderator/forum/discussion-forums/${createForumResponse.body.data.forum.id}/activate`)
-    .set('Authorization', `Bearer ${forumModeratorLoginResponse.body.data.token}`);
+    .set('Authorization', `Bearer ${forumToken}`);
 
   const forumRecord = await DiscussionForum.findByPk(createForumResponse.body.data.forum.id);
   const publicForumResponse = await request(app).get(
@@ -1123,6 +1124,39 @@ test('forum moderator can create validate and activate discussion forum from com
   assert.equal(forumCommentsResponse.status, 200);
   assert.equal(forumCommentsResponse.body.data.comments.length, 1);
 });
+
+test('fasilitator diskusi can create forum topic from scratch without existing comments', async () => {
+  const { token: writerToken } = await createModerator('kurator.forum.scratch@coconexus.local', 'content');
+  const { token: forumToken } = await createModerator('fasilitator.forum.scratch@coconexus.local', 'forum');
+
+  const createArticleResponse = await request(app)
+    .post('/api/moderator/content/articles')
+    .set('Authorization', `Bearer ${writerToken}`)
+    .send({
+      title: 'Artikel Untuk Forum Bebas',
+      body_content: 'Konten artikel untuk topik forum yang dibuat bebas.',
+      category: {
+        name: 'Forum Bebas',
+      },
+    });
+
+  const createForumResponse = await request(app)
+    .post('/api/moderator/forum/discussion-forums')
+    .set('Authorization', `Bearer ${forumToken}`)
+    .send({
+      article_id: createArticleResponse.body.data.article.id,
+      title: 'Topik Forum Baru Tanpa Komentar Sumber',
+      summary: 'Dibuka langsung oleh Fasilitator Diskusi.',
+    });
+
+  assert.equal(createForumResponse.status, 201);
+  assert.equal(createForumResponse.body.data.forum.status, 'draft');
+  assert.equal(createForumResponse.body.data.forum.source_comments.length, 0);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Model-seeded (tidak menyentuh alur role sama sekali)
+// ─────────────────────────────────────────────────────────────────────────────
 
 test('published article list hides draft articles', async () => {
   const { user } = await createAdminUser();
@@ -1201,57 +1235,217 @@ test('published article detail records article view', async () => {
   assert.equal(viewCount, 1);
 });
 
-test('pengelola tag manager can create category and duplicate category is rejected', async () => {
-  const { user, plainPassword } = await createPengelolaUser({
-    email: 'tag.manager.duplicate@coconexus.local',
-    job_title: 'Pengelola Tag/Kategori',
-  });
-  const loginResponse = await loginWith(user.email, plainPassword);
-
-  const createResponse = await request(app)
-    .post('/api/pengelola/categories')
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
-    .send({
-      name: 'Kategori Sabut',
-      description: 'Pengolahan limbah sabut kelapa.',
-    });
-
-  const duplicateResponse = await request(app)
-    .post('/api/pengelola/categories')
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
-    .send({
-      name: 'Kategori Sabut',
-      description: 'Duplikat kategori.',
-    });
-
-  assert.equal(createResponse.status, 201);
-  assert.equal(duplicateResponse.status, 409);
-});
-
-test('pengelola tag manager cannot delete category that is still used by article', async () => {
-  const { user, plainPassword } = await createPengelolaUser({
-    email: 'tag.manager.delete@coconexus.local',
-    job_title: 'Pengelola Tag/Kategori',
-  });
-  const loginResponse = await loginWith(user.email, plainPassword);
+test('published article detail returns product cards for main article exploration', async () => {
+  const { user } = await createAdminUser();
 
   const category = await Category.create({
-    name: 'Kategori Terpakai',
-    description: 'Kategori yang masih digunakan artikel.',
+    name: 'Eksplorasi Produk',
+    description: 'Kategori eksplorasi',
   });
 
-  await Article.create({
+  const mainArticle = await Article.create({
     author_id: user.id,
     category_id: category.id,
-    title: 'Artikel Pemakai Kategori',
+    title: 'Batok Kelapa',
+    status: 'published',
+  });
+
+  const detailArticle = await Article.create({
+    author_id: user.id,
+    category_id: category.id,
+    parent_article_id: mainArticle.id,
+    title: 'Arang Tempurung',
+    status: 'published',
+  });
+
+  await ArticleDetail.bulkCreate([
+    {
+      article_id: mainArticle.id,
+      body_content: 'Konten utama batok kelapa.',
+      meta_description: 'Artikel utama.',
+    },
+    {
+      article_id: detailArticle.id,
+      body_content: 'Konten detail arang.',
+      meta_description: 'Artikel detail.',
+    },
+  ]);
+
+  await ProductCard.create({
+    article_id: mainArticle.id,
+    title: 'Arang',
+    description: 'Produk arang tempurung.',
+    image: '/uploads/articles/arang.jpg',
+    linked_article_id: detailArticle.id,
+  });
+
+  const response = await request(app).get(`/api/articles/published/${mainArticle.id}`);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.data.article.article_type, 'main');
+  assert.equal(response.body.data.article.product_cards.length, 1);
+  assert.equal(response.body.data.article.product_cards[0].title, 'Arang');
+  assert.equal(response.body.data.article.product_cards[0].linked_article.id, detailArticle.id);
+});
+
+test('dashboard stats returns chart datasets for categories and comment months', async () => {
+  const { user, plainPassword } = await createAdminUser();
+
+  const loginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: user.email,
+      password: plainPassword,
+    });
+
+  const tempurungCategory = await Category.create({
+    name: 'Tempurung',
+    description: 'Produk tempurung',
+  });
+
+  const sabutCategory = await Category.create({
+    name: 'Sabut',
+    description: 'Produk sabut',
+  });
+
+  const firstArticle = await Article.create({
+    author_id: user.id,
+    category_id: tempurungCategory.id,
+    title: 'Batok Kelapa',
+    status: 'published',
+  });
+
+  const secondArticle = await Article.create({
+    author_id: user.id,
+    category_id: tempurungCategory.id,
+    title: 'Arang Tempurung',
     status: 'draft',
   });
 
-  const deleteResponse = await request(app)
-    .delete(`/api/pengelola/categories/${category.id}`)
+  const thirdArticle = await Article.create({
+    author_id: user.id,
+    category_id: sabutCategory.id,
+    title: 'Sabut Kelapa',
+    status: 'published',
+  });
+
+  await ArticleDetail.bulkCreate([
+    {
+      article_id: firstArticle.id,
+      body_content: 'Konten artikel utama batok kelapa.',
+      meta_description: 'Batok kelapa',
+    },
+    {
+      article_id: secondArticle.id,
+      body_content: 'Konten artikel arang.',
+      meta_description: 'Arang',
+    },
+    {
+      article_id: thirdArticle.id,
+      body_content: 'Konten artikel sabut.',
+      meta_description: 'Sabut',
+    },
+  ]);
+
+  await Comment.bulkCreate([
+    {
+      body: 'Komentar pertama',
+      user_id: user.id,
+      article_id: firstArticle.id,
+      created_at: new Date('2026-01-10T10:00:00Z'),
+      updated_at: new Date('2026-01-10T10:00:00Z'),
+    },
+    {
+      body: 'Komentar kedua',
+      user_id: user.id,
+      article_id: firstArticle.id,
+      created_at: new Date('2026-01-15T10:00:00Z'),
+      updated_at: new Date('2026-01-15T10:00:00Z'),
+    },
+    {
+      body: 'Komentar ketiga',
+      user_id: user.id,
+      article_id: thirdArticle.id,
+      created_at: new Date('2026-02-05T10:00:00Z'),
+      updated_at: new Date('2026-02-05T10:00:00Z'),
+    },
+  ]);
+
+  const statsResponse = await request(app)
+    .get('/api/admin/stats')
     .set('Authorization', `Bearer ${loginResponse.body.data.token}`);
 
-  assert.equal(deleteResponse.status, 409);
+  assert.equal(statsResponse.status, 200);
+  assert.equal(statsResponse.body.data.charts.articles_by_category.datasets[0].label, 'Jumlah Artikel');
+  assert.deepEqual(statsResponse.body.data.charts.articles_by_category.labels, ['Tempurung', 'Sabut']);
+  assert.deepEqual(statsResponse.body.data.charts.articles_by_category.datasets[0].data, [2, 1]);
+  assert.deepEqual(statsResponse.body.data.charts.comments_by_month.items.map((item) => item.month_key), [
+    '2026-01',
+    '2026-02',
+  ]);
+  assert.deepEqual(statsResponse.body.data.charts.comments_by_month.datasets[0].data, [2, 1]);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auth & validasi umum lainnya
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('login rejects invalid password', async () => {
+  const { user } = await createAdminUser();
+
+  const response = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email: user.email,
+      password: 'PasswordSalah123',
+    });
+
+  assert.equal(response.status, 401);
+  assert.equal(response.body.success, false);
+});
+
+test('register rejects weak password', async () => {
+  const response = await request(app)
+    .post('/api/auth/register')
+    .send({
+      email: 'password.lemah@coconexus.local',
+      password: 'lemah',
+      full_name: 'Password Lemah',
+    });
+
+  assert.equal(response.status, 400);
+  assert.equal(response.body.success, false);
+});
+
+test('register rejects duplicate active email', async () => {
+  const payload = {
+    email: 'duplikat@coconexus.local',
+    password: 'User12345',
+    full_name: 'User Duplikat',
+  };
+
+  const firstResponse = await request(app).post('/api/auth/register').send(payload);
+  const secondResponse = await request(app).post('/api/auth/register').send(payload);
+
+  assert.equal(firstResponse.status, 201);
+  assert.equal(secondResponse.status, 409);
+  assert.equal(secondResponse.body.success, false);
+});
+
+test('pengelola article list rejects request without token', async () => {
+  const response = await request(app).get('/api/pengelola/articles');
+
+  assert.equal(response.status, 401);
+  assert.equal(response.body.success, false);
+});
+
+test('pengelola article list rejects invalid token', async () => {
+  const response = await request(app)
+    .get('/api/pengelola/articles')
+    .set('Authorization', 'Bearer token-tidak-valid');
+
+  assert.equal(response.status, 401);
+  assert.equal(response.body.success, false);
 });
 
 test('admin can update user role and profile data', async () => {
@@ -1376,256 +1570,9 @@ test('user can update own profile', async () => {
   assert.equal(profileResponse.body.data.user.profile.full_name, 'Profil Diperbarui');
 });
 
-test('pengelola can login and create draft article with auto-created category', async () => {
-  const { user, plainPassword } = await createPengelolaUser({
-    email: 'pengelola.integrasi@coconexus.local',
-    job_title: 'Penulis Artikel',
-  });
-
-  const loginResponse = await loginWith(user.email, plainPassword);
-
-  assert.equal(loginResponse.status, 200);
-  assert.ok(loginResponse.body.data.token);
-
-  const createResponse = await request(app)
-    .post('/api/pengelola/articles')
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
-    .send({
-      title: 'Artikel Uji Integrasi',
-      body_content: 'Isi artikel untuk pengujian backend end-to-end.',
-      meta_description: 'Ringkasan artikel uji.',
-      status: 'draft',
-      category: {
-        name: 'Pengolahan Sabut',
-        description: 'Kategori untuk pengujian otomatis.',
-      },
-      media: [
-        {
-          file_path: '/uploads/articles/sample-image.jpg',
-          media_type: 'image',
-        },
-      ],
-    });
-
-  assert.equal(createResponse.status, 201);
-  assert.equal(createResponse.body.data.article.status, 'draft');
-  assert.equal(createResponse.body.data.article.category.name, 'Pengolahan Sabut');
-
-  const category = await Category.findOne({ where: { name: 'Pengolahan Sabut' } });
-  const article = await Article.findByPk(createResponse.body.data.article.id);
-  const detail = await ArticleDetail.findOne({ where: { article_id: article.id } });
-  const media = await ArticleMedia.findAll({ where: { article_id: article.id } });
-
-  assert.ok(category);
-  assert.ok(article);
-  assert.ok(detail);
-  assert.equal(media.length, 1);
-});
-
-test('pengelola can create article with dynamic product cards', async () => {
-  const { user, plainPassword } = await createPengelolaUser({
-    email: 'pengelola.product.card@coconexus.local',
-    job_title: 'Penulis Artikel',
-  });
-
-  const loginResponse = await loginWith(user.email, plainPassword);
-
-  const createResponse = await request(app)
-    .post('/api/pengelola/articles')
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
-    .send({
-      title: 'Batok Kelapa',
-      body_content: 'Artikel utama batok kelapa.',
-      meta_description: 'Batok kelapa dan produk turunannya.',
-      status: 'draft',
-      category: {
-        name: 'Limbah Kelapa',
-      },
-      product_cards: [
-        {
-          title: 'Arang',
-          description: 'Produk arang tempurung kelapa.',
-          image: '/uploads/articles/arang-card.jpg',
-        },
-        {
-          title: 'Filter Air',
-          description: 'Media filter berbasis karbon aktif.',
-          image: '/uploads/articles/filter-card.jpg',
-        },
-      ],
-    });
-
-  assert.equal(createResponse.status, 201);
-  assert.deepEqual(
-    createResponse.body.data.article.product_cards.map((item) => item.title),
-    ['Arang', 'Filter Air']
-  );
-
-  const createdCards = await ProductCard.findAll({
-    where: { article_id: createResponse.body.data.article.id },
-    order: [['created_at', 'ASC']],
-  });
-
-  assert.equal(createdCards.length, 2);
-  assert.equal(createdCards[0].title, 'Arang');
-  assert.equal(createdCards[1].title, 'Filter Air');
-});
-
-test('pengelola publisher can publish draft article from validation endpoint', async () => {
-  const { user: writerUser, plainPassword: writerPassword } = await createPengelolaUser({
-    email: 'writer.publish.endpoint@coconexus.local',
-    job_title: 'Penulis Artikel',
-  });
-  const { user: publisherUser, plainPassword: publisherPassword } = await createPengelolaUser({
-    email: 'publisher.publish.endpoint@coconexus.local',
-    job_title: 'Publisher Artikel',
-  });
-
-  const writerLoginResponse = await loginWith(writerUser.email, writerPassword);
-  const publisherLoginResponse = await loginWith(publisherUser.email, publisherPassword);
-
-  const createResponse = await request(app)
-    .post('/api/pengelola/articles')
-    .set('Authorization', `Bearer ${writerLoginResponse.body.data.token}`)
-    .send({
-      title: 'Artikel Publish Test',
-      body_content: 'Konten publish test.',
-      category: {
-        name: 'Tempurung Kelapa',
-      },
-    });
-
-  const publishResponse = await request(app)
-    .patch(`/api/pengelola/articles/${createResponse.body.data.article.id}/status`)
-    .set('Authorization', `Bearer ${publisherLoginResponse.body.data.token}`)
-    .send({
-      status: 'published',
-    });
-
-  assert.equal(publishResponse.status, 200);
-  assert.equal(publishResponse.body.data.article.status, 'published');
-});
-
-test('pengelola can upload article media file', async () => {
-  const { user, plainPassword } = await createPengelolaUser({
-    email: 'pengelola.upload.file@coconexus.local',
-    job_title: 'Penulis Artikel',
-  });
-
-  const loginResponse = await loginWith(user.email, plainPassword);
-
-  const uploadResponse = await request(app)
-    .post('/api/uploads/articles')
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
-    .attach('file', Buffer.from('fake image data'), 'integration-image.png');
-
-  assert.equal(uploadResponse.status, 201);
-  assert.equal(uploadResponse.body.data.media.media_type, 'image');
-  assert.match(uploadResponse.body.data.media.file_path, /^\/uploads\/articles\//);
-});
-
-test('dashboard stats returns chart datasets for categories and comment months', async () => {
-  const { user, plainPassword } = await createAdminUser();
-
-  const loginResponse = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: user.email,
-      password: plainPassword,
-    });
-
-  const tempurungCategory = await Category.create({
-    name: 'Tempurung',
-    description: 'Produk tempurung',
-  });
-
-  const sabutCategory = await Category.create({
-    name: 'Sabut',
-    description: 'Produk sabut',
-  });
-
-  const firstArticle = await Article.create({
-    author_id: user.id,
-    category_id: tempurungCategory.id,
-    title: 'Batok Kelapa',
-    status: 'published',
-  });
-
-  const secondArticle = await Article.create({
-    author_id: user.id,
-    category_id: tempurungCategory.id,
-    title: 'Arang Tempurung',
-    status: 'draft',
-  });
-
-  const thirdArticle = await Article.create({
-    author_id: user.id,
-    category_id: sabutCategory.id,
-    title: 'Sabut Kelapa',
-    status: 'published',
-  });
-
-  await ArticleDetail.bulkCreate([
-    {
-      article_id: firstArticle.id,
-      body_content: 'Konten artikel utama batok kelapa.',
-      meta_description: 'Batok kelapa',
-    },
-    {
-      article_id: secondArticle.id,
-      body_content: 'Konten artikel arang.',
-      meta_description: 'Arang',
-    },
-    {
-      article_id: thirdArticle.id,
-      body_content: 'Konten artikel sabut.',
-      meta_description: 'Sabut',
-    },
-  ]);
-
-  await Comment.bulkCreate([
-    {
-      body: 'Komentar pertama',
-      user_id: user.id,
-      article_id: firstArticle.id,
-      created_at: new Date('2026-01-10T10:00:00Z'),
-      updated_at: new Date('2026-01-10T10:00:00Z'),
-    },
-    {
-      body: 'Komentar kedua',
-      user_id: user.id,
-      article_id: firstArticle.id,
-      created_at: new Date('2026-01-15T10:00:00Z'),
-      updated_at: new Date('2026-01-15T10:00:00Z'),
-    },
-    {
-      body: 'Komentar ketiga',
-      user_id: user.id,
-      article_id: thirdArticle.id,
-      created_at: new Date('2026-02-05T10:00:00Z'),
-      updated_at: new Date('2026-02-05T10:00:00Z'),
-    },
-  ]);
-
-  const statsResponse = await request(app)
-    .get('/api/admin/stats')
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`);
-
-  assert.equal(statsResponse.status, 200);
-  assert.equal(statsResponse.body.data.charts.articles_by_category.datasets[0].label, 'Jumlah Artikel');
-  assert.deepEqual(statsResponse.body.data.charts.articles_by_category.labels, ['Tempurung', 'Sabut']);
-  assert.deepEqual(statsResponse.body.data.charts.articles_by_category.datasets[0].data, [2, 1]);
-  assert.deepEqual(statsResponse.body.data.charts.comments_by_month.items.map((item) => item.month_key), [
-    '2026-01',
-    '2026-02',
-  ]);
-  assert.deepEqual(statsResponse.body.data.charts.comments_by_month.datasets[0].data, [2, 1]);
-});
-
 test('available product cards endpoint returns only unlinked cards from selected main article', async () => {
   const { user, plainPassword } = await createPengelolaUser({
     email: 'pengelola.available.cards@coconexus.local',
-    job_title: 'Penulis Artikel',
   });
 
   const loginResponse = await loginWith(user.email, plainPassword);
@@ -1705,7 +1652,6 @@ test('available product cards endpoint returns only unlinked cards from selected
 test('main articles endpoint returns parent articles for linking dropdown', async () => {
   const { user, plainPassword } = await createPengelolaUser({
     email: 'pengelola.main.articles@coconexus.local',
-    job_title: 'Penulis Artikel',
   });
 
   const loginResponse = await loginWith(user.email, plainPassword);
@@ -1736,190 +1682,4 @@ test('main articles endpoint returns parent articles for linking dropdown', asyn
 
   assert.equal(response.status, 200);
   assert.deepEqual(response.body.data.articles.map((item) => item.title), ['Batok Kelapa']);
-});
-
-test('pengelola can create detail article linked to selected product card', async () => {
-  const { user, plainPassword } = await createPengelolaUser({
-    email: 'pengelola.detail.link@coconexus.local',
-    job_title: 'Penulis Artikel',
-  });
-
-  const loginResponse = await loginWith(user.email, plainPassword);
-
-  const category = await Category.create({
-    name: 'Kategori Linking',
-    description: 'Kategori linking',
-  });
-
-  const mainArticle = await Article.create({
-    author_id: user.id,
-    category_id: category.id,
-    title: 'Batok Kelapa',
-    status: 'published',
-  });
-
-  await ArticleDetail.create({
-    article_id: mainArticle.id,
-    body_content: 'Konten utama.',
-    meta_description: 'Konten utama.',
-  });
-
-  const productCard = await ProductCard.create({
-    article_id: mainArticle.id,
-    title: 'Arang',
-    description: 'Card arang',
-    image: '/uploads/articles/arang.jpg',
-  });
-
-  const response = await request(app)
-    .post('/api/pengelola/articles')
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
-    .send({
-      title: 'Arang Tempurung Kelapa',
-      body_content: 'Konten detail arang.',
-      meta_description: 'Detail arang.',
-      status: 'draft',
-      parent_article_id: mainArticle.id,
-      linked_product_card_id: productCard.id,
-      category: {
-        id: category.id,
-      },
-      product_cards: [],
-      media: [],
-    });
-
-  assert.equal(response.status, 201);
-  assert.equal(response.body.data.article.parent_article_id, mainArticle.id);
-  assert.equal(response.body.data.article.article_type, 'detail');
-  assert.equal(response.body.data.article.linked_product_card.id, productCard.id);
-
-  const linkedCard = await ProductCard.findByPk(productCard.id);
-  assert.equal(linkedCard.linked_article_id, response.body.data.article.id);
-});
-
-test('published article detail returns product cards for main article exploration', async () => {
-  const { user } = await createAdminUser();
-
-  const category = await Category.create({
-    name: 'Eksplorasi Produk',
-    description: 'Kategori eksplorasi',
-  });
-
-  const mainArticle = await Article.create({
-    author_id: user.id,
-    category_id: category.id,
-    title: 'Batok Kelapa',
-    status: 'published',
-  });
-
-  const detailArticle = await Article.create({
-    author_id: user.id,
-    category_id: category.id,
-    parent_article_id: mainArticle.id,
-    title: 'Arang Tempurung',
-    status: 'published',
-  });
-
-  await ArticleDetail.bulkCreate([
-    {
-      article_id: mainArticle.id,
-      body_content: 'Konten utama batok kelapa.',
-      meta_description: 'Artikel utama.',
-    },
-    {
-      article_id: detailArticle.id,
-      body_content: 'Konten detail arang.',
-      meta_description: 'Artikel detail.',
-    },
-  ]);
-
-  await ProductCard.create({
-    article_id: mainArticle.id,
-    title: 'Arang',
-    description: 'Produk arang tempurung.',
-    image: '/uploads/articles/arang.jpg',
-    linked_article_id: detailArticle.id,
-  });
-
-  const response = await request(app).get(`/api/articles/published/${mainArticle.id}`);
-
-  assert.equal(response.status, 200);
-  assert.equal(response.body.data.article.article_type, 'main');
-  assert.equal(response.body.data.article.product_cards.length, 1);
-  assert.equal(response.body.data.article.product_cards[0].title, 'Arang');
-  assert.equal(response.body.data.article.product_cards[0].linked_article.id, detailArticle.id);
-});
-
-test('pengelola can update unlinked product cards from article editor', async () => {
-  const { user, plainPassword } = await createPengelolaUser({
-    email: 'pengelola.update.cards@coconexus.local',
-    job_title: 'Penulis Artikel',
-  });
-
-  const loginResponse = await loginWith(user.email, plainPassword);
-
-  const category = await Category.create({
-    name: 'Kategori Update Card',
-    description: 'Kategori update',
-  });
-
-  const article = await Article.create({
-    author_id: user.id,
-    category_id: category.id,
-    title: 'Artikel Produk Turunan',
-    status: 'draft',
-  });
-
-  await ArticleDetail.create({
-    article_id: article.id,
-    body_content: 'Konten awal.',
-    meta_description: 'Meta awal.',
-  });
-
-  await ProductCard.bulkCreate([
-    {
-      article_id: article.id,
-      title: 'Arang Lama',
-      description: 'Deskripsi lama.',
-      image: '/uploads/articles/arang-lama.jpg',
-    },
-    {
-      article_id: article.id,
-      title: 'Briket Lama',
-      description: 'Briket lama.',
-      image: '/uploads/articles/briket-lama.jpg',
-    },
-  ]);
-
-  const updateResponse = await request(app)
-    .put(`/api/pengelola/articles/${article.id}`)
-    .set('Authorization', `Bearer ${loginResponse.body.data.token}`)
-    .send({
-      title: 'Artikel Produk Turunan',
-      body_content: 'Konten awal.',
-      meta_description: 'Meta awal.',
-      category: {
-        id: category.id,
-      },
-      product_cards: [
-        {
-          title: 'Arang Baru',
-          description: 'Deskripsi arang baru.',
-          image: '/uploads/articles/arang-baru.jpg',
-        },
-      ],
-    });
-
-  assert.equal(updateResponse.status, 200);
-  assert.deepEqual(
-    updateResponse.body.data.article.product_cards.map((item) => item.title),
-    ['Arang Baru']
-  );
-
-  const updatedCards = await ProductCard.findAll({
-    where: { article_id: article.id },
-  });
-
-  assert.equal(updatedCards.length, 1);
-  assert.equal(updatedCards[0].title, 'Arang Baru');
 });

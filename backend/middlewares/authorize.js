@@ -20,19 +20,25 @@ function authorize(...allowedRoles) {
   };
 }
 
-function authorizeJobs(...allowedJobs) {
+function authorizeArticleAuthors() {
   return (req, res, next) => {
     if (!req.user) {
       return next(forbidden('User belum terautentikasi.'));
     }
 
-    // allowedJobs dipertahankan agar route lama tetap kompatibel,
-    // namun akses pengelola sekarang ditentukan oleh role saja.
-    if (req.user.role !== 'pengelola') {
-      return next(forbidden('Anda tidak memiliki akses ke resource ini.'));
+    if (req.user.role === 'admin') {
+      return next();
     }
 
-    return next();
+    if (hasModeratorScope(req.user, 'content')) {
+      return next();
+    }
+
+    if (req.user.role === 'user' && req.user.profile?.contributor_status === 'approved') {
+      return next();
+    }
+
+    return next(forbidden('Anda tidak memiliki akses ke resource ini.'));
   };
 }
 
@@ -71,7 +77,7 @@ function authorizeContributor() {
 
 module.exports = {
   authorize,
-  authorizeJobs,
+  authorizeArticleAuthors,
   authorizeModeratorScopes,
   authorizeContributor,
 };

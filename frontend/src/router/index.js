@@ -18,10 +18,11 @@ import AdminSystemPage from '@/views/AdminSystemPage.vue';
 import AdminReportPage from '@/views/AdminReportPage.vue';
 import AdminChatbotPage from '@/views/AdminChatbotPage.vue';
 import PengelolaArticlesPage from '@/views/PengelolaArticlesPage.vue';
-import PengelolaArticleFormPage from '@/views/PengelolaArticleFormPage.vue';
+import PengelolaArticleDetailPage from '@/views/PengelolaArticleDetailPage.vue';
 import PengelolaCommentsPage from '@/views/PengelolaCommentsPage.vue';
 import ModeratorForumsPage from '@/views/ModeratorForumsPage.vue';
 import ModeratorContentPage from '@/views/ModeratorContentPage.vue';
+import ModeratorContentFormPage from '@/views/ModeratorContentFormPage.vue';
 import ModeratorPublicationPage from '@/views/ModeratorPublicationPage.vue';
 import ModeratorTagPage from '@/views/ModeratorTagPage.vue';
 import PengelolaTagsPage from '@/views/PengelolaTagsPage.vue';
@@ -277,18 +278,9 @@ const routes = [
     },
   },
   {
-    path: '/pengelola/articles/new',
-    name: 'pengelola-articles-new',
-    component: PengelolaArticleFormPage,
-    meta: {
-      requiresAuth: true,
-      requiresPengelola: true,
-    },
-  },
-  {
-    path: '/pengelola/articles/:id/edit',
-    name: 'pengelola-articles-edit',
-    component: PengelolaArticleFormPage,
+    path: '/pengelola/articles/:id',
+    name: 'pengelola-articles-detail',
+    component: PengelolaArticleDetailPage,
     meta: {
       requiresAuth: true,
       requiresPengelola: true,
@@ -298,6 +290,26 @@ const routes = [
     path: '/moderator/content/articles',
     name: 'moderator-content-articles',
     component: ModeratorContentPage,
+    meta: {
+      requiresAuth: true,
+      requiresModerator: true,
+      requiredModeratorTypes: ['content'],
+    },
+  },
+  {
+    path: '/moderator/content/articles/new',
+    name: 'moderator-content-articles-new',
+    component: ModeratorContentFormPage,
+    meta: {
+      requiresAuth: true,
+      requiresModerator: true,
+      requiredModeratorTypes: ['content'],
+    },
+  },
+  {
+    path: '/moderator/content/articles/:id/edit',
+    name: 'moderator-content-articles-edit',
+    component: ModeratorContentFormPage,
     meta: {
       requiresAuth: true,
       requiresModerator: true,

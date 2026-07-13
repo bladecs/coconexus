@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 980" font-family="Segoe UI, Arial, sans-serif">
+<defs>
+  <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L0,6 L9,3 z" fill="#2a2a28"/>
+  </marker></defs>
+<rect x="0" y="0" width="940" height="980" fill="#ffffff"/>
+<rect x="10" y="25" width="920" height="940" fill="none" stroke="#888" stroke-width="1.2"/>
+<rect x="20" y="25" width="280" height="30" fill="#e5efe6" stroke="#888" stroke-width="1"/>
+<text x="160" y="45" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1f4a26">Pengguna</text>
+<line x1="300" y1="25" x2="300" y2="965" stroke="#c9c9c3" stroke-width="1" stroke-dasharray="4 3"/>
+<rect x="310" y="25" width="270" height="30" fill="#e5efe6" stroke="#888" stroke-width="1"/>
+<text x="445" y="45" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1f4a26">Sistem</text>
+<line x1="580" y1="25" x2="580" y2="965" stroke="#c9c9c3" stroke-width="1" stroke-dasharray="4 3"/>
+<rect x="590" y="25" width="330" height="30" fill="#e5efe6" stroke="#888" stroke-width="1"/>
+<text x="755" y="45" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1f4a26">Fasilitator Diskusi</text>
+<line x1="920" y1="25" x2="920" y2="965" stroke="#c9c9c3" stroke-width="1" stroke-dasharray="4 3"/>
+<circle cx="160" cy="75" r="11" fill="#1a1a1a"/>
+<rect x="35" y="117" width="250" height="46" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="160" y="137" text-anchor="middle" font-size="11.5" fill="#16321a">Baca Artikel &amp; Kirim</text>
+<text x="160" y="151" text-anchor="middle" font-size="11.5" fill="#16321a">Komentar</text>
+<rect x="320" y="117" width="250" height="46" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="445" y="137" text-anchor="middle" font-size="11.5" fill="#16321a">Simpan Komentar</text>
+<text x="445" y="151" text-anchor="middle" font-size="11.5" fill="#16321a">(Status: Pending)</text>
+<circle cx="655" cy="100" r="11" fill="#1a1a1a"/>
+<rect x="680" y="80" width="210" height="40" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="785" y="90" text-anchor="middle" font-size="11.5" fill="#16321a">Buat Topik Forum</text>
+<text x="785" y="104" text-anchor="middle" font-size="11.5" fill="#16321a">Baru (Tanpa</text>
+<text x="785" y="118" text-anchor="middle" font-size="11.5" fill="#16321a">Komentar Sumber)</text>
+<rect x="625" y="193" width="260" height="44" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="755" y="212" text-anchor="middle" font-size="11.5" fill="#16321a">Tinjau Komentar yang</text>
+<text x="755" y="226" text-anchor="middle" font-size="11.5" fill="#16321a">Masuk</text>
+<polygon points="755,255 835,300 755,345 675,300" fill="#fff8e6" stroke="#a9832b" stroke-width="1.4"/>
+<text x="755" y="297" text-anchor="middle" font-size="10.8" fill="#5c4711">Jadikan Topik</text>
+<text x="755" y="311" text-anchor="middle" font-size="10.8" fill="#5c4711">Forum?</text>
+<rect x="600" y="357" width="150" height="66" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="675" y="380" text-anchor="middle" font-size="11.5" fill="#16321a">Proses sebagai</text>
+<text x="675" y="394" text-anchor="middle" font-size="11.5" fill="#16321a">Komentar Biasa</text>
+<text x="675" y="408" text-anchor="middle" font-size="11.5" fill="#16321a">(Setujui/Tolak)</text>
+<circle cx="675" cy="468" r="13" fill="none" stroke="#1a1a1a" stroke-width="1.6"/>
+<circle cx="675" cy="468" r="7" fill="#1a1a1a"/>
+<rect x="760" y="357" width="150" height="66" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="835" y="387" text-anchor="middle" font-size="11.5" fill="#16321a">Buat Topik Forum</text>
+<text x="835" y="401" text-anchor="middle" font-size="11.5" fill="#16321a">dari Komentar Ini</text>
+<rect x="625" y="442" width="260" height="46" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="755" y="455" text-anchor="middle" font-size="11.5" fill="#16321a">Validasi &amp; Aktifkan</text>
+<text x="755" y="469" text-anchor="middle" font-size="11.5" fill="#16321a">Topik (Status:</text>
+<text x="755" y="483" text-anchor="middle" font-size="11.5" fill="#16321a">Active)</text>
+<rect x="320" y="523" width="250" height="44" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="445" y="535" text-anchor="middle" font-size="11.5" fill="#16321a">Sistem Menyimpan</text>
+<text x="445" y="549" text-anchor="middle" font-size="11.5" fill="#16321a">Perubahan Status</text>
+<text x="445" y="563" text-anchor="middle" font-size="11.5" fill="#16321a">Topik</text>
+<rect x="35" y="602" width="250" height="46" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="160" y="615" text-anchor="middle" font-size="11.5" fill="#16321a">Lihat &amp;</text>
+<text x="160" y="629" text-anchor="middle" font-size="11.5" fill="#16321a">Berpartisipasi di</text>
+<text x="160" y="643" text-anchor="middle" font-size="11.5" fill="#16321a">Topik Aktif</text>
+<rect x="625" y="683" width="260" height="44" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="755" y="702" text-anchor="middle" font-size="11.5" fill="#16321a">Monitor Komentar</text>
+<text x="755" y="716" text-anchor="middle" font-size="11.5" fill="#16321a">pada Topik Forum</text>
+<polygon points="755,745 840,790 755,835 670,790" fill="#fff8e6" stroke="#a9832b" stroke-width="1.4"/>
+<text x="755" y="787" text-anchor="middle" font-size="10.8" fill="#5c4711">Ada</text>
+<text x="755" y="801" text-anchor="middle" font-size="10.8" fill="#5c4711">Pelanggaran?</text>
+<rect x="600" y="847" width="150" height="56" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="675" y="872" text-anchor="middle" font-size="11.5" fill="#16321a">Hapus / Tolak</text>
+<text x="675" y="886" text-anchor="middle" font-size="11.5" fill="#16321a">Komentar</text>
+<circle cx="835" cy="875" r="13" fill="none" stroke="#1a1a1a" stroke-width="1.6"/>
+<circle cx="835" cy="875" r="7" fill="#1a1a1a"/>
+<path d="M 160 86 L 160 117" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 285 140 L 320 140" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 570 140 L 755 140 L 755 193" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 755 237 L 755 255" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 675 300 L 675 300 L 675 357" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="684.5" y="280" width="31" height="15" fill="#ffffff"/>
+<text x="700" y="292" text-anchor="middle" font-size="10.5" font-weight="600" fill="#8a6a10">Tidak</text>
+<path d="M 675 423 L 675 455" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 835 300 L 835 300 L 835 357" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="803.8" y="280" width="12.4" height="15" fill="#ffffff"/>
+<text x="810" y="292" text-anchor="middle" font-size="10.5" font-weight="600" fill="#8a6a10">Ya</text>
+<path d="M 835 423 L 835 465 L 885 465" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 666 100 L 680 100" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 785 120 L 930 120 L 930 455 L 885 455" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 625 465 L 445 465 L 445 523" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 320 545 L 160 545 L 160 602" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 285 625 L 755 625 L 755 683" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 755 727 L 755 745" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 670 790 L 675 790 L 675 847" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="693.8" y="770" width="12.4" height="15" fill="#ffffff"/>
+<text x="700" y="782" text-anchor="middle" font-size="10.5" font-weight="600" fill="#8a6a10">Ya</text>
+<path d="M 840 790 L 835 790 L 835 862" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="794.5" y="770" width="31" height="15" fill="#ffffff"/>
+<text x="810" y="782" text-anchor="middle" font-size="10.5" font-weight="600" fill="#8a6a10">Tidak</text>
+<path d="M 750 875 L 765 875 L 765 921 L 923 921 L 923 875" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<circle cx="935" cy="875" r="12" fill="#ffffff" stroke="#2a2a28" stroke-width="1.4"/>
+<text x="935" y="879" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1a1a1a">B</text>
+<line x1="935" y1="863" x2="935" y2="717" stroke="#2a2a28" stroke-width="1.4"/>
+<circle cx="935" cy="705" r="12" fill="#ffffff" stroke="#2a2a28" stroke-width="1.4"/>
+<text x="935" y="709" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1a1a1a">B</text>
+<path d="M 923 705 L 885 705" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="833.5" y="677" width="93" height="15" fill="#ffffff"/>
+<text x="880" y="689" text-anchor="middle" font-size="10.5" font-weight="600" fill="#8a6a10">Kembali Monitor</text>
+<text x="20" y="970" font-size="10" fill="#7a7a76">Catatan: penutupan topik forum (status Closed) terjadi otomatis ketika forum lain pada artikel yang sama divalidasi menjadi Active — tidak ada aksi tutup manual pada sistem saat ini.</text>
+</svg>

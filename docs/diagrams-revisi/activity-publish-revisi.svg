@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 960" font-family="Segoe UI, Arial, sans-serif">
+<defs>
+  <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L0,6 L9,3 z" fill="#2a2a28"/>
+  </marker></defs>
+<rect x="0" y="0" width="940" height="960" fill="#ffffff"/>
+<rect x="10" y="25" width="920" height="890" fill="none" stroke="#888" stroke-width="1.2"/>
+<rect x="20" y="25" width="300" height="30" fill="#e5efe6" stroke="#888" stroke-width="1"/>
+<text x="170" y="45" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1f4a26">Kurator Konten</text>
+<line x1="320" y1="25" x2="320" y2="915" stroke="#c9c9c3" stroke-width="1" stroke-dasharray="4 3"/>
+<rect x="330" y="25" width="300" height="30" fill="#e5efe6" stroke="#888" stroke-width="1"/>
+<text x="480" y="45" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1f4a26">Redaktur Publikasi</text>
+<line x1="630" y1="25" x2="630" y2="915" stroke="#c9c9c3" stroke-width="1" stroke-dasharray="4 3"/>
+<rect x="640" y="25" width="280" height="30" fill="#e5efe6" stroke="#888" stroke-width="1"/>
+<text x="780" y="45" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1f4a26">Sistem</text>
+<line x1="920" y1="25" x2="920" y2="915" stroke="#c9c9c3" stroke-width="1" stroke-dasharray="4 3"/>
+<circle cx="170" cy="75" r="11" fill="#1a1a1a"/>
+<rect x="40" y="113" width="260" height="44" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="170" y="132" text-anchor="middle" font-size="11.5" fill="#16321a">Buat Artikel Baru</text>
+<text x="170" y="146" text-anchor="middle" font-size="11.5" fill="#16321a">(Wawasan / Teknis)</text>
+<rect x="40" y="183" width="260" height="44" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="170" y="202" text-anchor="middle" font-size="11.5" fill="#16321a">Isi Konten, Media,</text>
+<text x="170" y="216" text-anchor="middle" font-size="11.5" fill="#16321a">Kategori &amp; Tag</text>
+<rect x="40" y="253" width="260" height="44" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="170" y="279" text-anchor="middle" font-size="11.5" fill="#16321a">Simpan sebagai Draft</text>
+<rect x="40" y="323" width="260" height="44" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="170" y="342" text-anchor="middle" font-size="11.5" fill="#16321a">Ajukan untuk</text>
+<text x="170" y="356" text-anchor="middle" font-size="11.5" fill="#16321a">Diterbitkan</text>
+<rect x="350" y="323" width="260" height="44" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="480" y="342" text-anchor="middle" font-size="11.5" fill="#16321a">Terima Artikel</text>
+<text x="480" y="356" text-anchor="middle" font-size="11.5" fill="#16321a">Diajukan</text>
+<rect x="350" y="393" width="260" height="44" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="480" y="412" text-anchor="middle" font-size="11.5" fill="#16321a">Tinjau Kelayakan Isi</text>
+<text x="480" y="426" text-anchor="middle" font-size="11.5" fill="#16321a">Artikel</text>
+<polygon points="480,460 555,505 480,550 405,505" fill="#fff8e6" stroke="#a9832b" stroke-width="1.4"/>
+<text x="480" y="509" text-anchor="middle" font-size="10.8" fill="#5c4711">Layak?</text>
+<rect x="350" y="595" width="260" height="60" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="480" y="615" text-anchor="middle" font-size="11.5" fill="#16321a">Kembalikan ke</text>
+<text x="480" y="629" text-anchor="middle" font-size="11.5" fill="#16321a">Revision + Catatan</text>
+<text x="480" y="643" text-anchor="middle" font-size="11.5" fill="#16321a">Revisi</text>
+<rect x="350" y="706" width="260" height="48" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="480" y="727" text-anchor="middle" font-size="11.5" fill="#16321a">Publish Artikel (oleh</text>
+<text x="480" y="741" text-anchor="middle" font-size="11.5" fill="#16321a">Redaktur Publikasi)</text>
+<rect x="40" y="599" width="260" height="52" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="170" y="622" text-anchor="middle" font-size="11.5" fill="#16321a">Perbaiki Artikel &amp;</text>
+<text x="170" y="636" text-anchor="middle" font-size="11.5" fill="#16321a">Ajukan Ulang</text>
+<rect x="650" y="706" width="260" height="48" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="780" y="720" text-anchor="middle" font-size="11.5" fill="#16321a">Status Artikel</text>
+<text x="780" y="734" text-anchor="middle" font-size="11.5" fill="#16321a">Diubah menjadi</text>
+<text x="780" y="748" text-anchor="middle" font-size="11.5" fill="#16321a">Published</text>
+<rect x="650" y="788" width="260" height="44" rx="9" fill="#eaf6ec" stroke="#2f6b3a" stroke-width="1.4"/>
+<text x="780" y="807" text-anchor="middle" font-size="11.5" fill="#16321a">Artikel Tampil di</text>
+<text x="780" y="821" text-anchor="middle" font-size="11.5" fill="#16321a">Halaman Publik</text>
+<circle cx="780" cy="880" r="13" fill="none" stroke="#1a1a1a" stroke-width="1.6"/>
+<circle cx="780" cy="880" r="7" fill="#1a1a1a"/>
+<path d="M 170 86 L 170 113" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 170 157 L 170 183" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 170 227 L 170 253" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 170 297 L 170 323" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 300 345 L 350 345" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 480 367 L 480 393" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 480 437 L 480 460" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 480 550 L 480 595" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="494.5" y="540" width="31" height="15" fill="#ffffff"/>
+<text x="510" y="552" text-anchor="middle" font-size="10.5" font-weight="600" fill="#8a6a10">Tidak</text>
+<path d="M 405 505 L 338 505 L 338 730 L 350 730" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="335.8" y="485" width="12.4" height="15" fill="#ffffff"/>
+<text x="342" y="497" text-anchor="middle" font-size="10.5" font-weight="600" fill="#8a6a10">Ya</text>
+<path d="M 350 625 L 310 625 L 310 577 L 170 577 L 170 599" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 40 625 L 30 625" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="42.8" y="593" width="74.4" height="15" fill="#ffffff"/>
+<text x="80" y="605" text-anchor="middle" font-size="10.5" font-weight="600" fill="#8a6a10">Ajukan Ulang</text>
+<circle cx="16" cy="625" r="12" fill="#ffffff" stroke="#2a2a28" stroke-width="1.4"/>
+<text x="16" y="629" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1a1a1a">A</text>
+<line x1="16" y1="613" x2="16" y2="315" stroke="#2a2a28" stroke-width="1.4"/>
+<circle cx="16" cy="303" r="12" fill="#ffffff" stroke="#2a2a28" stroke-width="1.4"/>
+<text x="16" y="307" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1a1a1a">A</text>
+<path d="M 28 303 L 440 303 L 440 323" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 610 730 L 780 730 L 780 706" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 780 754 L 780 788" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 780 832 L 780 866" fill="none" stroke="#2a2a28" stroke-width="1.4" marker-end="url(#arrow)"/>
+<text x="20" y="930" font-size="10" fill="#7a7a76">Catatan: kolom status Article hanya memiliki 3 nilai (draft, revision, published) — tidak ada state "submitted"/"approved" terpisah pada basis data.</text>
+<text x="20" y="946" font-size="10" fill="#7a7a76">Gerbang wajib: hanya Redaktur Publikasi (moderator, sub-tipe publication) yang dapat mengubah status artikel — Kurator Konten tidak memiliki akses untuk mempublikasikan artikelnya sendiri.</text>
+</svg>

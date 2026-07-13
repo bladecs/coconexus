@@ -37,12 +37,16 @@ router.get('/published/:id/related', getRelatedArticles);
 router.get('/published/:id/pdf', generateArticlePdf);
 router.get('/published/:id', optionalAuthenticate, getPublishedArticleDetail);
 
-// Author/Pengelola routes
+// Pengelola: monitoring (read-only)
 router.get('/', authenticate, authorize('pengelola'), listAdminArticles);
-router.post('/', authenticate, authorize('pengelola'), createArticle);
-router.put('/:id', authenticate, authorize('pengelola'), updateArticle);
-router.delete('/:id', authenticate, authorize('pengelola'), deleteArticle);
-router.patch('/:id/status', authenticate, authorize('pengelola'), updateArticleStatus);
+
+// Kurator Konten (moderator, sub-tipe content): authoring
+router.post('/', authenticate, authorizeModeratorScopes('content'), createArticle);
+router.put('/:id', authenticate, authorizeModeratorScopes('content'), updateArticle);
+router.delete('/:id', authenticate, authorizeModeratorScopes('content'), deleteArticle);
+
+// Redaktur Publikasi (moderator, sub-tipe publication): satu-satunya yang boleh ubah status
+router.patch('/:id/status', authenticate, authorizeModeratorScopes('publication'), updateArticleStatus);
 
 // Moderator routes
 router.get('/moderation/content', authenticate, authorizeModeratorScopes('content'), listAdminArticles);

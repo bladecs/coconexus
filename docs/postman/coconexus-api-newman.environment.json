@@ -27,6 +27,78 @@
       "enabled": true
     },
     {
+      "key": "pengelola_email",
+      "value": "pengelola.newman@coconexus.local",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "pengelola_password",
+      "value": "Pengelola12345",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "pengelola_token",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "content_email",
+      "value": "kurator.newman@coconexus.local",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "content_password",
+      "value": "KuratorKonten12345",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "content_token",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "publication_email",
+      "value": "redaktur.newman@coconexus.local",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "publication_password",
+      "value": "RedakturPublikasi12345",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "publication_token",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "tag_email",
+      "value": "penata.newman@coconexus.local",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "tag_password",
+      "value": "PenataTaksonomi12345",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "tag_token",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
       "key": "user_token",
       "value": "",
       "type": "secret",

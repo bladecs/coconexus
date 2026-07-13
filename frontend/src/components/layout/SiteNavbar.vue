@@ -45,7 +45,7 @@ function getModeratorNavLinks(type) {
   }
   if (type === 'content') {
     return [
-      { to: '/moderator/content/articles', label: 'Review Konten', icon: 'rate_review' },
+      { to: '/moderator/content/articles', label: 'Kelola Artikel', icon: 'edit_document' },
     ];
   }
   if (type === 'publication') {
@@ -343,13 +343,13 @@ function closeMobile() {
     <!-- CTA Button (hidden when collapsed) -->
     <div v-if="!isCollapsed" class="px-4 mt-3">
       <RouterLink
-        v-if="authStore.isPengelola && variant === 'pengelola'"
-        to="/pengelola/articles/new"
+        v-if="authStore.isModerator && variant === 'moderator' && moderatorType === 'content'"
+        to="/moderator/content/articles/new"
         class="cta-btn"
         @click="closeMobile"
       >
         <span class="material-symbols-outlined text-[18px]">add</span>
-        Artikel Baru
+        Tulis Artikel
       </RouterLink>
       <RouterLink
         v-else-if="isContributor && variant === 'contributor'"

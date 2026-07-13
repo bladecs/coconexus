@@ -8,7 +8,7 @@ const {
   deleteCategory,
 } = require('../controllers/categoryController');
 const { authenticate } = require('../middlewares/authenticate');
-const { authorize, authorizeModeratorScopes } = require('../middlewares/authorize');
+const { authorizeModeratorScopes } = require('../middlewares/authorize');
 
 const router = express.Router();
 
@@ -17,9 +17,9 @@ router.get('/', listCategories);
 
 // Authenticated users
 router.get('/authenticated', authenticate, listCategories);
-router.post('/', authenticate, authorize('pengelola'), createCategory);
-router.put('/:id', authenticate, authorize('pengelola'), updateCategory);
-router.delete('/:id', authenticate, authorize('pengelola'), deleteCategory);
+router.post('/', authenticate, authorizeModeratorScopes('tag'), createCategory);
+router.put('/:id', authenticate, authorizeModeratorScopes('tag'), updateCategory);
+router.delete('/:id', authenticate, authorizeModeratorScopes('tag'), deleteCategory);
 
 // Moderator tag routes
 router.get('/moderation/tag', authenticate, authorizeModeratorScopes('tag'), listCategories);

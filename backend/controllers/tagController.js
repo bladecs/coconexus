@@ -69,7 +69,7 @@ async function deleteTag(req, res, next) {
 
     await writeAuditLog({
       actorId: req.user.id,
-      action: 'pengelola.delete_tag',
+      action: 'tag.delete_tag',
       entityType: 'tag',
       entityId: tagId,
       metadata: { name: tag.name },

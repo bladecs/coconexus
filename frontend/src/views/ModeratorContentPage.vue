@@ -24,7 +24,6 @@ const stats = computed(() => ({
   total: articles.value.length,
   draft: articles.value.filter((a) => a.status === 'draft').length,
   revision: articles.value.filter((a) => a.status === 'revision').length,
-  under_review: articles.value.filter((a) => a.status === 'under_review').length,
   published: articles.value.filter((a) => a.status === 'published').length,
 }));
 
@@ -41,14 +40,15 @@ async function fetchArticles() {
   }
 }
 
-async function updateStatus(id, status) {
+async function deleteArticle(id) {
+  if (!confirm('Hapus artikel ini? Tindakan tidak dapat diurungkan.')) return;
   feedback.value = '';
   try {
-    await api.patch(`/moderator/content/articles/${id}/status`, { status });
-    feedback.value = `Status artikel berhasil diubah ke "${status}".`;
+    await api.delete(`/moderator/content/articles/${id}`);
+    feedback.value = 'Artikel berhasil dihapus.';
     await fetchArticles();
   } catch (err) {
-    feedback.value = err.message;
+    feedback.value = err.response?.data?.message || err.message;
   }
 }
 
@@ -64,16 +64,22 @@ onMounted(() => fetchArticles());
       <header class="mb-8 flex flex-col gap-4 border-b border-outline-variant/30 pb-6 md:flex-row md:items-center md:justify-between">
         <div>
           <div class="mb-2 flex items-center gap-2">
-            <span class="material-symbols-outlined text-sky-400" style="font-size:15px">rate_review</span>
+            <span class="material-symbols-outlined text-sky-400" style="font-size:15px">edit_document</span>
             <p class="text-xs font-bold uppercase tracking-widest text-sky-400/80">Coconexus / Kurator Konten</p>
           </div>
-          <h1 class="text-3xl font-black tracking-tight text-on-surface">Review Konten Artikel</h1>
-          <p class="mt-1 text-sm text-on-surface-variant">Tinjau kualitas naskah sebelum lanjut ke tahap publikasi</p>
+          <h1 class="text-3xl font-black tracking-tight text-on-surface">Kelola Artikel</h1>
+          <p class="mt-1 text-sm text-on-surface-variant">Tulis dan sunting artikel — publikasi dilakukan oleh Redaktur Publikasi</p>
         </div>
-        <button @click="fetchArticles" class="inline-flex items-center gap-2 self-start rounded-xl border border-outline-variant/30 bg-surface-container px-4 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface md:self-auto">
-          <span class="material-symbols-outlined" style="font-size:16px">refresh</span>
-          Refresh
-        </button>
+        <div class="flex items-center gap-2 self-start md:self-auto">
+          <button @click="fetchArticles" class="inline-flex items-center gap-2 rounded-xl border border-outline-variant/30 bg-surface-container px-4 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface">
+            <span class="material-symbols-outlined" style="font-size:16px">refresh</span>
+            Refresh
+          </button>
+          <RouterLink to="/moderator/content/articles/new" class="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-500">
+            <span class="material-symbols-outlined" style="font-size:16px">add</span>
+            Tulis Artikel
+          </RouterLink>
+        </div>
       </header>
 
       <!-- ── Feedback ── -->
@@ -85,7 +91,7 @@ onMounted(() => fetchArticles());
       </Transition>
 
       <!-- ── Stats ── -->
-      <section class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-5">
+      <section class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
         <div class="mod-stat-card">
           <span class="material-symbols-outlined mod-stat-icon text-on-surface-variant">article</span>
           <p class="mod-stat-label">Total</p>
@@ -100,11 +106,6 @@ onMounted(() => fetchArticles());
           <span class="material-symbols-outlined mod-stat-icon text-orange-400">rate_review</span>
           <p class="mod-stat-label">Revisi</p>
           <strong class="mod-stat-value text-orange-400">{{ stats.revision }}</strong>
-        </div>
-        <div class="mod-stat-card border-sky-500/20">
-          <span class="material-symbols-outlined mod-stat-icon text-sky-400">pending</span>
-          <p class="mod-stat-label">Dalam Review</p>
-          <strong class="mod-stat-value text-sky-400">{{ stats.under_review }}</strong>
         </div>
         <div class="mod-stat-card">
           <span class="material-symbols-outlined mod-stat-icon text-emerald-400">verified</span>
@@ -122,7 +123,6 @@ onMounted(() => fetchArticles());
               <option value="all">Semua Status</option>
               <option value="draft">Draft</option>
               <option value="revision">Revision</option>
-              <option value="under_review">Under Review</option>
               <option value="published">Published</option>
             </select>
           </div>
@@ -174,12 +174,11 @@ onMounted(() => fetchArticles());
                   'mod-status--published': article.status === 'published',
                   'mod-status--draft': article.status === 'draft',
                   'mod-status--revision': article.status === 'revision',
-                  'mod-status--review': article.status === 'under_review',
                 }">
                   <span class="material-symbols-outlined" style="font-size:11px;font-variation-settings:'FILL' 1">
-                    {{ article.status === 'published' ? 'check_circle' : article.status === 'draft' ? 'edit_note' : article.status === 'under_review' ? 'pending' : 'rate_review' }}
+                    {{ article.status === 'published' ? 'check_circle' : article.status === 'draft' ? 'edit_note' : 'rate_review' }}
                   </span>
-                  {{ article.status === 'under_review' ? 'Dalam Review' : article.status === 'revision' ? 'Revisi' : article.status === 'draft' ? 'Draft' : 'Published' }}
+                  {{ article.status === 'revision' ? 'Revisi' : article.status === 'draft' ? 'Draft' : 'Published' }}
                 </span>
               </td>
               <td class="px-5 py-3.5 text-sm text-on-surface-variant">{{ article.category?.name || '—' }}</td>
@@ -188,17 +187,14 @@ onMounted(() => fetchArticles());
               </td>
               <td class="px-5 py-3.5">
                 <div class="flex items-center justify-end gap-1.5">
-                  <button @click="router.push({ name: 'article-detail', params: { id: article.id } })" class="mod-action-btn mod-action--view" title="Lihat">
+                  <button v-if="article.status !== 'published'" @click="router.push(`/moderator/content/articles/${article.id}/edit`)" class="mod-action-btn mod-action--edit" title="Edit">
+                    <span class="material-symbols-outlined" style="font-size:14px">edit</span>
+                  </button>
+                  <button v-else @click="router.push({ name: 'article-detail', params: { id: article.id } })" class="mod-action-btn mod-action--view" title="Lihat">
                     <span class="material-symbols-outlined" style="font-size:14px">open_in_new</span>
                   </button>
-                  <button v-if="article.status === 'draft' || article.status === 'revision'" @click="updateStatus(article.id, 'under_review')" class="mod-action-btn mod-action--review" title="Tandai Review">
-                    <span class="material-symbols-outlined" style="font-size:14px">pending</span>
-                  </button>
-                  <button v-if="article.status === 'under_review'" @click="updateStatus(article.id, 'revision')" class="mod-action-btn mod-action--revision" title="Kembalikan">
-                    <span class="material-symbols-outlined" style="font-size:14px">undo</span>
-                  </button>
-                  <button v-if="article.status === 'under_review'" @click="updateStatus(article.id, 'published')" class="mod-action-btn mod-action--approve" title="Setujui">
-                    <span class="material-symbols-outlined" style="font-size:14px">check_circle</span>
+                  <button v-if="article.status !== 'published'" @click="deleteArticle(article.id)" class="mod-action-btn mod-action--delete" title="Hapus">
+                    <span class="material-symbols-outlined" style="font-size:14px">delete</span>
                   </button>
                 </div>
               </td>
@@ -235,7 +231,6 @@ onMounted(() => fetchArticles());
 .mod-status--published { background: rgb(16 185 129 / 0.12); color: rgb(52 211 153); border-color: rgb(16 185 129 / 0.25); }
 .mod-status--draft     { background: rgb(245 158 11 / 0.12); color: rgb(251 191 36); border-color: rgb(245 158 11 / 0.25); }
 .mod-status--revision  { background: rgb(249 115 22 / 0.12); color: rgb(251 146 60); border-color: rgb(249 115 22 / 0.25); }
-.mod-status--review    { background: rgb(14 165 233 / 0.12); color: rgb(56 189 248); border-color: rgb(14 165 233 / 0.25); }
 
 .mod-action-btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -245,10 +240,8 @@ onMounted(() => fetchArticles());
 }
 .mod-action--view     { background: rgb(59 130 246 / 0.1); color: rgb(96 165 250); border-color: rgb(59 130 246 / 0.2); }
 .mod-action--view:hover { background: rgb(59 130 246 / 0.2); }
-.mod-action--review   { background: rgb(14 165 233 / 0.1); color: rgb(56 189 248); border-color: rgb(14 165 233 / 0.2); }
-.mod-action--review:hover { background: rgb(14 165 233 / 0.2); }
-.mod-action--revision { background: rgb(249 115 22 / 0.1); color: rgb(251 146 60); border-color: rgb(249 115 22 / 0.2); }
-.mod-action--revision:hover { background: rgb(249 115 22 / 0.2); }
-.mod-action--approve  { background: rgb(16 185 129 / 0.1); color: rgb(52 211 153); border-color: rgb(16 185 129 / 0.2); }
-.mod-action--approve:hover { background: rgb(16 185 129 / 0.2); }
+.mod-action--edit     { background: rgb(14 165 233 / 0.1); color: rgb(56 189 248); border-color: rgb(14 165 233 / 0.2); }
+.mod-action--edit:hover { background: rgb(14 165 233 / 0.2); }
+.mod-action--delete   { background: rgb(239 68 68 / 0.1); color: rgb(248 113 113); border-color: rgb(239 68 68 / 0.2); }
+.mod-action--delete:hover { background: rgb(239 68 68 / 0.2); }
 </style>

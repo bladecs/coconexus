@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
-import { RouterLink, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import SiteNavbar from '@/components/layout/SiteNavbar.vue';
 import { useAuthStore } from '@/stores/auth';
 import api from '@/lib/api';
@@ -45,32 +45,8 @@ async function fetchArticles() {
   }
 }
 
-async function deleteArticle(id) {
-  if (!confirm('Apakah Anda yakin ingin menghapus artikel ini?')) return;
-  try {
-    await api.delete(`/pengelola/articles/${id}`);
-    articles.value = articles.value.filter((a) => a.id !== id);
-  } catch (err) {
-    error.value = err.message;
-  }
-}
-
 function viewArticle(id) {
-  router.push({ name: 'article-detail', params: { id } });
-}
-
-function editArticle(id) {
-  router.push({ name: 'pengelola-articles-edit', params: { id } });
-}
-
-async function updateArticleStatus(id, status) {
-  if (!confirm(`Ubah status artikel menjadi ${status}?`)) return;
-  try {
-    await api.patch(`/pengelola/articles/${id}/status`, { status });
-    await fetchArticles();
-  } catch (err) {
-    error.value = err.message;
-  }
+  router.push({ name: 'pengelola-articles-detail', params: { id } });
 }
 
 onMounted(() => fetchArticles());
@@ -90,20 +66,13 @@ onMounted(() => fetchArticles());
             <p class="text-xs font-bold uppercase tracking-widest text-primary/80">Coconexus / Pengelola Artikel</p>
           </div>
           <h1 class="text-3xl font-black tracking-tight text-on-surface">Dashboard Pengelola</h1>
-          <p class="mt-1 text-sm text-on-surface-variant">Kelola dan pantau semua konten artikel KMS</p>
+          <p class="mt-1 text-sm text-on-surface-variant">Pantau seluruh konten artikel KMS (monitoring, read-only)</p>
         </div>
         <div class="flex shrink-0 items-center gap-3">
           <div class="flex items-center gap-2 rounded-xl border border-outline-variant/30 bg-surface-container px-4 py-2">
             <span class="material-symbols-outlined text-primary" style="font-size:17px;font-variation-settings:'FILL' 1">account_circle</span>
             <span class="text-sm font-medium text-on-surface">{{ authStore.user?.profile?.full_name || authStore.user?.email }}</span>
           </div>
-          <RouterLink
-            to="/pengelola/articles/new"
-            class="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary shadow-sm transition-opacity hover:opacity-90"
-          >
-            <span class="material-symbols-outlined" style="font-size:16px">add</span>
-            Buat Artikel
-          </RouterLink>
         </div>
       </header>
 
@@ -249,20 +218,8 @@ onMounted(() => fetchArticles());
                 </td>
                 <td class="px-5 py-3.5">
                   <div class="flex items-center justify-end gap-1.5">
-                    <button @click="viewArticle(article.id)" class="action-btn action-btn--view" title="Lihat">
+                    <button @click="viewArticle(article.id)" class="action-btn action-btn--view" title="Lihat Detail">
                       <span class="material-symbols-outlined" style="font-size:14px">open_in_new</span>
-                    </button>
-                    <button v-if="article.status !== 'published'" @click="editArticle(article.id)" class="action-btn action-btn--edit" title="Edit">
-                      <span class="material-symbols-outlined" style="font-size:14px">edit</span>
-                    </button>
-                    <button v-if="article.status !== 'published'" @click="updateArticleStatus(article.id, 'published')" class="action-btn action-btn--publish" title="Publish">
-                      <span class="material-symbols-outlined" style="font-size:14px">publish</span>
-                    </button>
-                    <button v-if="article.status === 'published'" @click="updateArticleStatus(article.id, 'revision')" class="action-btn action-btn--revision" title="Ke Revisi">
-                      <span class="material-symbols-outlined" style="font-size:14px">rate_review</span>
-                    </button>
-                    <button @click="deleteArticle(article.id)" class="action-btn action-btn--delete" title="Hapus">
-                      <span class="material-symbols-outlined" style="font-size:14px">delete</span>
                     </button>
                   </div>
                 </td>
@@ -375,28 +332,4 @@ onMounted(() => fetchArticles());
   border-color: rgb(59 130 246 / 0.2);
 }
 .action-btn--view:hover { background: rgb(59 130 246 / 0.2); }
-.action-btn--edit {
-  background: rgb(245 158 11 / 0.1);
-  color: rgb(251 191 36);
-  border-color: rgb(245 158 11 / 0.2);
-}
-.action-btn--edit:hover { background: rgb(245 158 11 / 0.2); }
-.action-btn--publish {
-  background: rgb(var(--color-primary) / 0.1);
-  color: rgb(var(--color-primary));
-  border-color: rgb(var(--color-primary) / 0.2);
-}
-.action-btn--publish:hover { background: rgb(var(--color-primary) / 0.2); }
-.action-btn--revision {
-  background: rgb(249 115 22 / 0.1);
-  color: rgb(251 146 60);
-  border-color: rgb(249 115 22 / 0.2);
-}
-.action-btn--revision:hover { background: rgb(249 115 22 / 0.2); }
-.action-btn--delete {
-  background: rgb(239 68 68 / 0.1);
-  color: rgb(248 113 113);
-  border-color: rgb(239 68 68 / 0.2);
-}
-.action-btn--delete:hover { background: rgb(239 68 68 / 0.2); }
 </style>
