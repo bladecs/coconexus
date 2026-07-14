@@ -293,12 +293,16 @@ function normalizeSourceInput(sourceInput) {
         throw badRequest(`sources[${index}].title wajib diisi.`);
       }
 
-      if (sourceType !== 'link') {
-        throw badRequest(`sources[${index}].source_type hanya boleh link.`);
+      if (!['link', 'pdf'].includes(sourceType)) {
+        throw badRequest(`sources[${index}].source_type hanya boleh link atau pdf.`);
       }
 
-      if (!url) {
+      if (sourceType === 'link' && !url) {
         throw badRequest(`sources[${index}].url wajib diisi untuk sumber link.`);
+      }
+
+      if (sourceType === 'pdf' && !filePath) {
+        throw badRequest(`sources[${index}].file_path wajib diisi untuk sumber upload.`);
       }
 
       return {
@@ -1027,6 +1031,18 @@ async function listFeaturedMainArticles(req, res, next) {
   }
 }
 
+function canPreviewUnpublishedArticle(user) {
+  if (!user) {
+    return false;
+  }
+
+  return (
+    user.role === 'admin' ||
+    user.role === 'pengelola' ||
+    hasModeratorScope(user, 'publication', 'content')
+  );
+}
+
 async function getPublishedArticleDetail(req, res, next) {
   try {
     const articleId = Number(req.params.id);
@@ -1035,11 +1051,15 @@ async function getPublishedArticleDetail(req, res, next) {
       throw badRequest('Parameter article id tidak valid.');
     }
 
+    const canPreview = canPreviewUnpublishedArticle(req.user);
+
     const article = await Article.findOne({
-      where: {
-        id: articleId,
-        status: 'published',
-      },
+      where: canPreview
+        ? { id: articleId }
+        : {
+            id: articleId,
+            status: 'published',
+          },
       include: [
         {
           model: User,

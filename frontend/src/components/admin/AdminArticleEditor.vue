@@ -1189,8 +1189,20 @@ function publishSelectedVersion() {
       </div>
       <div class="space-y-3">
         <div v-for="(source, index) in form.sources" :key="`source-${index}`" class="flex flex-col md:flex-row gap-3">
-          <input v-model="source.title" type="text" class="form-input md:w-1/3" placeholder="Judul Referensi" />
-          <input v-model="source.url" type="url" class="form-input flex-1" placeholder="https://link-jurnal.com" />
+          <input v-model="source.title" type="text" class="form-input md:w-1/4" placeholder="Judul Referensi" />
+          <select v-model="source.source_type" class="form-input md:w-36">
+            <option value="link">Link</option>
+            <option value="pdf">Upload PDF</option>
+          </select>
+          <input v-if="source.source_type === 'link'" v-model="source.url" type="url" class="form-input flex-1" placeholder="https://link-jurnal.com" />
+          <div v-else class="flex flex-1 items-center gap-2">
+            <span v-if="source.file_path" class="flex-1 truncate text-xs text-on-surface-variant">{{ source.file_path.split('/').pop() }}</span>
+            <span v-else class="flex-1 text-xs text-on-surface-variant">Belum ada file jurnal diunggah.</span>
+            <label class="btn-secondary shrink-0 cursor-pointer text-xs flex items-center gap-1">
+              <span class="material-symbols-outlined text-[15px]">upload</span> {{ source.file_path ? 'Ganti File' : 'Upload PDF' }}
+              <input type="file" class="hidden" accept="application/pdf" @change="handleSourceFileSelection($event, index)" />
+            </label>
+          </div>
           <button type="button" class="btn-danger text-xs px-5" @click="removeSourceRow(index)">Hapus</button>
         </div>
       </div>
