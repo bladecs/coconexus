@@ -1187,23 +1187,43 @@ function publishSelectedVersion() {
           <span class="material-symbols-outlined text-[16px]">add</span> Tambah Sumber
         </button>
       </div>
-      <div class="space-y-3">
-        <div v-for="(source, index) in form.sources" :key="`source-${index}`" class="flex flex-col md:flex-row gap-3">
-          <input v-model="source.title" type="text" class="form-input md:w-1/4" placeholder="Judul Referensi" />
-          <select v-model="source.source_type" class="form-input md:w-36">
-            <option value="link">Link</option>
-            <option value="pdf">Upload PDF</option>
-          </select>
-          <input v-if="source.source_type === 'link'" v-model="source.url" type="url" class="form-input flex-1" placeholder="https://link-jurnal.com" />
-          <div v-else class="flex flex-1 items-center gap-2">
-            <span v-if="source.file_path" class="flex-1 truncate text-xs text-on-surface-variant">{{ source.file_path.split('/').pop() }}</span>
-            <span v-else class="flex-1 text-xs text-on-surface-variant">Belum ada file jurnal diunggah.</span>
-            <label class="btn-secondary shrink-0 cursor-pointer text-xs flex items-center gap-1">
-              <span class="material-symbols-outlined text-[15px]">upload</span> {{ source.file_path ? 'Ganti File' : 'Upload PDF' }}
-              <input type="file" class="hidden" accept="application/pdf" @change="handleSourceFileSelection($event, index)" />
-            </label>
+      <div class="space-y-4">
+        <div v-for="(source, index) in form.sources" :key="`source-${index}`" class="grid gap-4 md:grid-cols-[1fr_auto] items-start editor-sub-panel">
+          <div class="space-y-4">
+            <div class="grid gap-4 sm:grid-cols-[2fr_1fr]">
+              <div>
+                <label class="editor-field-label">Judul Referensi</label>
+                <input v-model="source.title" type="text" class="form-input" placeholder="Judul Referensi" />
+              </div>
+              <div>
+                <label class="editor-field-label">Tipe Sumber</label>
+                <select v-model="source.source_type" class="form-input">
+                  <option value="link">Link</option>
+                  <option value="pdf">Upload PDF</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="editor-field-label">{{ source.source_type === 'link' ? 'Link Jurnal' : 'File Jurnal (PDF)' }}</label>
+              <input v-if="source.source_type === 'link'" v-model="source.url" type="url" class="form-input" placeholder="https://link-jurnal.com" />
+              <div v-else class="flex flex-wrap items-center gap-3">
+                <span
+                  v-if="source.file_path"
+                  class="min-w-0 flex-1 truncate rounded-lg border border-outline-variant/30 bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface-variant"
+                >{{ source.file_path.split('/').pop() }}</span>
+                <span v-else class="min-w-0 flex-1 rounded-lg border border-outline-variant/30 bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface-variant">
+                  Belum ada file jurnal diunggah.
+                </span>
+                <label class="btn-secondary shrink-0 cursor-pointer text-xs flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[15px]">upload</span> {{ source.file_path ? 'Ganti File' : 'Upload PDF' }}
+                  <input type="file" class="hidden" accept="application/pdf" @change="handleSourceFileSelection($event, index)" />
+                </label>
+              </div>
+            </div>
           </div>
-          <button type="button" class="btn-danger text-xs px-5" @click="removeSourceRow(index)">Hapus</button>
+          <div class="flex md:flex-col justify-end">
+            <button type="button" class="btn-danger text-xs" @click="removeSourceRow(index)">Hapus</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1223,20 +1243,30 @@ function publishSelectedVersion() {
           <span class="material-symbols-outlined text-[16px]">add</span> Tambah Media
         </button>
       </div>
-      <div class="space-y-3">
-        <div v-for="(item, index) in form.media" :key="`${index}-${item.file_path}`" class="flex flex-col sm:flex-row gap-3 items-center">
-          <input v-model="item.file_path" type="text" class="form-input flex-1" placeholder="URL File / Upload..." />
-          <select v-model="item.media_type" class="form-input w-full sm:w-36">
-            <option value="image">Image</option>
-            <option value="video">Video</option>
-            <option value="document">Dokumen</option>
-          </select>
-          <div class="flex w-full sm:w-auto gap-2">
-            <label class="btn-secondary flex-1 sm:flex-none cursor-pointer text-xs flex items-center justify-center gap-1">
-              <span class="material-symbols-outlined text-[15px]">upload</span> Upload
-              <input type="file" class="hidden" multiple @change="handleFileSelection($event, index)" />
-            </label>
-            <button type="button" class="btn-danger flex-1 sm:flex-none text-xs" @click="removeMediaRow(index)">Hapus</button>
+      <div class="space-y-4">
+        <div v-for="(item, index) in form.media" :key="`${index}-${item.file_path}`" class="grid gap-4 md:grid-cols-[1fr_auto] items-start editor-sub-panel">
+          <div class="grid gap-4 sm:grid-cols-[2fr_1fr]">
+            <div>
+              <label class="editor-field-label">URL File</label>
+              <div class="flex gap-2">
+                <input v-model="item.file_path" type="text" class="form-input flex-1" placeholder="URL File / Upload..." />
+                <label class="btn-secondary shrink-0 cursor-pointer text-xs flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[15px]">upload</span> Upload
+                  <input type="file" class="hidden" multiple @change="handleFileSelection($event, index)" />
+                </label>
+              </div>
+            </div>
+            <div>
+              <label class="editor-field-label">Tipe Media</label>
+              <select v-model="item.media_type" class="form-input">
+                <option value="image">Image</option>
+                <option value="video">Video</option>
+                <option value="document">Dokumen</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex md:flex-col justify-end">
+            <button type="button" class="btn-danger text-xs" @click="removeMediaRow(index)">Hapus</button>
           </div>
         </div>
       </div>
