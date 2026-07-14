@@ -31,6 +31,6 @@ router.post('/articles/:articleId/comments', authenticate, uploadCommentAttachme
 router.get('/articles/:articleId/discussion-forum', authenticate, getActiveDiscussionForumByArticle);
 router.get('/discussion-forums/:forumId/comments', authenticate, listForumComments);
 router.post('/discussion-forums/:forumId/comments', authenticate, uploadCommentAttachment.single('attachment'), createForumComment);
-router.delete('/:id', authenticate, deleteComment);
+router.delete('/comments/:id', authenticate, deleteComment);
 
 module.exports = router;

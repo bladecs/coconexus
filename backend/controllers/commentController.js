@@ -35,6 +35,7 @@ async function listArticleComments(req, res, next) {
       where: {
         article_id: articleId,
         discussion_forum_id: null,
+        status: 'approved',
       },
       include: [
         {
@@ -50,9 +51,6 @@ async function listArticleComments(req, res, next) {
           ],
         },
       ],
-      where: {
-        status: 'approved',
-      },
       order: [['created_at', 'ASC']],
     });
 
@@ -109,7 +107,7 @@ async function createComment(req, res, next) {
 
     const comment = await Comment.create({
       body,
-      status: 'pending',
+      status: 'approved',
       user_id: req.user.id,
       article_id: articleId,
       discussion_forum_id: null,
